@@ -56,6 +56,13 @@ impl<R: Runtime> Notification<R> {
             .map_err(Into::into)
     }
 
+    pub fn register_for_push_notifications(&self) -> crate::Result<String> {
+        self.0
+            .run_mobile_plugin::<PushNotificationResponse>("registerForPushNotifications", ())
+            .map(|r| r.device_token)
+            .map_err(Into::into)
+    }
+
     pub fn permission_state(&self) -> crate::Result<PermissionState> {
         self.0
             .run_mobile_plugin::<PermissionResponse>("checkPermissions", ())
@@ -147,4 +154,10 @@ impl<R: Runtime> Notification<R> {
 #[serde(rename_all = "camelCase")]
 struct PermissionResponse {
     permission_state: PermissionState,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct PushNotificationResponse {
+    device_token: String,
 }

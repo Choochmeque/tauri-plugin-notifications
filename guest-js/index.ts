@@ -1,7 +1,3 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
-// SPDX-License-Identifier: Apache-2.0
-// SPDX-License-Identifier: MIT
-
 /**
  * Send toast notifications (brief auto-expiring OS window element) to your user.
  * Can also be used with the Notification Web API.
@@ -19,8 +15,6 @@ export type { PermissionState } from "@tauri-apps/api/core";
 
 /**
  * Options to send a notification.
- *
- * @since 2.0.0
  */
 interface Options {
   /**
@@ -28,10 +22,10 @@ interface Options {
    */
   id?: number;
   /**
-   * Identifier of the {@link Channel} that deliveres this notification.
+   * Identifier of the {@link Channel} that delivers this notification.
    *
    * If the channel does not exist, the notification won't fire.
-   * Make sure the channel exists with {@link listChannels} and {@link createChannel}.
+   * Make sure the channel exists with {@link channels} and {@link createChannel}.
    */
   channelId?: string;
   /**
@@ -132,25 +126,38 @@ interface Options {
   number?: number;
 }
 
+/**
+ * Interval configuration for scheduling notifications.
+ */
 interface ScheduleInterval {
+  /** Year component of the schedule interval. */
   year?: number;
+  /** Month component of the schedule interval. */
   month?: number;
+  /** Day component of the schedule interval. */
   day?: number;
   /**
-   * 1 - Sunday
-   * 2 - Monday
-   * 3 - Tuesday
-   * 4 - Wednesday
-   * 5 - Thursday
-   * 6 - Friday
-   * 7 - Saturday
+   * Weekday component of the schedule interval.
+   * - 1 - Sunday
+   * - 2 - Monday
+   * - 3 - Tuesday
+   * - 4 - Wednesday
+   * - 5 - Thursday
+   * - 6 - Friday
+   * - 7 - Saturday
    */
   weekday?: number;
+  /** Hour component of the schedule interval. */
   hour?: number;
+  /** Minute component of the schedule interval. */
   minute?: number;
+  /** Second component of the schedule interval. */
   second?: number;
 }
 
+/**
+ * Predefined intervals for repeating notifications.
+ */
 enum ScheduleEvery {
   Year = "year",
   Month = "month",
@@ -165,7 +172,11 @@ enum ScheduleEvery {
   Second = "second",
 }
 
+/**
+ * Schedule configuration for notifications.
+ */
 class Schedule {
+  /** Schedule a notification at a specific date and time. */
   at:
     | {
         date: Date;
@@ -174,6 +185,7 @@ class Schedule {
       }
     | undefined;
 
+  /** Schedule a notification using an interval configuration. */
   interval:
     | {
         interval: ScheduleInterval;
@@ -181,6 +193,7 @@ class Schedule {
       }
     | undefined;
 
+  /** Schedule a notification to repeat at regular intervals. */
   every:
     | {
         interval: ScheduleEvery;
@@ -189,6 +202,14 @@ class Schedule {
       }
     | undefined;
 
+  /**
+   * Creates a schedule to fire at a specific date and time.
+   *
+   * @param date - The date and time to fire the notification.
+   * @param repeating - Whether to repeat the notification at the same time daily.
+   * @param allowWhileIdle - On Android, allows notification to fire even when the device is in idle mode.
+   * @returns A new Schedule instance.
+   */
   static at(date: Date, repeating = false, allowWhileIdle = false): Schedule {
     return {
       at: { date, repeating, allowWhileIdle },
@@ -197,6 +218,13 @@ class Schedule {
     };
   }
 
+  /**
+   * Creates a schedule using an interval configuration.
+   *
+   * @param interval - The interval configuration specifying when to fire.
+   * @param allowWhileIdle - On Android, allows notification to fire even when the device is in idle mode.
+   * @returns A new Schedule instance.
+   */
   static interval(
     interval: ScheduleInterval,
     allowWhileIdle = false,
@@ -208,6 +236,14 @@ class Schedule {
     };
   }
 
+  /**
+   * Creates a schedule to repeat at regular intervals.
+   *
+   * @param kind - The type of interval (year, month, week, day, hour, minute, second).
+   * @param count - The number of intervals between notifications.
+   * @param allowWhileIdle - On Android, allows notification to fire even when the device is in idle mode.
+   * @returns A new Schedule instance.
+   */
   static every(
     kind: ScheduleEvery,
     count: number,
@@ -231,78 +267,141 @@ interface Attachment {
   url: string;
 }
 
+/**
+ * An action that can be performed from a notification.
+ */
 interface Action {
+  /** Unique identifier for the action. */
   id: string;
+  /** The title text displayed for the action. */
   title: string;
+  /** Whether the action requires device authentication (iOS). */
   requiresAuthentication?: boolean;
+  /** Whether the action should launch the app in the foreground. */
   foreground?: boolean;
+  /** Whether the action is destructive (displayed in red on iOS). */
   destructive?: boolean;
+  /** Whether the action allows text input. */
   input?: boolean;
+  /** The title for the input button when `input` is true. */
   inputButtonTitle?: string;
+  /** Placeholder text for the input field when `input` is true. */
   inputPlaceholder?: string;
 }
 
+/**
+ * A group of related actions that can be performed from a notification.
+ */
 interface ActionType {
-  /**
-   * The identifier of this action type
-   */
+  /** The identifier of this action type. */
   id: string;
-  /**
-   * The list of associated actions
-   */
+  /** The list of associated actions. */
   actions: Action[];
+  /** Placeholder text shown in place of the notification body when previews are hidden (iOS). */
   hiddenPreviewsBodyPlaceholder?: string;
+  /** Whether to include a custom dismiss action (iOS). */
   customDismissAction?: boolean;
+  /** Whether the notification can be displayed in CarPlay (iOS). */
   allowInCarPlay?: boolean;
+  /** Whether to show the title when previews are hidden (iOS). */
   hiddenPreviewsShowTitle?: boolean;
+  /** Whether to show the subtitle when previews are hidden (iOS). */
   hiddenPreviewsShowSubtitle?: boolean;
 }
 
+/**
+ * Represents a scheduled notification that has not yet been delivered.
+ */
 interface PendingNotification {
+  /** Notification identifier. */
   id: number;
+  /** Notification title. */
   title?: string;
+  /** Notification body. */
   body?: string;
+  /** The schedule configuration for this notification. */
   schedule: Schedule;
 }
 
+/**
+ * Represents a notification that is currently displayed.
+ */
 interface ActiveNotification {
+  /** Notification identifier. */
   id: number;
+  /** Optional tag for the notification. */
   tag?: string;
+  /** Notification title. */
   title?: string;
+  /** Notification body. */
   body?: string;
+  /** Group identifier for this notification. */
   group?: string;
+  /** Whether this notification is a group summary. */
   groupSummary: boolean;
+  /** Additional string data attached to the notification. */
   data: Record<string, string>;
+  /** Extra payload stored in the notification. */
   extra: Record<string, unknown>;
+  /** List of attachments for this notification. */
   attachments: Attachment[];
+  /** The action type identifier for this notification. */
   actionTypeId?: string;
+  /** The schedule configuration if this was a scheduled notification. */
   schedule?: Schedule;
+  /** The sound resource name. */
   sound?: string;
 }
 
+/**
+ * The importance level of a notification channel (Android).
+ */
 enum Importance {
+  /** Does not show notifications. */
   None = 0,
+  /** Shows notifications only in the notification shade, no sound, no visual interruption. */
   Min,
+  /** Shows notifications everywhere, but is not intrusive. */
   Low,
+  /** Shows notifications everywhere with sound. */
   Default,
+  /** Shows notifications everywhere with sound and heads-up display. */
   High,
 }
 
+/**
+ * The visibility of a notification on the lock screen (Android).
+ */
 enum Visibility {
+  /** Do not show any part of this notification on the lock screen. */
   Secret = -1,
+  /** Show the notification, but hide sensitive content on the lock screen. */
   Private,
+  /** Show the entire notification on the lock screen. */
   Public,
 }
 
+/**
+ * A notification channel (Android).
+ */
 interface Channel {
+  /** Channel identifier. */
   id: string;
+  /** Channel name shown to the user. */
   name: string;
+  /** Channel description shown to the user. */
   description?: string;
+  /** Sound resource name for notifications in this channel. */
   sound?: string;
+  /** Whether to show LED lights for notifications in this channel. */
   lights?: boolean;
+  /** The LED light color in hex format (e.g., "#FF0000"). */
   lightColor?: string;
+  /** Whether to vibrate for notifications in this channel. */
   vibration?: boolean;
+  /** The importance level for notifications in this channel. */
   importance?: Importance;
+  /** The visibility level on the lock screen for notifications in this channel. */
   visibility?: Visibility;
 }
 
@@ -310,11 +409,9 @@ interface Channel {
  * Checks if the permission to send notifications is granted.
  * @example
  * ```typescript
- * import { isPermissionGranted } from '@tauri-apps/plugin-notification';
+ * import { isPermissionGranted } from '@choochmeque/tauri-plugin-notifications-api';
  * const permissionGranted = await isPermissionGranted();
  * ```
- *
- * @since 2.0.0
  */
 async function isPermissionGranted(): Promise<boolean> {
   return await invoke("plugin:notifications|is_permission_granted");
@@ -324,7 +421,7 @@ async function isPermissionGranted(): Promise<boolean> {
  * Requests the permission to send notifications.
  * @example
  * ```typescript
- * import { isPermissionGranted, requestPermission } from '@tauri-apps/plugin-notification';
+ * import { isPermissionGranted, requestPermission } from '@choochmeque/tauri-plugin-notifications-api';
  * let permissionGranted = await isPermissionGranted();
  * if (!permissionGranted) {
  *   const permission = await requestPermission();
@@ -333,18 +430,32 @@ async function isPermissionGranted(): Promise<boolean> {
  * ```
  *
  * @returns A promise resolving to whether the user granted the permission or not.
- *
- * @since 2.0.0
  */
 async function requestPermission(): Promise<NotificationPermission> {
   return await invoke("plugin:notifications|request_permission");
 }
 
 /**
+ * Registers the app for push notifications (mobile).
+ *
+ * @example
+ * ```typescript
+ * import { registerForPushNotifications } from '@choochmeque/tauri-plugin-notifications-api';
+ * const token = await registerForPushNotifications();
+ * console.log('Push token:', token);
+ * ```
+ *
+ * @returns A promise resolving to the device push token.
+ */
+async function registerForPushNotifications(): Promise<string> {
+  return await invoke("plugin:notifications|register_for_push_notifications");
+}
+
+/**
  * Sends a notification to the user.
  * @example
  * ```typescript
- * import { isPermissionGranted, requestPermission, sendNotification } from '@tauri-apps/plugin-notification';
+ * import { isPermissionGranted, requestPermission, sendNotification } from '@choochmeque/tauri-plugin-notifications-api';
  * let permissionGranted = await isPermissionGranted();
  * if (!permissionGranted) {
  *   const permission = await requestPermission();
@@ -355,8 +466,6 @@ async function requestPermission(): Promise<NotificationPermission> {
  *   sendNotification({ title: 'TAURI', body: 'Tauri is awesome!' });
  * }
  * ```
- *
- * @since 2.0.0
  */
 async function sendNotification(options: Options | string): Promise<void> {
   await invoke("plugin:notifications|notify", {
@@ -374,7 +483,7 @@ async function sendNotification(options: Options | string): Promise<void> {
  *
  * @example
  * ```typescript
- * import { registerActionTypes } from '@tauri-apps/plugin-notification';
+ * import { registerActionTypes } from '@choochmeque/tauri-plugin-notifications-api';
  * await registerActionTypes([{
  *   id: 'tauri',
  *   actions: [{
@@ -385,8 +494,6 @@ async function sendNotification(options: Options | string): Promise<void> {
  * ```
  *
  * @returns A promise indicating the success or failure of the operation.
- *
- * @since 2.0.0
  */
 async function registerActionTypes(types: ActionType[]): Promise<void> {
   await invoke("plugin:notifications|register_action_types", { types });
@@ -397,13 +504,11 @@ async function registerActionTypes(types: ActionType[]): Promise<void> {
  *
  * @example
  * ```typescript
- * import { pending } from '@tauri-apps/plugin-notification';
+ * import { pending } from '@choochmeque/tauri-plugin-notifications-api';
  * const pendingNotifications = await pending();
  * ```
  *
  * @returns A promise resolving to the list of pending notifications.
- *
- * @since 2.0.0
  */
 async function pending(): Promise<PendingNotification[]> {
   return await invoke("plugin:notifications|get_pending");
@@ -414,13 +519,11 @@ async function pending(): Promise<PendingNotification[]> {
  *
  * @example
  * ```typescript
- * import { cancel } from '@tauri-apps/plugin-notification';
+ * import { cancel } from '@choochmeque/tauri-plugin-notifications-api';
  * await cancel([-34234, 23432, 4311]);
  * ```
  *
  * @returns A promise indicating the success or failure of the operation.
- *
- * @since 2.0.0
  */
 async function cancel(notifications: number[]): Promise<void> {
   await invoke("plugin:notifications|cancel", { notifications });
@@ -431,13 +534,11 @@ async function cancel(notifications: number[]): Promise<void> {
  *
  * @example
  * ```typescript
- * import { cancelAll } from '@tauri-apps/plugin-notification';
+ * import { cancelAll } from '@choochmeque/tauri-plugin-notifications-api';
  * await cancelAll();
  * ```
  *
  * @returns A promise indicating the success or failure of the operation.
- *
- * @since 2.0.0
  */
 async function cancelAll(): Promise<void> {
   await invoke("plugin:notifications|cancel");
@@ -448,13 +549,11 @@ async function cancelAll(): Promise<void> {
  *
  * @example
  * ```typescript
- * import { active } from '@tauri-apps/plugin-notification';
+ * import { active } from '@choochmeque/tauri-plugin-notifications-api';
  * const activeNotifications = await active();
  * ```
  *
  * @returns A promise resolving to the list of active notifications.
- *
- * @since 2.0.0
  */
 async function active(): Promise<ActiveNotification[]> {
   return await invoke("plugin:notifications|get_active");
@@ -465,13 +564,11 @@ async function active(): Promise<ActiveNotification[]> {
  *
  * @example
  * ```typescript
- * import { cancel } from '@tauri-apps/plugin-notification';
- * await cancel([-34234, 23432, 4311])
+ * import { removeActive } from '@choochmeque/tauri-plugin-notifications-api';
+ * await removeActive([{ id: 1 }, { id: 2, tag: 'news' }]);
  * ```
  *
  * @returns A promise indicating the success or failure of the operation.
- *
- * @since 2.0.0
  */
 async function removeActive(
   notifications: Array<{ id: number; tag?: string }>,
@@ -484,13 +581,11 @@ async function removeActive(
  *
  * @example
  * ```typescript
- * import { removeAllActive } from '@tauri-apps/plugin-notification';
+ * import { removeAllActive } from '@choochmeque/tauri-plugin-notifications-api';
  * await removeAllActive()
  * ```
  *
  * @returns A promise indicating the success or failure of the operation.
- *
- * @since 2.0.0
  */
 async function removeAllActive(): Promise<void> {
   await invoke("plugin:notifications|remove_active");
@@ -501,7 +596,7 @@ async function removeAllActive(): Promise<void> {
  *
  * @example
  * ```typescript
- * import { createChannel, Importance, Visibility } from '@tauri-apps/plugin-notification';
+ * import { createChannel, Importance, Visibility } from '@choochmeque/tauri-plugin-notifications-api';
  * await createChannel({
  *   id: 'new-messages',
  *   name: 'New Messages',
@@ -513,8 +608,6 @@ async function removeAllActive(): Promise<void> {
  * ```
  *
  * @returns A promise indicating the success or failure of the operation.
- *
- * @since 2.0.0
  */
 async function createChannel(channel: Channel): Promise<void> {
   await invoke("plugin:notifications|create_channel", { ...channel });
@@ -525,13 +618,11 @@ async function createChannel(channel: Channel): Promise<void> {
  *
  * @example
  * ```typescript
- * import { removeChannel } from '@tauri-apps/plugin-notification';
- * await removeChannel();
+ * import { removeChannel } from '@choochmeque/tauri-plugin-notifications-api';
+ * await removeChannel('new-messages');
  * ```
  *
  * @returns A promise indicating the success or failure of the operation.
- *
- * @since 2.0.0
  */
 async function removeChannel(id: string): Promise<void> {
   await invoke("plugin:notifications|delete_channel", { id });
@@ -542,24 +633,54 @@ async function removeChannel(id: string): Promise<void> {
  *
  * @example
  * ```typescript
- * import { channels } from '@tauri-apps/plugin-notification';
+ * import { channels } from '@choochmeque/tauri-plugin-notifications-api';
  * const notificationChannels = await channels();
  * ```
  *
  * @returns A promise resolving to the list of notification channels.
- *
- * @since 2.0.0
  */
 async function channels(): Promise<Channel[]> {
   return await invoke("plugin:notifications|listChannels");
 }
 
+/**
+ * Registers a listener for incoming notifications.
+ *
+ * @example
+ * ```typescript
+ * import { onNotificationReceived } from '@choochmeque/tauri-plugin-notifications-api';
+ * const unlisten = await onNotificationReceived((notification) => {
+ *   console.log('Notification received:', notification);
+ * });
+ * // Later, to stop listening:
+ * // unlisten();
+ * ```
+ *
+ * @param cb - Callback function to handle received notifications.
+ * @returns A promise resolving to a function that removes the listener.
+ */
 async function onNotificationReceived(
   cb: (notification: Options) => void,
 ): Promise<PluginListener> {
   return await addPluginListener("notifications", "notification", cb);
 }
 
+/**
+ * Registers a listener for notification action events.
+ *
+ * @example
+ * ```typescript
+ * import { onAction } from '@choochmeque/tauri-plugin-notifications-api';
+ * const unlisten = await onAction((notification) => {
+ *   console.log('Action performed on notification:', notification);
+ * });
+ * // Later, to stop listening:
+ * // unlisten();
+ * ```
+ *
+ * @param cb - Callback function to handle notification actions.
+ * @returns A promise resolving to a function that removes the listener.
+ */
 async function onAction(
   cb: (notification: Options) => void,
 ): Promise<PluginListener> {
@@ -583,6 +704,7 @@ export {
   sendNotification,
   requestPermission,
   isPermissionGranted,
+  registerForPushNotifications,
   registerActionTypes,
   pending,
   cancel,

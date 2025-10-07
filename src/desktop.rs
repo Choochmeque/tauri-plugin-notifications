@@ -55,6 +55,12 @@ impl<R: Runtime> Notification<R> {
         Ok(PermissionState::Granted)
     }
 
+    pub fn register_for_push_notifications(&self) -> crate::Result<String> {
+        Err(crate::Error::Io(std::io::Error::other(
+            "Push notifications are not supported on desktop platforms",
+        )))
+    }
+
     pub fn permission_state(&self) -> crate::Result<PermissionState> {
         Ok(PermissionState::Granted)
     }

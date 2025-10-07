@@ -28,6 +28,14 @@ pub(crate) async fn request_permission<R: Runtime>(
 }
 
 #[command]
+pub(crate) async fn register_for_push_notifications<R: Runtime>(
+    _app: AppHandle<R>,
+    notification: State<'_, Notification<R>>,
+) -> Result<String> {
+    notification.register_for_push_notifications()
+}
+
+#[command]
 pub(crate) async fn notify<R: Runtime>(
     _app: AppHandle<R>,
     notification: State<'_, Notification<R>>,

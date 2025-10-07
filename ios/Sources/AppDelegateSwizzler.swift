@@ -64,7 +64,7 @@ final class PushForwarder: NSObject, UIApplicationDelegate {
     AppDelegateSwizzler.plugin?.handlePushTokenReceived(hex)
 
     // Also emit event for JS/Rust listeners
-    //try? AppDelegateSwizzler.plugin?.trigger("push-token", data: ["token": hex])
+    try? AppDelegateSwizzler.plugin?.trigger("push-token", data: ["token": hex])
 
     // Call original only if it was swapped (not added)
     if responds(to: #selector(ta_application(_:didRegisterForRemoteNotificationsWithDeviceToken:))) {
@@ -92,7 +92,9 @@ final class PushForwarder: NSObject, UIApplicationDelegate {
                             didReceiveRemoteNotification userInfo: [AnyHashable : Any],
                             fetchCompletionHandler completion: @escaping (UIBackgroundFetchResult) -> Void) {
     // Emit event for push message
-    //try? AppDelegateSwizzler.plugin?.trigger("push-message", data: userInfo)
+    if let jsData = JSTypes.coerceDictionaryToJSObject(userInfo) {
+      try? AppDelegateSwizzler.plugin?.trigger("push-message", data: jsData)
+    }
 
     // Call original only if it was swapped (not added)
     if responds(to: #selector(ta_application(_:didReceiveRemoteNotification:fetchCompletionHandler:))) {

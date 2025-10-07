@@ -6,6 +6,7 @@ const COMMANDS: &[&str] = &[
     "notify",
     "request_permission",
     "is_permission_granted",
+    "register_for_push_notifications",
     "register_action_types",
     "register_listener",
     "cancel",

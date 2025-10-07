@@ -219,6 +219,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
         .invoke_handler(tauri::generate_handler![
             commands::notify,
             commands::request_permission,
+            commands::register_for_push_notifications,
             commands::is_permission_granted,
         ])
         .setup(|app, api| {

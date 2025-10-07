@@ -259,6 +259,13 @@ class NotificationPlugin(private val activity: Activity): Plugin(activity) {
   }
 
   @Command
+  fun registerForPushNotifications(invoke: Invoke) {
+    // TODO: request permissions first
+    // TODO: get the device token from FCM and return it
+    invoke.reject("Not implemented")
+  }
+
+  @Command
   fun permissionState(invoke: Invoke) {
     val permissionsResultJSON = JSObject()
     permissionsResultJSON.put("permissionState", getPermissionState())

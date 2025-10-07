@@ -211,6 +211,25 @@ class NotificationPlugin: Plugin {
     }
   }
 
+  @objc public func registerForPushNotifications(_ invoke: Invoke) {
+    // First request notification permissions
+    notificationHandler.requestPermissions { [weak self] granted, error in
+      guard error == nil else {
+        invoke.reject(error!.localizedDescription)
+        return
+      }
+
+      self?.registerForPushNotifications { result in
+        switch result {
+        case .success(let token):
+          invoke.resolve(["deviceToken": token])
+        case .failure(let error):
+          invoke.reject(error.localizedDescription)
+        }
+      }
+    }
+  }
+
   private func registerForPushNotifications(completion: @escaping (Result<String, Error>) -> Void) {
     // Store completion for later
     self.pushTokenCompletion = completion
