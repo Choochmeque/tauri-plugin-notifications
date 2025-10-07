@@ -29,7 +29,9 @@
     "myapp",
     "docsrs",
     "thiserror",
-    "repr"
+    "repr",
+    "unlisten",
+    "twoweeks"
   ],
   "useGitignore": true,
   "ignorePaths": [

@@ -66,7 +66,7 @@ impl<R: Runtime> NotificationBuilder<R> {
         self
     }
 
-    /// Identifier of the {@link Channel} that deliveres this notification.
+    /// Identifier of the {@link Channel} that delivers this notification.
     ///
     /// If the channel does not exist, the notification won't fire.
     /// Make sure the channel exists with {@link listChannels} and {@link createChannel}.
