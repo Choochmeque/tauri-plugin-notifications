@@ -22,6 +22,8 @@ import app.tauri.plugin.Invoke
 import app.tauri.plugin.JSArray
 import app.tauri.plugin.JSObject
 import app.tauri.plugin.Plugin
+import com.google.android.gms.tasks.OnCompleteListener
+import com.google.firebase.messaging.FirebaseMessaging
 
 const val LOCAL_NOTIFICATIONS = "permissionState"
 
@@ -82,6 +84,9 @@ class NotificationPlugin(private val activity: Activity): Plugin(activity) {
   private lateinit var notificationManager: NotificationManager
   private lateinit var notificationStorage: NotificationStorage
   private var channelManager = ChannelManager(activity)
+
+  private var pendingTokenInvoke: Invoke? = null
+  private var cachedToken: String? = null
 
   companion object {
     var instance: NotificationPlugin? = null
@@ -260,9 +265,108 @@ class NotificationPlugin(private val activity: Activity): Plugin(activity) {
 
   @Command
   fun registerForPushNotifications(invoke: Invoke) {
-    // TODO: request permissions first
-    // TODO: get the device token from FCM and return it
-    invoke.reject("Not implemented")
+    // First check if notifications are enabled
+    if (!manager.areNotificationsEnabled()) {
+      // Request permissions first
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        if (getPermissionState(LOCAL_NOTIFICATIONS) !== PermissionState.GRANTED) {
+          // Request permissions and then get token
+          pendingTokenInvoke = invoke
+          requestPermissionForAlias(LOCAL_NOTIFICATIONS, invoke, "pushPermissionsCallback")
+          return
+        }
+      } else {
+        invoke.reject("Notification permissions not granted")
+        return
+      }
+    }
+
+    // If we already have a cached token, return it immediately
+    cachedToken?.let {
+      val result = JSObject()
+      result.put("deviceToken", it)
+      invoke.resolve(result)
+      return
+    }
+
+    // Store the invoke to respond later when we get the token
+    pendingTokenInvoke = invoke
+
+    // Request the FCM token
+    getFirebaseToken()
+  }
+
+  @PermissionCallback
+  private fun pushPermissionsCallback(invoke: Invoke) {
+    if (!manager.areNotificationsEnabled()) {
+      invoke.reject("Notification permissions denied")
+      pendingTokenInvoke = null
+      return
+    }
+
+    // Permissions granted, now get the token
+    getFirebaseToken()
+  }
+
+  private fun getFirebaseToken() {
+    FirebaseMessaging.getInstance().token.addOnCompleteListener(OnCompleteListener { task ->
+      if (!task.isSuccessful) {
+        val errorMessage = "Failed to get FCM token: ${task.exception?.message}"
+
+        // Trigger push-error event
+        val errorData = JSObject()
+        errorData.put("message", errorMessage)
+        trigger("push-error", errorData)
+
+        pendingTokenInvoke?.reject(errorMessage)
+        pendingTokenInvoke = null
+        return@OnCompleteListener
+      }
+
+      // Get the token
+      val token = task.result
+      cachedToken = token
+
+      // Resolve the pending invoke
+      val result = JSObject()
+      result.put("deviceToken", token)
+      pendingTokenInvoke?.resolve(result)
+      pendingTokenInvoke = null
+    })
+  }
+
+  // Called by TauriFirebaseMessagingService when a new token is received
+  fun handleNewToken(token: String) {
+    cachedToken = token
+    // Trigger push-token event to notify the frontend about the token
+    val data = JSObject()
+    data.put("token", token)
+    trigger("push-token", data)
+  }
+
+  // Called by TauriFirebaseMessagingService when a push message is received
+  fun triggerPushMessage(pushData: Map<String, Any>) {
+    val data = JSObject()
+    for ((key, value) in pushData) {
+      when (value) {
+        is String -> data.put(key, value)
+        is Int -> data.put(key, value)
+        is Long -> data.put(key, value)
+        is Double -> data.put(key, value)
+        is Boolean -> data.put(key, value)
+        is Map<*, *> -> {
+          val nestedObj = JSObject()
+          @Suppress("UNCHECKED_CAST")
+          val map = value as Map<String, Any>
+          for ((k, v) in map) {
+            nestedObj.put(k, v.toString())
+          }
+          data.put(key, nestedObj)
+        }
+        else -> data.put(key, value.toString())
+      }
+    }
+    trigger("push-message", data)
   }
 
   @Command
