@@ -17,6 +17,12 @@ updates:
     schedule:
       interval: "weekly"
 
+  # Enable version updates for Gradle
+  - package-ecosystem: "gradle"
+    directory: "/android/"
+    schedule:
+      interval: "weekly"
+
   # Enable version updates for GitHub Actions
   - package-ecosystem: "github-actions"
     directory: "/"

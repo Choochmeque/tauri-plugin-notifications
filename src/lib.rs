@@ -10,7 +10,8 @@ use tauri::plugin::PluginHandle;
 #[cfg(desktop)]
 use tauri::AppHandle;
 use tauri::{
-    plugin::{Builder, TauriPlugin}, Manager, Runtime
+    plugin::{Builder, TauriPlugin},
+    Manager, Runtime,
 };
 
 pub use models::*;
