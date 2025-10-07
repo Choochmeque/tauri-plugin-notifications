@@ -1,0 +1,98 @@
+name: Checks
+
+on: [ pull_request, push ]
+
+jobs:
+  # Code formatting.
+  fmt:
+    name: cargo-fmt
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo fmt --all -- --check
+
+  prettier:
+    name: prettier
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "20"
+          cache: "pnpm"
+      - run: pnpm install
+      - run: pnpm run format-check
+
+  # Static analyzer.
+  clippy:
+    name: cargo-clippy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: awalsh128/cache-apt-pkgs-action@latest
+        with:
+          packages: libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf llvm-dev clang cmake grcov
+          version: "1.0"  # bump this to invalidate the cache when needed
+
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo clippy --all-targets --all-features -- -D warnings
+
+  # Check links in the documentation.
+  deadlinks:
+    name: cargo-deadlinks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: awalsh128/cache-apt-pkgs-action@latest
+        with:
+          packages: libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf llvm-dev clang cmake grcov
+          version: "1.0"  # bump this to invalidate the cache when needed
+
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo install cargo-deadlinks
+      - run: cargo doc --no-deps -p tauri-plugin-notifications
+      - run: cargo deadlinks --no-build
+
+  # Check links in markdown files.
+  mlc:
+    name: mlc
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: becheran/mlc@v1
+
+  # Spellcheck.
+  spellcheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: streetsidesoftware/cspell-action@v7
+        with:
+          files: "**/*.{rs,md}"
+
+  # cargo-deny.
+  deny:
+    name: cargo-deny
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: EmbarkStudios/cargo-deny-action@v2
+
+  # cargo-semver.
+  semver:
+    name: cargo-semver
+    runs-on: ubuntu-latest
+    steps:
+      - uses: awalsh128/cache-apt-pkgs-action@latest
+        with:
+          packages: libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf llvm-dev clang cmake grcov
+          version: "1.0"  # bump this to invalidate the cache when needed
+
+      - uses: actions/checkout@v5
+      - uses: obi1kenobi/cargo-semver-checks-action@v2
+
+  

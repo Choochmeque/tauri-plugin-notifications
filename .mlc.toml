@@ -1,0 +1,6 @@
+# Ignore all files ignored by git
+gitignore = true
+# List of links which will be ignored
+ignore-links=["https://www.npmjs.com/package/*","https://crates.io/crates/*"]
+# Wait time in milliseconds between http request to the same host
+throttle= 100

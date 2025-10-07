@@ -1,0 +1,97 @@
+# .github/workflows/publish.yml
+name: Publish (npm & crates.io)
+
+on:
+  push:
+    tags:
+      - "v*.*.*"         # e.g. v1.2.3
+  workflow_dispatch:      # allow manual runs
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: publish-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish-npm:
+    name: Publish to npm (pnpm)
+    runs-on: ubuntu-latest
+    needs: publish-crate
+    if: ${{ startsWith(github.ref, 'refs/tags/v') }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      # pnpm
+      - uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+
+      # Node + registry auth
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "20"
+          registry-url: "https://registry.npmjs.org"
+          cache: "pnpm"
+
+      # Install dependencies
+      - run: pnpm install
+
+      # Ensure the tag matches package.json version
+      - name: Verify version matches tag
+        run: |
+          PKG_VERSION=$(node -p "require('./package.json').version")
+          TAG_VERSION=${GITHUB_REF#refs/tags/v}
+          test "$PKG_VERSION" = "$TAG_VERSION" || (echo "Tag $TAG_VERSION != package.json $PKG_VERSION" && exit 1)
+
+      # Publish
+      - name: pnpm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          # If you want supply-chain provenance (npm >=9.5, Node >=20)
+          npm config set provenance true
+          # Public package:
+          pnpm publish --access public --no-git-checks
+
+  publish-crate:
+    name: Publish to crates.io (cargo)
+    runs-on: ubuntu-latest
+    if: ${{ startsWith(github.ref, 'refs/tags/v') }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Cache and install APT packages
+        uses: awalsh128/cache-apt-pkgs-action@latest
+        with:
+          packages: libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf llvm-dev clang cmake grcov
+          version: "1.0"  # bump this to invalidate the cache when needed
+
+      # Toolchain
+      - uses: dtolnay/rust-toolchain@stable
+
+      # Verify Cargo.toml version matches the tag
+      - name: Verify crate version matches tag
+        shell: bash
+        run: |
+          CRATE_VERSION=$(cargo metadata --no-deps --format-version=1 | jq -r '.packages[0].version')
+          TAG_VERSION=${GITHUB_REF#refs/tags/v}
+          test "$CRATE_VERSION" = "$TAG_VERSION" || (echo "Tag $TAG_VERSION != Cargo.toml $CRATE_VERSION" && exit 1)
+
+      # Dry run first (good practice)
+      - name: cargo publish (dry run)
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
+        run: cargo publish --dry-run
+
+      # Real publish
+      - name: cargo publish
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
+        run: cargo publish

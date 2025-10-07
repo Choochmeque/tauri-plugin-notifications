@@ -1,0 +1,53 @@
+{
+  "name": "@choochmeque/tauri-plugin-notifications-api",
+  "version": "0.1.0",
+  "license": "MIT",
+  "author": "You",
+  "description": "A Tauri v2 plugin for sending system notifications on desktop and mobile platforms.",
+  "type": "module",
+  "types": "./dist-js/index.d.ts",
+  "main": "./dist-js/index.cjs",
+  "module": "./dist-js/index.js",
+  "exports": {
+    "types": "./dist-js/index.d.ts",
+    "import": "./dist-js/index.js",
+    "require": "./dist-js/index.cjs"
+  },
+  "files": [
+    "dist-js",
+    "README.md"
+  ],
+  "directories": {
+    "example": "examples"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Choochmeque/tauri-plugin-notifications.git"
+  },
+  "keywords": [
+    "tauri",
+    "notifications"
+  ],
+  "bugs": {
+    "url": "https://github.com/Choochmeque/tauri-plugin-notifications/issues"
+  },
+  "homepage": "https://github.com/Choochmeque/tauri-plugin-notifications#readme",
+  "scripts": {
+    "build": "rollup -c",
+    "prepublishOnly": "pnpm build",
+    "pretest": "pnpm build",
+    "format": "prettier --write \"./**/*.{cjs,mjs,js,jsx,mts,ts,tsx,html,css,json}\"",
+    "format-check": "prettier --check \"./**/*.{cjs,mjs,js,jsx,mts,ts,tsx,html,css,json}\""
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2.8.0"
+  },
+  "devDependencies": {
+    "@rollup/plugin-typescript": "^12.1.4",
+    "rollup": "^4.9.6",
+    "tslib": "^2.6.2",
+    "typescript": "^5.3.3",
+    "prettier": "3.6.2"
+  },
+  "packageManager": "pnpm@10.9.0+sha512.0486e394640d3c1fb3c9d43d49cf92879ff74f8516959c235308f5a8f62e2e19528a65cdc2a3058f587cde71eba3d5b56327c8c33a97e4c4051ca48a10ca2d5f"
+}
