@@ -48,20 +48,20 @@ tauri-plugin-notifications = "0.1"
 
 ### Push Notifications Feature
 
-The `push-notifications` feature is **enabled by default**. This includes:
-- Firebase Cloud Messaging support on Android
-- APNs (Apple Push Notification service) support on iOS
-
-To **disable** push notifications and reduce dependencies:
+The `push-notifications` feature is **disabled by default**. To enable push notifications support:
 
 ```toml
 [dependencies]
-tauri-plugin-notifications = { version = "0.1", default-features = false }
+tauri-plugin-notifications = { version = "0.1", features = ["push-notifications"] }
 ```
 
-This will:
-- Remove Firebase dependencies from Android builds
-- Disable push notification registration code
+This enables:
+- Firebase Cloud Messaging support on Android
+- APNs (Apple Push Notification service) support on iOS
+
+Without this feature enabled:
+- Firebase dependencies are not included in Android builds
+- Push notification registration code is disabled
 - The `registerForPushNotifications()` function will return an error if called
 
 Configure the plugin permissions in your `capabilities/default.json`:

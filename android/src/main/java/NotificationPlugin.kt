@@ -344,7 +344,8 @@ class NotificationPlugin(private val activity: Activity): Plugin(activity) {
         pendingTokenInvoke = null
       }
     } catch (e: Exception) {
-      val errorMessage = "Firebase not available: ${e.message}"
+      val actualException = (e as? java.lang.reflect.InvocationTargetException)?.targetException ?: e
+      val errorMessage = "Firebase not available: ${actualException.message ?: actualException.toString()}"
       val errorData = JSObject()
       errorData.put("message", errorMessage)
       trigger("push-error", errorData)
