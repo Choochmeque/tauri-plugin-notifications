@@ -4,12 +4,12 @@
 
 use tauri::{command, plugin::PermissionState, AppHandle, Runtime, State};
 
-use crate::{Notification, NotificationData, Result};
+use crate::{NotificationData, Notifications, Result};
 
 #[command]
 pub(crate) async fn is_permission_granted<R: Runtime>(
     _app: AppHandle<R>,
-    notification: State<'_, Notification<R>>,
+    notification: State<'_, Notifications<R>>,
 ) -> Result<Option<bool>> {
     let state = notification.permission_state()?;
     match state {
@@ -22,7 +22,7 @@ pub(crate) async fn is_permission_granted<R: Runtime>(
 #[command]
 pub(crate) async fn request_permission<R: Runtime>(
     _app: AppHandle<R>,
-    notification: State<'_, Notification<R>>,
+    notification: State<'_, Notifications<R>>,
 ) -> Result<PermissionState> {
     notification.request_permission()
 }
@@ -30,7 +30,7 @@ pub(crate) async fn request_permission<R: Runtime>(
 #[command]
 pub(crate) async fn register_for_push_notifications<R: Runtime>(
     _app: AppHandle<R>,
-    _notification: State<'_, Notification<R>>,
+    _notification: State<'_, Notifications<R>>,
 ) -> Result<String> {
     #[cfg(feature = "push-notifications")]
     {
@@ -47,7 +47,7 @@ pub(crate) async fn register_for_push_notifications<R: Runtime>(
 #[command]
 pub(crate) async fn notify<R: Runtime>(
     _app: AppHandle<R>,
-    notification: State<'_, Notification<R>>,
+    notification: State<'_, Notifications<R>>,
     options: NotificationData,
 ) -> Result<()> {
     let mut builder = notification.builder();

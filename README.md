@@ -59,6 +59,8 @@ This enables:
 - Firebase Cloud Messaging support on Android
 - APNs (Apple Push Notification service) support on iOS
 
+**Note:** Push notifications are currently supported on mobile platforms (iOS and Android) only. macOS and Windows support is not yet available.
+
 Without this feature enabled:
 - Firebase dependencies are not included in Android builds
 - Push notification registration code is disabled
@@ -548,18 +550,23 @@ Listens for notification action performed events.
    - Create a Firebase project at [Firebase Console](https://console.firebase.google.com/)
    - Download the `google-services.json` file from Firebase Console
    - Place `google-services.json` in your Tauri app's `gen/android/app/` directory
-   - Add the Google Services plugin to your app's `gen/android/app/build.gradle.kts`:
+   - Add the Google Services classpath to your app's `gen/android/build.gradle.kts`:
      ```kotlin
-     plugins {
-         // ... other plugins
-         id("com.google.gms.google-services") version "4.4.2" apply false
+     buildscript {
+         repositories {
+             google()
+             mavenCentral()
+         }
+         dependencies {
+             classpath("com.google.gms:google-services:4.4.2")
+         }
      }
      ```
-   - Apply the plugin at the bottom of the same file:
+   - Apply the plugin at the bottom of `gen/android/app/build.gradle.kts`:
      ```kotlin
      apply(plugin = "com.google.gms.google-services")
      ```
-   - The notification plugin already includes the Firebase Cloud Messaging dependency, so no additional dependencies are needed
+   - The notification plugin already includes the Firebase Cloud Messaging dependency when the `push-notifications` feature is enabled
 
 ## Testing
 
