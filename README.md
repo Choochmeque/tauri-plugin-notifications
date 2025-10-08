@@ -46,6 +46,24 @@ Add the plugin to your Tauri project's `Cargo.toml`:
 tauri-plugin-notifications = "0.1"
 ```
 
+### Push Notifications Feature
+
+The `push-notifications` feature is **enabled by default**. This includes:
+- Firebase Cloud Messaging support on Android
+- APNs (Apple Push Notification service) support on iOS
+
+To **disable** push notifications and reduce dependencies:
+
+```toml
+[dependencies]
+tauri-plugin-notifications = { version = "0.1", default-features = false }
+```
+
+This will:
+- Remove Firebase dependencies from Android builds
+- Disable push notification registration code
+- The `registerForPushNotifications()` function will return an error if called
+
 Configure the plugin permissions in your `capabilities/default.json`:
 
 ```json

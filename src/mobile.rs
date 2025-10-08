@@ -56,6 +56,7 @@ impl<R: Runtime> Notification<R> {
             .map_err(Into::into)
     }
 
+    #[cfg(feature = "push-notifications")]
     pub fn register_for_push_notifications(&self) -> crate::Result<String> {
         self.0
             .run_mobile_plugin::<PushNotificationResponse>("registerForPushNotifications", ())
@@ -156,6 +157,7 @@ struct PermissionResponse {
     permission_state: PermissionState,
 }
 
+#[cfg(feature = "push-notifications")]
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct PushNotificationResponse {

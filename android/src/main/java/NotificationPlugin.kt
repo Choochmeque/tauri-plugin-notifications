@@ -22,8 +22,6 @@ import app.tauri.plugin.Invoke
 import app.tauri.plugin.JSArray
 import app.tauri.plugin.JSObject
 import app.tauri.plugin.Plugin
-import com.google.android.gms.tasks.OnCompleteListener
-import com.google.firebase.messaging.FirebaseMessaging
 
 const val LOCAL_NOTIFICATIONS = "permissionState"
 
@@ -265,6 +263,11 @@ class NotificationPlugin(private val activity: Activity): Plugin(activity) {
 
   @Command
   fun registerForPushNotifications(invoke: Invoke) {
+    if (!BuildConfig.ENABLE_PUSH_NOTIFICATIONS) {
+      invoke.reject("Push notifications are disabled in this build")
+      return
+    }
+
     // First check if notifications are enabled
     if (!manager.areNotificationsEnabled()) {
       // Request permissions first
@@ -309,34 +312,51 @@ class NotificationPlugin(private val activity: Activity): Plugin(activity) {
   }
 
   private fun getFirebaseToken() {
-    FirebaseMessaging.getInstance().token.addOnCompleteListener(OnCompleteListener { task ->
-      if (!task.isSuccessful) {
-        val errorMessage = "Failed to get FCM token: ${task.exception?.message}"
-
-        // Trigger push-error event
-        val errorData = JSObject()
-        errorData.put("message", errorMessage)
-        trigger("push-error", errorData)
-
-        pendingTokenInvoke?.reject(errorMessage)
-        pendingTokenInvoke = null
-        return@OnCompleteListener
-      }
-
-      // Get the token
-      val token = task.result
-      cachedToken = token
-
-      // Resolve the pending invoke
-      val result = JSObject()
-      result.put("deviceToken", token)
-      pendingTokenInvoke?.resolve(result)
+    if (!BuildConfig.ENABLE_PUSH_NOTIFICATIONS) {
+      pendingTokenInvoke?.reject("Push notifications are disabled in this build")
       pendingTokenInvoke = null
-    })
+      return
+    }
+
+    try {
+      val firebaseMessaging = Class.forName("com.google.firebase.messaging.FirebaseMessaging")
+      val getInstance = firebaseMessaging.getMethod("getInstance")
+      val instance = getInstance.invoke(null)
+      val getToken = instance.javaClass.getMethod("getToken")
+      val task = getToken.invoke(instance) as com.google.android.gms.tasks.Task<*>
+
+      task.addOnCompleteListener { completedTask ->
+        if (!completedTask.isSuccessful) {
+          val errorMessage = "Failed to get FCM token: ${completedTask.exception?.message}"
+          val errorData = JSObject()
+          errorData.put("message", errorMessage)
+          trigger("push-error", errorData)
+          pendingTokenInvoke?.reject(errorMessage)
+          pendingTokenInvoke = null
+          return@addOnCompleteListener
+        }
+
+        val token = completedTask.result as String
+        cachedToken = token
+        val result = JSObject()
+        result.put("deviceToken", token)
+        pendingTokenInvoke?.resolve(result)
+        pendingTokenInvoke = null
+      }
+    } catch (e: Exception) {
+      val errorMessage = "Firebase not available: ${e.message}"
+      val errorData = JSObject()
+      errorData.put("message", errorMessage)
+      trigger("push-error", errorData)
+      pendingTokenInvoke?.reject(errorMessage)
+      pendingTokenInvoke = null
+    }
   }
 
   // Called by TauriFirebaseMessagingService when a new token is received
   fun handleNewToken(token: String) {
+    if (!BuildConfig.ENABLE_PUSH_NOTIFICATIONS) return
+
     cachedToken = token
     // Trigger push-token event to notify the frontend about the token
     val data = JSObject()
@@ -346,6 +366,8 @@ class NotificationPlugin(private val activity: Activity): Plugin(activity) {
 
   // Called by TauriFirebaseMessagingService when a push message is received
   fun triggerPushMessage(pushData: Map<String, Any>) {
+    if (!BuildConfig.ENABLE_PUSH_NOTIFICATIONS) return
+
     val data = JSObject()
     for ((key, value) in pushData) {
       when (value) {

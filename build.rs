@@ -23,6 +23,24 @@ const COMMANDS: &[&str] = &[
 ];
 
 fn main() {
+    // Check if push-notifications feature is enabled
+    let enable_push = cfg!(feature = "push-notifications");
+
+    // Pass the feature flag to Android via environment variable
+    if enable_push {
+        std::env::set_var("ENABLE_PUSH_NOTIFICATIONS", "true");
+    } else {
+        std::env::set_var("ENABLE_PUSH_NOTIFICATIONS", "false");
+    }
+
+    // Pass the feature flag to iOS via environment variable for xcconfig
+    if enable_push {
+        std::env::set_var(
+            "SWIFT_ACTIVE_COMPILATION_CONDITIONS",
+            "ENABLE_PUSH_NOTIFICATIONS",
+        );
+    }
+
     let result = tauri_plugin::Builder::new(COMMANDS)
         .android_path("android")
         .ios_path("ios")

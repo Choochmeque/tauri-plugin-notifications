@@ -157,10 +157,12 @@ class NotificationPlugin: Plugin {
   let notificationHandler = NotificationHandler()
   let notificationManager = NotificationManager()
 
+  #if ENABLE_PUSH_NOTIFICATIONS
   // Completion handler for push token registration
   private var pushTokenCompletion: ((Result<String, Error>) -> Void)?
   private let pushTokenTimeout: TimeInterval = 10.0
   private var pushTokenTimer: Timer?
+  #endif
 
   override init() {
     super.init()
@@ -171,11 +173,13 @@ class NotificationPlugin: Plugin {
   public override func load(webview: WKWebView) {
     super.load(webview: webview)
 
+    #if ENABLE_PUSH_NOTIFICATIONS
     // Store reference to this plugin for event triggering
     AppDelegateSwizzler.plugin = self
 
     // swizzle UIApplicationDelegate push methods
     AppDelegateSwizzler.swizzlePushCallbacks()
+    #endif
   }
 
   @objc public func show(_ invoke: Invoke) throws {
@@ -212,6 +216,7 @@ class NotificationPlugin: Plugin {
   }
 
   @objc public func registerForPushNotifications(_ invoke: Invoke) {
+    #if ENABLE_PUSH_NOTIFICATIONS
     // First request notification permissions
     notificationHandler.requestPermissions { [weak self] granted, error in
       guard error == nil else {
@@ -228,8 +233,12 @@ class NotificationPlugin: Plugin {
         }
       }
     }
+    #else
+    invoke.reject("Push notifications are disabled in this build")
+    #endif
   }
 
+  #if ENABLE_PUSH_NOTIFICATIONS
   private func registerForPushNotifications(completion: @escaping (Result<String, Error>) -> Void) {
     // Store completion for later
     self.pushTokenCompletion = completion
@@ -282,6 +291,7 @@ class NotificationPlugin: Plugin {
       completion(.failure(error))
     }
   }
+  #endif
 
   @objc public override func checkPermissions(_ invoke: Invoke) {
     notificationHandler.checkPermissions { status in

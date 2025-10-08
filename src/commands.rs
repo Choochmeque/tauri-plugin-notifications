@@ -30,9 +30,18 @@ pub(crate) async fn request_permission<R: Runtime>(
 #[command]
 pub(crate) async fn register_for_push_notifications<R: Runtime>(
     _app: AppHandle<R>,
-    notification: State<'_, Notification<R>>,
+    _notification: State<'_, Notification<R>>,
 ) -> Result<String> {
-    notification.register_for_push_notifications()
+    #[cfg(feature = "push-notifications")]
+    {
+        _notification.register_for_push_notifications()
+    }
+    #[cfg(not(feature = "push-notifications"))]
+    {
+        Err(crate::Error::Io(std::io::Error::other(
+            "Push notifications feature is not enabled",
+        )))
+    }
 }
 
 #[command]

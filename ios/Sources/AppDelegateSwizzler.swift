@@ -2,6 +2,8 @@ import UIKit
 import Tauri
 import ObjectiveC.runtime
 
+#if ENABLE_PUSH_NOTIFICATIONS
+
 enum AppDelegateSwizzler {
   static weak var plugin: NotificationPlugin?
 
@@ -105,3 +107,5 @@ final class PushForwarder: NSObject, UIApplicationDelegate {
     }
   }
 }
+
+#endif
