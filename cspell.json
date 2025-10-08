@@ -31,7 +31,8 @@
     "thiserror",
     "repr",
     "unlisten",
-    "twoweeks"
+    "twoweeks",
+    "xcconfig"
   ],
   "useGitignore": true,
   "ignorePaths": [
