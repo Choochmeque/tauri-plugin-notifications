@@ -56,12 +56,20 @@ impl<R: Runtime> Notification<R> {
             .map_err(Into::into)
     }
 
-    #[cfg(feature = "push-notifications")]
     pub fn register_for_push_notifications(&self) -> crate::Result<String> {
-        self.0
-            .run_mobile_plugin::<PushNotificationResponse>("registerForPushNotifications", ())
-            .map(|r| r.device_token)
-            .map_err(Into::into)
+        #[cfg(feature = "push-notifications")]
+        {
+            self.0
+                .run_mobile_plugin::<PushNotificationResponse>("registerForPushNotifications", ())
+                .map(|r| r.device_token)
+                .map_err(Into::into)
+        }
+        #[cfg(not(feature = "push-notifications"))]
+        {
+            Err(crate::Error::Io(std::io::Error::other(
+                "Push notifications feature is not enabled",
+            )))
+        }
     }
 
     pub fn permission_state(&self) -> crate::Result<PermissionState> {
@@ -157,9 +165,9 @@ struct PermissionResponse {
     permission_state: PermissionState,
 }
 
-#[cfg(feature = "push-notifications")]
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct PushNotificationResponse {
+    #[allow(dead_code)]
     device_token: String,
 }
