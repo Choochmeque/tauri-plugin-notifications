@@ -8,21 +8,21 @@ use tauri::{
     AppHandle, Runtime,
 };
 
-use crate::NotificationBuilder;
+use crate::NotificationsBuilder;
 
 pub fn init<R: Runtime, C: DeserializeOwned>(
     app: &AppHandle<R>,
     _api: PluginApi<R, C>,
-) -> crate::Result<Notification<R>> {
-    Ok(Notification(app.clone()))
+) -> crate::Result<Notifications<R>> {
+    Ok(Notifications(app.clone()))
 }
 
 /// Access to the notification APIs.
 ///
 /// You can get an instance of this type via [`NotificationExt`](crate::NotificationExt)
-pub struct Notification<R: Runtime>(AppHandle<R>);
+pub struct Notifications<R: Runtime>(AppHandle<R>);
 
-impl<R: Runtime> crate::NotificationBuilder<R> {
+impl<R: Runtime> crate::NotificationsBuilder<R> {
     pub fn show(self) -> crate::Result<()> {
         let mut notification = imp::Notification::new(self.app.config().identifier.clone());
 
@@ -46,13 +46,19 @@ impl<R: Runtime> crate::NotificationBuilder<R> {
     }
 }
 
-impl<R: Runtime> Notification<R> {
-    pub fn builder(&self) -> NotificationBuilder<R> {
-        NotificationBuilder::new(self.0.clone())
+impl<R: Runtime> Notifications<R> {
+    pub fn builder(&self) -> NotificationsBuilder<R> {
+        NotificationsBuilder::new(self.0.clone())
     }
 
     pub fn request_permission(&self) -> crate::Result<PermissionState> {
         Ok(PermissionState::Granted)
+    }
+
+    pub fn register_for_push_notifications(&self) -> crate::Result<String> {
+        Err(crate::Error::Io(std::io::Error::other(
+            "Push notifications are not supported on desktop platforms",
+        )))
     }
 
     pub fn permission_state(&self) -> crate::Result<PermissionState> {

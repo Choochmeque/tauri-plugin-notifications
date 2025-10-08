@@ -46,6 +46,26 @@ Add the plugin to your Tauri project's `Cargo.toml`:
 tauri-plugin-notifications = "0.1"
 ```
 
+### Push Notifications Feature
+
+The `push-notifications` feature is **disabled by default**. To enable push notifications support:
+
+```toml
+[dependencies]
+tauri-plugin-notifications = { version = "0.1", features = ["push-notifications"] }
+```
+
+This enables:
+- Firebase Cloud Messaging support on Android
+- APNs (Apple Push Notification service) support on iOS
+
+**Note:** Push notifications are currently supported on mobile platforms (iOS and Android) only. macOS and Windows support is not yet available.
+
+Without this feature enabled:
+- Firebase dependencies are not included in Android builds
+- Push notification registration code is disabled
+- The `registerForPushNotifications()` function will return an error if called
+
 Configure the plugin permissions in your `capabilities/default.json`:
 
 ```json
@@ -308,6 +328,21 @@ const unlisten = await onNotificationReceived((notification) => {
 unlisten();
 ```
 
+#### Push Notifications (Mobile)
+
+```typescript
+import { registerForPushNotifications } from '@choochmeque/tauri-plugin-notifications-api';
+
+// Register for push notifications and get device token
+try {
+  const token = await registerForPushNotifications();
+  console.log('Push token:', token);
+  // Send this token to your server to send push notifications
+} catch (error) {
+  console.error('Failed to register for push notifications:', error);
+}
+```
+
 ### Rust
 
 ```rust
@@ -364,6 +399,11 @@ Checks if the permission to send notifications is granted.
 Requests the permission to send notifications.
 
 **Returns:** `Promise<'granted' | 'denied' | 'default'>`
+
+### `registerForPushNotifications()`
+Registers the app for push notifications (mobile only). On Android, this retrieves the FCM device token. On iOS, this requests permissions and registers for remote notifications.
+
+**Returns:** `Promise<string>` - The device push token
 
 ### `sendNotification(options: Options | string)`
 Sends a notification to the user. Can be called with a simple string for the title or with a detailed options object.
@@ -506,6 +546,27 @@ Listens for notification action performed events.
 3. For custom icons:
    - Place icons in `res/drawable/` folder
    - Reference by filename (without extension)
+4. **For push notifications (FCM)** - These steps must be done in your Tauri app project:
+   - Create a Firebase project at [Firebase Console](https://console.firebase.google.com/)
+   - Download the `google-services.json` file from Firebase Console
+   - Place `google-services.json` in your Tauri app's `gen/android/app/` directory
+   - Add the Google Services classpath to your app's `gen/android/build.gradle.kts`:
+     ```kotlin
+     buildscript {
+         repositories {
+             google()
+             mavenCentral()
+         }
+         dependencies {
+             classpath("com.google.gms:google-services:4.4.2")
+         }
+     }
+     ```
+   - Apply the plugin at the bottom of `gen/android/app/build.gradle.kts`:
+     ```kotlin
+     apply(plugin = "com.google.gms.google-services")
+     ```
+   - The notification plugin already includes the Firebase Cloud Messaging dependency when the `push-notifications` feature is enabled
 
 ## Testing
 

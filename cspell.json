@@ -31,7 +31,9 @@
     "thiserror",
     "repr",
     "unlisten",
-    "twoweeks"
+    "twoweeks",
+    "xcconfig",
+    "buildscript"
   ],
   "useGitignore": true,
   "ignorePaths": [

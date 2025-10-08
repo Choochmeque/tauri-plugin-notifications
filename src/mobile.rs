@@ -22,15 +22,15 @@ tauri::ios_plugin_binding!(init_plugin_notification);
 pub fn init<R: Runtime, C: DeserializeOwned>(
     _app: &AppHandle<R>,
     api: PluginApi<R, C>,
-) -> crate::Result<Notification<R>> {
+) -> crate::Result<Notifications<R>> {
     #[cfg(target_os = "android")]
     let handle = api.register_android_plugin(PLUGIN_IDENTIFIER, "NotificationPlugin")?;
     #[cfg(target_os = "ios")]
     let handle = api.register_ios_plugin(init_plugin_notification)?;
-    Ok(Notification(handle))
+    Ok(Notifications(handle))
 }
 
-impl<R: Runtime> crate::NotificationBuilder<R> {
+impl<R: Runtime> crate::NotificationsBuilder<R> {
     pub fn show(self) -> crate::Result<()> {
         self.handle
             .run_mobile_plugin::<i32>("show", self.data)
@@ -42,11 +42,11 @@ impl<R: Runtime> crate::NotificationBuilder<R> {
 /// Access to the notification APIs.
 ///
 /// You can get an instance of this type via [`NotificationExt`](crate::NotificationExt)
-pub struct Notification<R: Runtime>(PluginHandle<R>);
+pub struct Notifications<R: Runtime>(PluginHandle<R>);
 
-impl<R: Runtime> Notification<R> {
-    pub fn builder(&self) -> crate::NotificationBuilder<R> {
-        crate::NotificationBuilder::new(self.0.clone())
+impl<R: Runtime> Notifications<R> {
+    pub fn builder(&self) -> crate::NotificationsBuilder<R> {
+        crate::NotificationsBuilder::new(self.0.clone())
     }
 
     pub fn request_permission(&self) -> crate::Result<PermissionState> {
@@ -54,6 +54,22 @@ impl<R: Runtime> Notification<R> {
             .run_mobile_plugin::<PermissionResponse>("requestPermissions", ())
             .map(|r| r.permission_state)
             .map_err(Into::into)
+    }
+
+    pub fn register_for_push_notifications(&self) -> crate::Result<String> {
+        #[cfg(feature = "push-notifications")]
+        {
+            self.0
+                .run_mobile_plugin::<PushNotificationResponse>("registerForPushNotifications", ())
+                .map(|r| r.device_token)
+                .map_err(Into::into)
+        }
+        #[cfg(not(feature = "push-notifications"))]
+        {
+            Err(crate::Error::Io(std::io::Error::other(
+                "Push notifications feature is not enabled",
+            )))
+        }
     }
 
     pub fn permission_state(&self) -> crate::Result<PermissionState> {
@@ -147,4 +163,11 @@ impl<R: Runtime> Notification<R> {
 #[serde(rename_all = "camelCase")]
 struct PermissionResponse {
     permission_state: PermissionState,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct PushNotificationResponse {
+    #[allow(dead_code)]
+    device_token: String,
 }

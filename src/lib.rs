@@ -29,13 +29,13 @@ mod models;
 pub use error::{Error, Result};
 
 #[cfg(desktop)]
-pub use desktop::Notification;
+pub use desktop::Notifications;
 #[cfg(mobile)]
-pub use mobile::Notification;
+pub use mobile::Notifications;
 
 /// The notification builder.
 #[derive(Debug)]
-pub struct NotificationBuilder<R: Runtime> {
+pub struct NotificationsBuilder<R: Runtime> {
     #[cfg(desktop)]
     app: AppHandle<R>,
     #[cfg(mobile)]
@@ -43,7 +43,7 @@ pub struct NotificationBuilder<R: Runtime> {
     pub(crate) data: NotificationData,
 }
 
-impl<R: Runtime> NotificationBuilder<R> {
+impl<R: Runtime> NotificationsBuilder<R> {
     #[cfg(desktop)]
     fn new(app: AppHandle<R>) -> Self {
         Self {
@@ -203,13 +203,13 @@ impl<R: Runtime> NotificationBuilder<R> {
 }
 
 /// Extensions to [`tauri::App`], [`tauri::AppHandle`], [`tauri::WebviewWindow`], [`tauri::Webview`] and [`tauri::Window`] to access the notification APIs.
-pub trait NotificationExt<R: Runtime> {
-    fn notification(&self) -> &Notification<R>;
+pub trait NotificationsExt<R: Runtime> {
+    fn notification(&self) -> &Notifications<R>;
 }
 
-impl<R: Runtime, T: Manager<R>> crate::NotificationExt<R> for T {
-    fn notification(&self) -> &Notification<R> {
-        self.state::<Notification<R>>().inner()
+impl<R: Runtime, T: Manager<R>> crate::NotificationsExt<R> for T {
+    fn notification(&self) -> &Notifications<R> {
+        self.state::<Notifications<R>>().inner()
     }
 }
 
@@ -219,6 +219,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
         .invoke_handler(tauri::generate_handler![
             commands::notify,
             commands::request_permission,
+            commands::register_for_push_notifications,
             commands::is_permission_granted,
         ])
         .setup(|app, api| {

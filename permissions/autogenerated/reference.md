@@ -11,6 +11,7 @@ It allows all notification related features.
 
 - `allow-is-permission-granted`
 - `allow-request-permission`
+- `allow-register-for-push-notifications`
 - `allow-notify`
 - `allow-register-action-types`
 - `allow-register-listener`
@@ -343,6 +344,32 @@ Enables the register_action_types command without any pre-configured scope.
 <td>
 
 Denies the register_action_types command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`notifications:allow-register-for-push-notifications`
+
+</td>
+<td>
+
+Enables the register_for_push_notifications command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`notifications:deny-register-for-push-notifications`
+
+</td>
+<td>
+
+Denies the register_for_push_notifications command without any pre-configured scope.
 
 </td>
 </tr>
