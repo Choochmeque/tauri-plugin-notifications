@@ -1,6 +1,6 @@
 {
   "name": "@choochmeque/tauri-plugin-notifications-api",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "license": "MIT",
   "author": "You",
   "description": "A Tauri v2 plugin for sending system notifications on desktop and mobile platforms.",
