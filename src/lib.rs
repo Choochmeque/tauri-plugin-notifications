@@ -204,11 +204,11 @@ impl<R: Runtime> NotificationsBuilder<R> {
 
 /// Extensions to [`tauri::App`], [`tauri::AppHandle`], [`tauri::WebviewWindow`], [`tauri::Webview`] and [`tauri::Window`] to access the notification APIs.
 pub trait NotificationsExt<R: Runtime> {
-    fn notification(&self) -> &Notifications<R>;
+    fn notifications(&self) -> &Notifications<R>;
 }
 
 impl<R: Runtime, T: Manager<R>> crate::NotificationsExt<R> for T {
-    fn notification(&self) -> &Notifications<R> {
+    fn notifications(&self) -> &Notifications<R> {
         self.state::<Notifications<R>>().inner()
     }
 }

@@ -346,17 +346,17 @@ try {
 ### Rust
 
 ```rust
-use tauri_plugin_notifications::{NotificationExt, Schedule, ScheduleEvery};
+use tauri_plugin_notifications::{NotificationsExt, Schedule, ScheduleEvery};
 
 // Send simple notification
-app.notification()
+app.notifications()
     .builder()
     .title("Hello")
     .body("This is a notification from Rust!")
     .show()?;
 
 // Send rich notification
-app.notification()
+app.notifications()
     .builder()
     .id(1)
     .title("New Message")
@@ -367,7 +367,7 @@ app.notification()
     .show()?;
 
 // Scheduled notification
-app.notification()
+app.notifications()
     .builder()
     .title("Reminder")
     .body("Time for your meeting!")
@@ -377,7 +377,7 @@ app.notification()
 // Notification with attachments
 use tauri_plugin_notifications::Attachment;
 
-app.notification()
+app.notifications()
     .builder()
     .title("Photo Shared")
     .body("Check out this image!")
