@@ -4,7 +4,7 @@
 
 # Tauri Plugin Notifications
 
-A Tauri v2 plugin for sending system notifications on desktop and mobile platforms. Send toast notifications (brief auto-expiring OS window elements) to your user with support for rich content, scheduling, actions, and channels.
+A Tauri v2 plugin for sending notifications on desktop and mobile platforms. Send toast notifications (brief auto-expiring OS window elements) with support for rich content, scheduling, actions, channels, and push delivery via FCM and APNs.
 
 ## Features
 

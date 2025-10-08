@@ -2,7 +2,7 @@
 name = "tauri-plugin-notifications"
 version = "0.2.1"
 authors = ["You"]
-description = "A Tauri v2 plugin for sending system notifications on desktop and mobile platforms."
+description = "A Tauri v2 plugin for sending notifications on desktop and mobile platforms with support for system notifications and push delivery via FCM and APNs."
 edition = "2021"
 rust-version = "1.77.2"
 exclude = ["/examples", "/dist-js", "/guest-js", "/node_modules"]

@@ -3,7 +3,7 @@
   "version": "0.2.1",
   "license": "MIT",
   "author": "You",
-  "description": "A Tauri v2 plugin for sending system notifications on desktop and mobile platforms.",
+  "description": "A Tauri v2 plugin for sending notifications on desktop and mobile platforms with support for system notifications and push delivery via FCM and APNs.",
   "type": "module",
   "types": "./dist-js/index.d.ts",
   "main": "./dist-js/index.cjs",
