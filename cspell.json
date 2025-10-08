@@ -32,7 +32,8 @@
     "repr",
     "unlisten",
     "twoweeks",
-    "xcconfig"
+    "xcconfig",
+    "buildscript"
   ],
   "useGitignore": true,
   "ignorePaths": [
