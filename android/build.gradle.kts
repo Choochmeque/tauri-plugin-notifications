@@ -1,8 +1,17 @@
+import java.util.Properties
+import java.io.FileInputStream
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     id("com.android.library")
     id("org.jetbrains.kotlin.android")
+}
+
+val buildProperties = Properties().apply {
+    val propFile = file("build.properties")
+    if (propFile.exists()) {
+        propFile.inputStream().use { load(it) }
+    }
 }
 
 android {
@@ -16,8 +25,8 @@ android {
         consumerProguardFiles("consumer-rules.pro")
 
         // Enable push notifications based on Cargo feature flag
-        val enablePush = System.getenv("ENABLE_PUSH_NOTIFICATIONS") ?: "true"
-        buildConfigField("boolean", "ENABLE_PUSH_NOTIFICATIONS", enablePush)
+        val enablePush = buildProperties.getProperty("enablePushNotifications", "false").toBoolean()
+        buildConfigField("boolean", "ENABLE_PUSH_NOTIFICATIONS", "$enablePush")
     }
 
     buildTypes {

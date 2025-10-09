@@ -26,12 +26,10 @@ fn main() {
     // Check if push-notifications feature is enabled
     let enable_push = cfg!(feature = "push-notifications");
 
-    // Pass the feature flag to Android via environment variable
-    if enable_push {
-        std::env::set_var("ENABLE_PUSH_NOTIFICATIONS", "true");
-    } else {
-        std::env::set_var("ENABLE_PUSH_NOTIFICATIONS", "false");
-    }
+    // Generate build.properties file for Android
+    let properties_content = format!("enablePushNotifications={}", enable_push);
+    std::fs::write("android/build.properties", properties_content)
+        .expect("Failed to write build.properties");
 
     // Pass the feature flag to iOS via environment variable for xcconfig
     if enable_push {
