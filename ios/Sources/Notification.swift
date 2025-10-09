@@ -38,10 +38,13 @@ func makeNotificationContent(_ notification: Notification) throws -> UNNotificat
       arguments: nil)
   }
 
-  content.userInfo = [
-    "__EXTRA__": notification.extra as Any,
-    "__SCHEDULE__": notification.schedule as Any,
-  ]
+  var userInfo: [AnyHashable: Any] = [:]
+
+  if let extra = notification.extra {
+    userInfo["__EXTRA__"] = extra
+  }
+
+  content.userInfo = userInfo
 
   if let actionTypeId = notification.actionTypeId {
     content.categoryIdentifier = actionTypeId
@@ -121,12 +124,14 @@ func handleScheduledNotification(_ schedule: NotificationSchedule) throws
   case .at(let date, let repeating):
     let dateFormatter = DateFormatter()
     dateFormatter.locale = Locale(identifier: "en_US_POSIX")
+    dateFormatter.timeZone = TimeZone(secondsFromGMT: 0)
     dateFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'"
 
     if let at = dateFormatter.date(from: date) {
       let dateInfo = Calendar.current.dateComponents(in: TimeZone.current, from: at)
 
       if dateInfo.date! < Date() {
+        Logger.debug("Scheduled time is in the past: \(dateInfo.date!) < \(Date())")
         throw NotificationError.pastScheduledTime
       }
 
