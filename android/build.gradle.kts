@@ -41,19 +41,6 @@ android {
     buildFeatures {
         buildConfig = true
     }
-
-    // Conditionally include push notification sources and manifest
-    val enablePush = System.getenv("ENABLE_PUSH_NOTIFICATIONS") ?: "true"
-    sourceSets {
-        getByName("main") {
-            if (enablePush == "true") {
-                // Add push-enabled manifest that will be merged with main manifest
-                manifest.srcFile("src/pushEnabled/AndroidManifest.xml")
-                // Add push-enabled source directory (contains TauriFirebaseMessagingService.kt)
-                java.srcDir("src/pushEnabled/java")
-            }
-        }
-    }
 }
 
 dependencies {
@@ -62,12 +49,8 @@ dependencies {
     implementation("com.google.android.material:material:1.7.0")
     implementation("com.fasterxml.jackson.core:jackson-databind:2.20.0")
 
-    // Only include Firebase dependencies if push notifications are enabled
-    val enablePush = System.getenv("ENABLE_PUSH_NOTIFICATIONS") ?: "true"
-    if (enablePush == "true") {
-        implementation(platform("com.google.firebase:firebase-bom:33.7.0"))
-        implementation("com.google.firebase:firebase-messaging-ktx")
-    }
+    implementation(platform("com.google.firebase:firebase-bom:33.7.0"))
+    implementation("com.google.firebase:firebase-messaging-ktx")
 
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.1.5")

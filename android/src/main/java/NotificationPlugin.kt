@@ -18,6 +18,7 @@ import app.tauri.annotation.InvokeArg
 import app.tauri.annotation.Permission
 import app.tauri.annotation.PermissionCallback
 import app.tauri.annotation.TauriPlugin
+import app.tauri.Logger
 import app.tauri.plugin.Invoke
 import app.tauri.plugin.JSArray
 import app.tauri.plugin.JSObject
@@ -137,7 +138,11 @@ class NotificationPlugin(private val activity: Activity): Plugin(activity) {
   @Command
   fun show(invoke: Invoke) {
     val notification = invoke.parseArgs(Notification::class.java)
+
     val id = manager.schedule(notification)
+    if (notification.schedule != null) {
+      notificationStorage.appendNotifications(listOf(notification))
+    }
 
     invoke.resolveObject(id)
   }

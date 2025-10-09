@@ -40,6 +40,7 @@ const val NOTIFICATION_IS_REMOVABLE_KEY = "NotificationRepeating"
 const val REMOTE_INPUT_KEY = "NotificationRemoteInput"
 const val DEFAULT_NOTIFICATION_CHANNEL_ID = "default"
 const val DEFAULT_PRESS_ACTION = "tap"
+const val TAG = "NotificationsPlugin"
 
 class TauriNotificationManager(
   private val storage: NotificationStorage,
@@ -54,11 +55,11 @@ class TauriNotificationManager(
     data: Intent,
     notificationStorage: NotificationStorage
   ): JSObject? {
-    Logger.debug(Logger.tags("Notification"), "Notification received: " + data.dataString)
+    Logger.debug(Logger.tags(TAG), "Notification received: " + data.dataString)
     val notificationId =
       data.getIntExtra(NOTIFICATION_INTENT_KEY, Int.MIN_VALUE)
     if (notificationId == Int.MIN_VALUE) {
-      Logger.debug(Logger.tags("Notification"), "Activity started without notification attached")
+      Logger.debug(Logger.tags(TAG), "Activity started without notification attached")
       return null
     }
     val isRemovable =
@@ -330,7 +331,7 @@ class TauriNotificationManager(
     when (schedule) {
       is NotificationSchedule.At -> {
         if (schedule.date.time < Date().time) {
-          Logger.error(Logger.tags("Notification"), "Scheduled time must be *after* current time", null)
+          Logger.error(Logger.tags(TAG), "Scheduled time must be *after* current time", null)
           return
         }
         if (schedule.repeating) {
@@ -348,7 +349,7 @@ class TauriNotificationManager(
         setExactIfPossible(alarmManager, schedule, trigger, pendingIntent)
         val sdf = SimpleDateFormat("yyyy/MM/dd HH:mm:ss")
         Logger.debug(
-          Logger.tags("Notification"),
+          Logger.tags(TAG),
           "notification " + request.id + " will next fire at " + sdf.format(Date(trigger))
         )
       }
@@ -368,7 +369,11 @@ class TauriNotificationManager(
     trigger: Long,
     pendingIntent: PendingIntent
   ) {
+    Logger.debug(Logger.tags(TAG), "Scheduling notification for " + Date(trigger).toString())
+
     if (SDK_INT >= Build.VERSION_CODES.S && !alarmManager.canScheduleExactAlarms()) {
+      Logger.warn(Logger.tags(TAG), "SCHEDULE_EXACT_ALARM permission not granted. Using inexact alarm.")
+
       if (SDK_INT >= Build.VERSION_CODES.M && schedule.allowWhileIdle()) {
         alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, trigger, pendingIntent)
       } else {
@@ -454,7 +459,7 @@ class NotificationDismissReceiver : BroadcastReceiver() {
     val intExtra =
       intent.getIntExtra(NOTIFICATION_INTENT_KEY, Int.MIN_VALUE)
     if (intExtra == Int.MIN_VALUE) {
-      Logger.error(Logger.tags("Notification"), "Invalid notification dismiss operation", null)
+      Logger.error(Logger.tags(TAG), "Invalid notification dismiss operation", null)
       return
     }
     val isRemovable =
@@ -484,7 +489,12 @@ class TimedNotificationPublisher : BroadcastReceiver() {
     notification?.`when` = System.currentTimeMillis()
     val id = intent.getIntExtra(NOTIFICATION_INTENT_KEY, Int.MIN_VALUE)
     if (id == Int.MIN_VALUE) {
-      Logger.error(Logger.tags("Notification"), "No valid id supplied", null)
+      Logger.error(Logger.tags(TAG), "No valid id supplied", null)
+      return
+    }
+    if (notification == null) {
+      Logger.error(Logger.tags(TAG), "No notification object in intent", null)
+      return
     }
     val storage = NotificationStorage(context, ObjectMapper())
 
@@ -524,7 +534,7 @@ class TimedNotificationPublisher : BroadcastReceiver() {
       }
       val sdf = SimpleDateFormat("yyyy/MM/dd HH:mm:ss")
       Logger.debug(
-        Logger.tags("Notification"),
+        Logger.tags(TAG),
         "notification " + id + " will next fire at " + sdf.format(Date(trigger))
       )
       return true

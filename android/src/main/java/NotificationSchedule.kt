@@ -99,6 +99,14 @@ sealed class NotificationSchedule {
       else -> false
     }
   }
+
+  override fun toString(): String {
+    return when (this) {
+      is At -> "At(date=$date, repeating=$repeating, allowWhileIdle=$allowWhileIdle)"
+      is Interval -> "Interval(interval=$interval, allowWhileIdle=$allowWhileIdle)"
+      is Every -> "Every(interval=$interval, count=$count, allowWhileIdle=$allowWhileIdle)"
+    }
+  }
 }
 
 internal class NotificationScheduleSerializer @JvmOverloads constructor(t: Class<NotificationSchedule>? = null) :
