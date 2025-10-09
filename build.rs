@@ -27,7 +27,10 @@ fn main() {
     let enable_push = cfg!(feature = "push-notifications");
 
     // Generate build.properties file for Android
-    if std::env::var("TARGET").unwrap_or_default().contains("android") {
+    if std::env::var("TARGET")
+        .unwrap_or_default()
+        .contains("android")
+    {
         let properties_content = format!("enablePushNotifications={}", enable_push);
         std::fs::write("android/build.properties", properties_content)
             .expect("Failed to write build.properties");
