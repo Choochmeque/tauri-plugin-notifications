@@ -39,5 +39,5 @@ tauri-plugin = { version = "2.4.0", features = ["build"] }
 
 [dev-dependencies]
 color-backtrace = "0.7"
-ctor = "0.5"
+ctor = "0.6"
 maplit = "1"
