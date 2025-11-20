@@ -43,7 +43,7 @@ Add the plugin to your Tauri project's `Cargo.toml`:
 
 ```toml
 [dependencies]
-tauri-plugin-notifications = "0.1"
+tauri-plugin-notifications = "0.2"
 ```
 
 ### Push Notifications Feature
@@ -52,7 +52,7 @@ The `push-notifications` feature is **disabled by default**. To enable push noti
 
 ```toml
 [dependencies]
-tauri-plugin-notifications = { version = "0.1", features = ["push-notifications"] }
+tauri-plugin-notifications = { version = "0.2", features = ["push-notifications"] }
 ```
 
 This enables:
