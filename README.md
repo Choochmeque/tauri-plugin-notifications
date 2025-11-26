@@ -1,5 +1,7 @@
 [![NPM Version](https://img.shields.io/npm/v/@choochmeque%2Ftauri-plugin-notifications-api)](https://www.npmjs.com/package/@choochmeque/tauri-plugin-notifications-api)
 [![Crates.io Version](https://img.shields.io/crates/v/tauri-plugin-notifications)](https://crates.io/crates/tauri-plugin-notifications)
+[![Tests](https://github.com/Choochmeque/tauri-plugin-notifications/actions/workflows/tests.yml/badge.svg)](https://github.com/Choochmeque/tauri-plugin-notifications/actions/workflows/tests.yml)
+[![codecov](https://codecov.io/gh/Choochmeque/tauri-plugin-notifications/branch/main/graph/badge.svg)](https://codecov.io/gh/Choochmeque/tauri-plugin-notifications)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 # Tauri Plugin Notifications
