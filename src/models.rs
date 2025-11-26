@@ -342,20 +342,15 @@ mod android {
     use serde::{Deserialize, Serialize};
     use serde_repr::{Deserialize_repr, Serialize_repr};
 
-    #[derive(Debug, Clone, Copy, Serialize_repr, Deserialize_repr)]
+    #[derive(Debug, Default, Clone, Copy, Serialize_repr, Deserialize_repr)]
     #[repr(u8)]
     pub enum Importance {
         None = 0,
         Min = 1,
         Low = 2,
+        #[default]
         Default = 3,
         High = 4,
-    }
-
-    impl Default for Importance {
-        fn default() -> Self {
-            Self::Default
-        }
     }
 
     #[derive(Debug, Clone, Copy, Serialize_repr, Deserialize_repr)]

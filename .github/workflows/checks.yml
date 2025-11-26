@@ -61,7 +61,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
-      - run: cargo clippy --lib --target ${{ matrix.target }} -- -D warnings -D clippy::unwrap_used
+      - run: cargo clippy --lib --target ${{ matrix.target }} --all-features -- -D warnings -D clippy::unwrap_used
 
   # Check links in the documentation.
   deadlinks:

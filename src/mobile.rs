@@ -165,6 +165,7 @@ struct PermissionResponse {
     permission_state: PermissionState,
 }
 
+#[cfg(feature = "push-notifications")]
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct PushNotificationResponse {
