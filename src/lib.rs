@@ -173,9 +173,9 @@ impl<R: Runtime> NotificationsBuilder<R> {
 
     /// Adds an extra payload to store in the notification.
     pub fn extra(mut self, key: impl Into<String>, value: impl Serialize) -> Self {
-        self.data
-            .extra
-            .insert(key.into(), serde_json::to_value(value).unwrap());
+        if let Ok(value) = serde_json::to_value(value) {
+            self.data.extra.insert(key.into(), value);
+        }
         self
     }
 
