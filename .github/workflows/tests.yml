@@ -170,3 +170,57 @@ jobs:
         with:
           name: android-instrumented-test-results
           path: android/build/outputs/androidTest-results/
+
+  test-ios:
+    name: iOS Unit Tests
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-ios
+
+      - name: Build iOS bindings
+        run: cargo build --target aarch64-apple-ios
+
+      - name: Run iOS unit tests
+        run: |
+          cd ios
+          xcodebuild test \
+            -scheme tauri-plugin-notifications \
+            -destination 'platform=iOS Simulator,name=iPhone 16,OS=latest' \
+            -enableCodeCoverage YES \
+            -resultBundlePath TestResults.xcresult
+
+      - name: Generate coverage report
+        run: |
+          cd ios
+          xcrun xccov view --report --json TestResults.xcresult > coverage.json
+
+      - name: Upload coverage to Codecov
+        if: ${{ github.actor != 'dependabot[bot]' }}
+        uses: codecov/codecov-action@v5
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+        with:
+          files: ./ios/coverage.json
+          flags: ios
+          name: ios-coverage
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ios-test-results
+          path: ios/TestResults.xcresult
+
+      - name: Upload coverage reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ios-coverage
+          path: ios/coverage.json
