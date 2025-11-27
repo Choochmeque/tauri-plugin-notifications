@@ -576,4 +576,496 @@ final class NotificationTests: XCTestCase {
         XCTAssertNotNil(notification)
         XCTAssertEqual(notification?["id"] as? Int, 1)
     }
+
+    // MARK: - NotificationHandler Tests
+
+    func testNotificationHandlerToPendingNotification() {
+        let handler = NotificationHandler()
+        let content = UNMutableNotificationContent()
+        content.title = "Test Title"
+        content.body = "Test Body"
+
+        let request = UNNotificationRequest(
+            identifier: "123",
+            content: content,
+            trigger: nil
+        )
+
+        let pending = handler.toPendingNotification(request)
+
+        XCTAssertEqual(pending.id, 123)
+        XCTAssertEqual(pending.title, "Test Title")
+        XCTAssertEqual(pending.body, "Test Body")
+    }
+
+    // MARK: - makeAttachments Tests
+
+    func testMakeAttachmentsWithInvalidUrl() throws {
+        let attachment = NotificationAttachment(
+            id: "test-attachment",
+            url: "",
+            options: nil
+        )
+
+        XCTAssertThrowsError(try makeAttachments([attachment])) { error in
+            if case NotificationError.attachmentFileNotFound(let path) = error {
+                XCTAssertEqual(path, "")
+            } else {
+                XCTFail("Wrong error type")
+            }
+        }
+    }
+
+    // MARK: - Additional Schedule Tests
+
+    func testHandleScheduledNotificationWithAtDate() throws {
+        // Create a date in the future
+        let dateFormatter = DateFormatter()
+        dateFormatter.locale = Locale(identifier: "en_US_POSIX")
+        dateFormatter.timeZone = TimeZone(secondsFromGMT: 0)
+        dateFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'"
+
+        let futureDate = Date().addingTimeInterval(3600) // 1 hour from now
+        let dateString = dateFormatter.string(from: futureDate)
+
+        let schedule = NotificationSchedule.at(date: dateString, repeating: false)
+
+        let trigger = try handleScheduledNotification(schedule)
+
+        XCTAssertNotNil(trigger)
+        XCTAssertTrue(trigger is UNTimeIntervalNotificationTrigger)
+
+        if let timeTrigger = trigger as? UNTimeIntervalNotificationTrigger {
+            XCTAssertFalse(timeTrigger.repeats)
+            XCTAssertGreaterThan(timeTrigger.timeInterval, 3500)
+            XCTAssertLessThan(timeTrigger.timeInterval, 3700)
+        }
+    }
+
+    func testHandleScheduledNotificationWithPastDateThrows() {
+        let dateFormatter = DateFormatter()
+        dateFormatter.locale = Locale(identifier: "en_US_POSIX")
+        dateFormatter.timeZone = TimeZone(secondsFromGMT: 0)
+        dateFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'"
+
+        let pastDate = Date().addingTimeInterval(-3600) // 1 hour ago
+        let dateString = dateFormatter.string(from: pastDate)
+
+        let schedule = NotificationSchedule.at(date: dateString, repeating: false)
+
+        XCTAssertThrowsError(try handleScheduledNotification(schedule)) { error in
+            if case NotificationError.pastScheduledTime = error {
+                // Expected error
+            } else {
+                XCTFail("Wrong error type")
+            }
+        }
+    }
+
+    func testHandleScheduledNotificationWithInvalidDateThrows() {
+        let schedule = NotificationSchedule.at(date: "invalid-date", repeating: false)
+
+        XCTAssertThrowsError(try handleScheduledNotification(schedule)) { error in
+            if case NotificationError.invalidDate(let date) = error {
+                XCTAssertEqual(date, "invalid-date")
+            } else {
+                XCTFail("Wrong error type")
+            }
+        }
+    }
+
+    // MARK: - Combined Options Tests
+
+    func testMakeActionOptionsWithMultipleFlags() {
+        let action = Action(
+            id: "test",
+            title: "Test",
+            requiresAuthentication: true,
+            foreground: true,
+            destructive: true,
+            input: nil,
+            inputButtonTitle: nil,
+            inputPlaceholder: nil
+        )
+
+        let options = makeActionOptions(action)
+
+        // Should return foreground as it's checked first
+        XCTAssertEqual(options, .foreground)
+    }
+
+    func testMakeCategoryOptionsWithMultipleFlags() {
+        let actionType = ActionType(
+            id: "test",
+            actions: [],
+            hiddenPreviewsBodyPlaceholder: nil,
+            customDismissAction: true,
+            allowInCarPlay: true,
+            hiddenPreviewsShowTitle: true,
+            hiddenPreviewsShowSubtitle: true,
+            hiddenBodyPlaceholder: nil
+        )
+
+        let options = makeCategoryOptions(actionType)
+
+        // Should return customDismissAction as it's checked first
+        XCTAssertEqual(options, .customDismissAction)
+    }
+
+    // MARK: - Silent Notification Tests
+
+    func testMakeNotificationContentWithSilentFlag() throws {
+        let notification = Notification(
+            id: 1,
+            title: "Test",
+            body: "Body",
+            extra: nil,
+            schedule: nil,
+            attachments: nil,
+            sound: nil,
+            group: nil,
+            actionTypeId: nil,
+            summary: nil,
+            silent: true
+        )
+
+        let content = try makeNotificationContent(notification)
+
+        // Silent flag is handled in NotificationHandler.willPresent, not in content
+        XCTAssertEqual(content.title, "Test")
+        XCTAssertEqual(content.body, "Body")
+    }
+
+    // MARK: - Edge Case Tests
+
+    func testMakeNotificationContentWithEmptyBody() throws {
+        let notification = Notification(
+            id: 1,
+            title: "Test Title",
+            body: nil,
+            extra: nil,
+            schedule: nil,
+            attachments: nil,
+            sound: nil,
+            group: nil,
+            actionTypeId: nil,
+            summary: nil,
+            silent: nil
+        )
+
+        let content = try makeNotificationContent(notification)
+
+        XCTAssertEqual(content.title, "Test Title")
+        XCTAssertEqual(content.body, "")
+    }
+
+    func testMakeActionsWithTextInputActionWithoutButtonTitle() {
+        let actions = [
+            Action(
+                id: "reply",
+                title: "Reply",
+                requiresAuthentication: nil,
+                foreground: nil,
+                destructive: nil,
+                input: true,
+                inputButtonTitle: nil,
+                inputPlaceholder: "Type here..."
+            )
+        ]
+
+        let result = makeActions(actions)
+
+        XCTAssertEqual(result.count, 1)
+        XCTAssertTrue(result[0] is UNTextInputNotificationAction)
+
+        if let textAction = result[0] as? UNTextInputNotificationAction {
+            XCTAssertEqual(textAction.identifier, "reply")
+            XCTAssertEqual(textAction.title, "Reply")
+        }
+    }
+
+    func testGetRepeatDateIntervalForYear() {
+        let interval = getRepeatDateInterval(.year, 1)
+
+        XCTAssertNotNil(interval)
+        if let interval = interval {
+            // Year duration varies, check it's approximately 365 days
+            XCTAssertGreaterThan(interval.duration, 364 * 24 * 60 * 60)
+            XCTAssertLessThan(interval.duration, 366 * 24 * 60 * 60)
+        }
+    }
+
+    func testGetRepeatDateIntervalForMultipleUnits() {
+        let interval = getRepeatDateInterval(.hour, 3)
+
+        XCTAssertNotNil(interval)
+        if let interval = interval {
+            XCTAssertEqual(interval.duration, 3 * 60 * 60, accuracy: 1.0)
+        }
+    }
+
+    func testMakeCategoryOptionsWithHiddenPreviewsShowSubtitle() {
+        let actionType = ActionType(
+            id: "test",
+            actions: [],
+            hiddenPreviewsBodyPlaceholder: nil,
+            customDismissAction: nil,
+            allowInCarPlay: nil,
+            hiddenPreviewsShowTitle: nil,
+            hiddenPreviewsShowSubtitle: true,
+            hiddenBodyPlaceholder: nil
+        )
+
+        let options = makeCategoryOptions(actionType)
+
+        XCTAssertEqual(options, .hiddenPreviewsShowSubtitle)
+    }
+
+    func testMakeActionOptionsWithNoFlags() {
+        let action = Action(
+            id: "test",
+            title: "Test",
+            requiresAuthentication: nil,
+            foreground: nil,
+            destructive: nil,
+            input: nil,
+            inputButtonTitle: nil,
+            inputPlaceholder: nil
+        )
+
+        let options = makeActionOptions(action)
+
+        XCTAssertEqual(options.rawValue, 0)
+    }
+
+    func testMakeCategoryOptionsWithNoFlags() {
+        let actionType = ActionType(
+            id: "test",
+            actions: [],
+            hiddenPreviewsBodyPlaceholder: nil,
+            customDismissAction: nil,
+            allowInCarPlay: nil,
+            hiddenPreviewsShowTitle: nil,
+            hiddenPreviewsShowSubtitle: nil,
+            hiddenBodyPlaceholder: nil
+        )
+
+        let options = makeCategoryOptions(actionType)
+
+        XCTAssertEqual(options.rawValue, 0)
+    }
+
+    // MARK: - NotificationSchedule Decoding Tests
+
+    func testNotificationScheduleDecodingAtDate() throws {
+        let json = """
+        {
+            "at": {
+                "date": "2024-12-25T10:30:00.000Z",
+                "repeating": false
+            }
+        }
+        """
+
+        let decoder = JSONDecoder()
+        let schedule = try decoder.decode(NotificationSchedule.self, from: json.data(using: .utf8)!)
+
+        if case .at(let date, let repeating) = schedule {
+            XCTAssertEqual(date, "2024-12-25T10:30:00.000Z")
+            XCTAssertFalse(repeating)
+        } else {
+            XCTFail("Wrong schedule type")
+        }
+    }
+
+    func testNotificationScheduleDecodingInterval() throws {
+        let json = """
+        {
+            "interval": {
+                "interval": {
+                    "hour": 9,
+                    "minute": 30
+                }
+            }
+        }
+        """
+
+        let decoder = JSONDecoder()
+        let schedule = try decoder.decode(NotificationSchedule.self, from: json.data(using: .utf8)!)
+
+        if case .interval(let interval) = schedule {
+            XCTAssertEqual(interval.hour, 9)
+            XCTAssertEqual(interval.minute, 30)
+        } else {
+            XCTFail("Wrong schedule type")
+        }
+    }
+
+    func testNotificationScheduleDecodingEvery() throws {
+        let json = """
+        {
+            "every": {
+                "interval": "minute",
+                "count": 5
+            }
+        }
+        """
+
+        let decoder = JSONDecoder()
+        let schedule = try decoder.decode(NotificationSchedule.self, from: json.data(using: .utf8)!)
+
+        if case .every(let interval, let count) = schedule {
+            XCTAssertEqual(interval, .minute)
+            XCTAssertEqual(count, 5)
+        } else {
+            XCTFail("Wrong schedule type")
+        }
+    }
+
+    // MARK: - Additional Coverage Tests
+
+    func testNotificationDecodingWithAllFields() throws {
+        let json = """
+        {
+            "id": 1,
+            "title": "Test Title",
+            "body": "Test Body",
+            "extra": {"key": "value"},
+            "sound": "custom.wav",
+            "group": "test-group",
+            "actionTypeId": "TEST_CATEGORY",
+            "summary": "Summary",
+            "silent": true
+        }
+        """
+
+        let decoder = JSONDecoder()
+        let notification = try decoder.decode(Notification.self, from: json.data(using: .utf8)!)
+
+        XCTAssertEqual(notification.id, 1)
+        XCTAssertEqual(notification.title, "Test Title")
+        XCTAssertEqual(notification.body, "Test Body")
+        XCTAssertEqual(notification.extra?["key"], "value")
+        XCTAssertEqual(notification.sound, "custom.wav")
+        XCTAssertEqual(notification.group, "test-group")
+        XCTAssertEqual(notification.actionTypeId, "TEST_CATEGORY")
+        XCTAssertEqual(notification.summary, "Summary")
+        XCTAssertEqual(notification.silent, true)
+    }
+
+    func testActionDecodingWithAllFields() throws {
+        let json = """
+        {
+            "id": "reply",
+            "title": "Reply",
+            "requiresAuthentication": true,
+            "foreground": true,
+            "destructive": false,
+            "input": true,
+            "inputButtonTitle": "Send",
+            "inputPlaceholder": "Type here..."
+        }
+        """
+
+        let decoder = JSONDecoder()
+        let action = try decoder.decode(Action.self, from: json.data(using: .utf8)!)
+
+        XCTAssertEqual(action.id, "reply")
+        XCTAssertEqual(action.title, "Reply")
+        XCTAssertEqual(action.requiresAuthentication, true)
+        XCTAssertEqual(action.foreground, true)
+        XCTAssertEqual(action.destructive, false)
+        XCTAssertEqual(action.input, true)
+        XCTAssertEqual(action.inputButtonTitle, "Send")
+        XCTAssertEqual(action.inputPlaceholder, "Type here...")
+    }
+
+    func testActionTypeDecodingWithAllFields() throws {
+        let json = """
+        {
+            "id": "TEST_CATEGORY",
+            "actions": [
+                {
+                    "id": "action1",
+                    "title": "Action 1"
+                }
+            ],
+            "hiddenPreviewsBodyPlaceholder": "Hidden",
+            "customDismissAction": true,
+            "allowInCarPlay": true,
+            "hiddenPreviewsShowTitle": true,
+            "hiddenPreviewsShowSubtitle": true,
+            "hiddenBodyPlaceholder": "Body Hidden"
+        }
+        """
+
+        let decoder = JSONDecoder()
+        let actionType = try decoder.decode(ActionType.self, from: json.data(using: .utf8)!)
+
+        XCTAssertEqual(actionType.id, "TEST_CATEGORY")
+        XCTAssertEqual(actionType.actions.count, 1)
+        XCTAssertEqual(actionType.hiddenPreviewsBodyPlaceholder, "Hidden")
+        XCTAssertEqual(actionType.customDismissAction, true)
+        XCTAssertEqual(actionType.allowInCarPlay, true)
+        XCTAssertEqual(actionType.hiddenPreviewsShowTitle, true)
+        XCTAssertEqual(actionType.hiddenPreviewsShowSubtitle, true)
+        XCTAssertEqual(actionType.hiddenBodyPlaceholder, "Body Hidden")
+    }
+
+    func testScheduleEveryKindDecoding() throws {
+        let kinds = ["year", "month", "twoWeeks", "week", "day", "hour", "minute", "second"]
+        let expected: [ScheduleEveryKind] = [.year, .month, .twoWeeks, .week, .day, .hour, .minute, .second]
+
+        for (index, kind) in kinds.enumerated() {
+            let json = "\"\(kind)\""
+            let decoder = JSONDecoder()
+            let decoded = try decoder.decode(ScheduleEveryKind.self, from: json.data(using: .utf8)!)
+            XCTAssertEqual(decoded, expected[index])
+        }
+    }
+
+    func testNotificationAttachmentDecoding() throws {
+        let json = """
+        {
+            "id": "attachment1",
+            "url": "https://example.com/image.jpg",
+            "options": {
+                "iosUNNotificationAttachmentOptionsTypeHintKey": "public.jpeg",
+                "iosUNNotificationAttachmentOptionsThumbnailHiddenKey": "true"
+            }
+        }
+        """
+
+        let decoder = JSONDecoder()
+        let attachment = try decoder.decode(NotificationAttachment.self, from: json.data(using: .utf8)!)
+
+        XCTAssertEqual(attachment.id, "attachment1")
+        XCTAssertEqual(attachment.url, "https://example.com/image.jpg")
+        XCTAssertEqual(attachment.options?.iosUNNotificationAttachmentOptionsTypeHintKey, "public.jpeg")
+        XCTAssertEqual(attachment.options?.iosUNNotificationAttachmentOptionsThumbnailHiddenKey, "true")
+    }
+
+    func testMakeNotificationContentWithAttachmentsError() throws {
+        let notification = Notification(
+            id: 1,
+            title: "Test",
+            body: "Body",
+            extra: nil,
+            schedule: nil,
+            attachments: [
+                NotificationAttachment(
+                    id: "test",
+                    url: "",
+                    options: nil
+                )
+            ],
+            sound: nil,
+            group: nil,
+            actionTypeId: nil,
+            summary: nil,
+            silent: nil
+        )
+
+        XCTAssertThrowsError(try makeNotificationContent(notification))
+    }
 }
