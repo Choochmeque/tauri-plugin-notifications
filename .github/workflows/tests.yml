@@ -7,6 +7,37 @@ on:
     branches: [ main ]
 
 jobs:
+  test-rust:
+    name: Rust Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+
+      - uses: taiki-e/install-action@cargo-llvm-cov
+
+      - name: Run tests with coverage
+        run: cargo llvm-cov --all-features --lcov --output-path coverage.lcov
+
+      - name: Upload coverage to Codecov
+        if: ${{ github.actor != 'dependabot[bot]' }}
+        uses: codecov/codecov-action@v5
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+        with:
+          files: coverage.lcov
+          flags: rust
+          name: rust-coverage
+
   test-js:
     name: JavaScript/TypeScript Tests
     runs-on: ubuntu-latest

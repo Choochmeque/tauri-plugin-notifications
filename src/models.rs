@@ -471,3 +471,346 @@ mod android {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_attachment_creation() {
+        let url = Url::parse("https://example.com/image.png").expect("Failed to parse URL");
+        let attachment = Attachment::new("test_id", url.clone());
+        assert_eq!(attachment.id, "test_id");
+        assert_eq!(attachment.url, url);
+    }
+
+    #[test]
+    fn test_attachment_serialization() {
+        let url = Url::parse("https://example.com/image.png").expect("Failed to parse URL");
+        let attachment = Attachment::new("test_id", url);
+        let json = serde_json::to_string(&attachment).expect("Failed to serialize attachment");
+        assert!(json.contains("test_id"));
+        assert!(json.contains("https://example.com/image.png"));
+    }
+
+    #[test]
+    fn test_attachment_deserialization() {
+        let json = r#"{"id":"test_id","url":"https://example.com/image.png"}"#;
+        let attachment: Attachment =
+            serde_json::from_str(json).expect("Failed to deserialize attachment");
+        assert_eq!(attachment.id, "test_id");
+        assert_eq!(attachment.url.as_str(), "https://example.com/image.png");
+    }
+
+    #[test]
+    fn test_schedule_every_display() {
+        assert_eq!(ScheduleEvery::Year.to_string(), "year");
+        assert_eq!(ScheduleEvery::Month.to_string(), "month");
+        assert_eq!(ScheduleEvery::TwoWeeks.to_string(), "twoWeeks");
+        assert_eq!(ScheduleEvery::Week.to_string(), "week");
+        assert_eq!(ScheduleEvery::Day.to_string(), "day");
+        assert_eq!(ScheduleEvery::Hour.to_string(), "hour");
+        assert_eq!(ScheduleEvery::Minute.to_string(), "minute");
+        assert_eq!(ScheduleEvery::Second.to_string(), "second");
+    }
+
+    #[test]
+    fn test_schedule_every_serialization() {
+        let json = serde_json::to_string(&ScheduleEvery::Day).expect("Failed to serialize Day");
+        assert_eq!(json, "\"day\"");
+
+        let json =
+            serde_json::to_string(&ScheduleEvery::TwoWeeks).expect("Failed to serialize TwoWeeks");
+        assert_eq!(json, "\"twoWeeks\"");
+    }
+
+    #[test]
+    fn test_schedule_every_deserialization() {
+        let every: ScheduleEvery =
+            serde_json::from_str("\"year\"").expect("Failed to deserialize year");
+        assert!(matches!(every, ScheduleEvery::Year));
+
+        let every: ScheduleEvery =
+            serde_json::from_str("\"month\"").expect("Failed to deserialize month");
+        assert!(matches!(every, ScheduleEvery::Month));
+
+        let every: ScheduleEvery =
+            serde_json::from_str("\"twoweeks\"").expect("Failed to deserialize twoweeks");
+        assert!(matches!(every, ScheduleEvery::TwoWeeks));
+
+        let every: ScheduleEvery =
+            serde_json::from_str("\"week\"").expect("Failed to deserialize week");
+        assert!(matches!(every, ScheduleEvery::Week));
+
+        let every: ScheduleEvery =
+            serde_json::from_str("\"day\"").expect("Failed to deserialize day");
+        assert!(matches!(every, ScheduleEvery::Day));
+
+        let every: ScheduleEvery =
+            serde_json::from_str("\"hour\"").expect("Failed to deserialize hour");
+        assert!(matches!(every, ScheduleEvery::Hour));
+
+        let every: ScheduleEvery =
+            serde_json::from_str("\"minute\"").expect("Failed to deserialize minute");
+        assert!(matches!(every, ScheduleEvery::Minute));
+
+        let every: ScheduleEvery =
+            serde_json::from_str("\"second\"").expect("Failed to deserialize second");
+        assert!(matches!(every, ScheduleEvery::Second));
+    }
+
+    #[test]
+    fn test_schedule_every_deserialization_invalid() {
+        let result: Result<ScheduleEvery, _> = serde_json::from_str("\"invalid\"");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_schedule_interval_default() {
+        let interval = ScheduleInterval::default();
+        assert!(interval.year.is_none());
+        assert!(interval.month.is_none());
+        assert!(interval.day.is_none());
+        assert!(interval.weekday.is_none());
+        assert!(interval.hour.is_none());
+        assert!(interval.minute.is_none());
+        assert!(interval.second.is_none());
+    }
+
+    #[test]
+    fn test_schedule_interval_serialization() {
+        let interval = ScheduleInterval {
+            year: Some(24),
+            month: Some(12),
+            day: Some(25),
+            weekday: Some(1),
+            hour: Some(10),
+            minute: Some(30),
+            second: Some(0),
+        };
+        let json = serde_json::to_string(&interval).expect("Failed to serialize interval");
+        assert!(json.contains("\"year\":24"));
+        assert!(json.contains("\"month\":12"));
+        assert!(json.contains("\"day\":25"));
+    }
+
+    #[test]
+    fn test_notification_data_default() {
+        let data = NotificationData::default();
+        assert!(data.id != 0); // Should be a random ID
+        assert!(data.channel_id.is_none());
+        assert!(data.title.is_none());
+        assert!(data.body.is_none());
+        assert!(data.schedule.is_none());
+        assert!(!data.group_summary);
+        assert!(!data.ongoing);
+        assert!(!data.auto_cancel);
+        assert!(!data.silent);
+        assert!(data.inbox_lines.is_empty());
+        assert!(data.attachments.is_empty());
+        assert!(data.extra.is_empty());
+    }
+
+    #[test]
+    fn test_notification_data_serialization() {
+        let data = NotificationData {
+            id: 123,
+            title: Some("Test Title".to_string()),
+            body: Some("Test Body".to_string()),
+            ongoing: true,
+            ..Default::default()
+        };
+
+        let json = serde_json::to_string(&data).expect("Failed to serialize notification data");
+        assert!(json.contains("\"id\":123"));
+        assert!(json.contains("\"title\":\"Test Title\""));
+        assert!(json.contains("\"body\":\"Test Body\""));
+        assert!(json.contains("\"ongoing\":true"));
+    }
+
+    #[test]
+    fn test_pending_notification_getters() {
+        let json = r#"{
+            "id": 456,
+            "title": "Pending Title",
+            "body": "Pending Body",
+            "schedule": {"every": {"interval": "day", "count": 1}}
+        }"#;
+        let pending: PendingNotification =
+            serde_json::from_str(json).expect("Failed to deserialize pending notification");
+
+        assert_eq!(pending.id(), 456);
+        assert_eq!(pending.title(), Some("Pending Title"));
+        assert_eq!(pending.body(), Some("Pending Body"));
+        assert!(matches!(pending.schedule(), Schedule::Every { .. }));
+    }
+
+    #[test]
+    fn test_active_notification_getters() {
+        let json = r#"{
+            "id": 789,
+            "title": "Active Title",
+            "body": "Active Body",
+            "group": "test_group",
+            "groupSummary": true
+        }"#;
+        let active: ActiveNotification =
+            serde_json::from_str(json).expect("Failed to deserialize active notification");
+
+        assert_eq!(active.id(), 789);
+        assert_eq!(active.title(), Some("Active Title"));
+        assert_eq!(active.body(), Some("Active Body"));
+        assert_eq!(active.group(), Some("test_group"));
+        assert!(active.group_summary());
+        assert!(active.data().is_empty());
+        assert!(active.extra().is_empty());
+        assert!(active.attachments().is_empty());
+        assert!(active.action_type_id().is_none());
+        assert!(active.schedule().is_none());
+        assert!(active.sound().is_none());
+    }
+
+    #[cfg(target_os = "android")]
+    #[test]
+    fn test_importance_default() {
+        let importance = Importance::default();
+        assert!(matches!(importance, Importance::Default));
+    }
+
+    #[cfg(target_os = "android")]
+    #[test]
+    fn test_importance_serialization() {
+        assert_eq!(
+            serde_json::to_string(&Importance::None).expect("Failed to serialize Importance::None"),
+            "0"
+        );
+        assert_eq!(
+            serde_json::to_string(&Importance::Min).expect("Failed to serialize Importance::Min"),
+            "1"
+        );
+        assert_eq!(
+            serde_json::to_string(&Importance::Low).expect("Failed to serialize Importance::Low"),
+            "2"
+        );
+        assert_eq!(
+            serde_json::to_string(&Importance::Default)
+                .expect("Failed to serialize Importance::Default"),
+            "3"
+        );
+        assert_eq!(
+            serde_json::to_string(&Importance::High).expect("Failed to serialize Importance::High"),
+            "4"
+        );
+    }
+
+    #[cfg(target_os = "android")]
+    #[test]
+    fn test_visibility_serialization() {
+        assert_eq!(
+            serde_json::to_string(&Visibility::Secret)
+                .expect("Failed to serialize Visibility::Secret"),
+            "-1"
+        );
+        assert_eq!(
+            serde_json::to_string(&Visibility::Private)
+                .expect("Failed to serialize Visibility::Private"),
+            "0"
+        );
+        assert_eq!(
+            serde_json::to_string(&Visibility::Public)
+                .expect("Failed to serialize Visibility::Public"),
+            "1"
+        );
+    }
+
+    #[cfg(target_os = "android")]
+    #[test]
+    fn test_channel_builder() {
+        let channel = Channel::builder("test_id", "Test Channel")
+            .description("Test Description")
+            .sound("test_sound")
+            .lights(true)
+            .light_color("#FF0000")
+            .vibration(true)
+            .importance(Importance::High)
+            .visibility(Visibility::Public)
+            .build();
+
+        assert_eq!(channel.id(), "test_id");
+        assert_eq!(channel.name(), "Test Channel");
+        assert_eq!(channel.description(), Some("Test Description"));
+        assert_eq!(channel.sound(), Some("test_sound"));
+        assert!(channel.lights());
+        assert_eq!(channel.light_color(), Some("#FF0000"));
+        assert!(channel.vibration());
+        assert!(matches!(channel.importance(), Importance::High));
+        assert_eq!(channel.visibility(), Some(Visibility::Public));
+    }
+
+    #[cfg(target_os = "android")]
+    #[test]
+    fn test_channel_builder_minimal() {
+        let channel = Channel::builder("minimal_id", "Minimal Channel").build();
+
+        assert_eq!(channel.id(), "minimal_id");
+        assert_eq!(channel.name(), "Minimal Channel");
+        assert_eq!(channel.description(), None);
+        assert_eq!(channel.sound(), None);
+        assert!(!channel.lights());
+        assert_eq!(channel.light_color(), None);
+        assert!(!channel.vibration());
+        assert!(matches!(channel.importance(), Importance::Default));
+        assert_eq!(channel.visibility(), None);
+    }
+
+    #[test]
+    fn test_schedule_at_serialization() {
+        use time::OffsetDateTime;
+
+        let date = OffsetDateTime::now_utc();
+        let schedule = Schedule::At {
+            date,
+            repeating: true,
+            allow_while_idle: false,
+        };
+
+        let json = serde_json::to_string(&schedule).expect("Failed to serialize Schedule::At");
+        assert!(json.contains("\"at\""));
+        assert!(json.contains("\"date\""));
+        assert!(json.contains("\"repeating\":true"));
+        assert!(json.contains("\"allowWhileIdle\":false"));
+    }
+
+    #[test]
+    fn test_schedule_interval_variant() {
+        let schedule = Schedule::Interval {
+            interval: ScheduleInterval {
+                hour: Some(10),
+                minute: Some(30),
+                ..Default::default()
+            },
+            allow_while_idle: true,
+        };
+
+        let json =
+            serde_json::to_string(&schedule).expect("Failed to serialize Schedule::Interval");
+        assert!(json.contains("\"interval\""));
+        assert!(json.contains("\"hour\":10"));
+        assert!(json.contains("\"minute\":30"));
+        assert!(json.contains("\"allowWhileIdle\":true"));
+    }
+
+    #[test]
+    fn test_schedule_every_variant() {
+        let schedule = Schedule::Every {
+            interval: ScheduleEvery::Day,
+            count: 5,
+            allow_while_idle: false,
+        };
+
+        let json = serde_json::to_string(&schedule).expect("Failed to serialize Schedule::Every");
+        assert!(json.contains("\"every\""));
+        assert!(json.contains("\"interval\":\"day\""));
+        assert!(json.contains("\"count\":5"));
+    }
+}

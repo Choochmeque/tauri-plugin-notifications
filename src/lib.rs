@@ -232,3 +232,174 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
         })
         .build()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // Helper function to create a test builder without needing a runtime
+    #[cfg(desktop)]
+    fn create_test_data() -> NotificationData {
+        NotificationData::default()
+    }
+
+    #[cfg(mobile)]
+    fn create_test_data() -> NotificationData {
+        NotificationData::default()
+    }
+
+    #[test]
+    fn test_notification_data_id() {
+        let mut data = create_test_data();
+        data.id = 42;
+        assert_eq!(data.id, 42);
+    }
+
+    #[test]
+    fn test_notification_data_channel_id() {
+        let mut data = create_test_data();
+        data.channel_id = Some("test_channel".to_string());
+        assert_eq!(data.channel_id, Some("test_channel".to_string()));
+    }
+
+    #[test]
+    fn test_notification_data_title() {
+        let mut data = create_test_data();
+        data.title = Some("Test Title".to_string());
+        assert_eq!(data.title, Some("Test Title".to_string()));
+    }
+
+    #[test]
+    fn test_notification_data_body() {
+        let mut data = create_test_data();
+        data.body = Some("Test Body".to_string());
+        assert_eq!(data.body, Some("Test Body".to_string()));
+    }
+
+    #[test]
+    fn test_notification_data_large_body() {
+        let mut data = create_test_data();
+        data.large_body = Some("Large Body Text".to_string());
+        assert_eq!(data.large_body, Some("Large Body Text".to_string()));
+    }
+
+    #[test]
+    fn test_notification_data_summary() {
+        let mut data = create_test_data();
+        data.summary = Some("Summary Text".to_string());
+        assert_eq!(data.summary, Some("Summary Text".to_string()));
+    }
+
+    #[test]
+    fn test_notification_data_action_type_id() {
+        let mut data = create_test_data();
+        data.action_type_id = Some("action_type".to_string());
+        assert_eq!(data.action_type_id, Some("action_type".to_string()));
+    }
+
+    #[test]
+    fn test_notification_data_group() {
+        let mut data = create_test_data();
+        data.group = Some("test_group".to_string());
+        assert_eq!(data.group, Some("test_group".to_string()));
+    }
+
+    #[test]
+    fn test_notification_data_group_summary() {
+        let mut data = create_test_data();
+        data.group_summary = true;
+        assert!(data.group_summary);
+    }
+
+    #[test]
+    fn test_notification_data_sound() {
+        let mut data = create_test_data();
+        data.sound = Some("notification_sound".to_string());
+        assert_eq!(data.sound, Some("notification_sound".to_string()));
+    }
+
+    #[test]
+    fn test_notification_data_inbox_lines() {
+        let mut data = create_test_data();
+        data.inbox_lines.push("Line 1".to_string());
+        data.inbox_lines.push("Line 2".to_string());
+        assert_eq!(data.inbox_lines.len(), 2);
+        assert_eq!(data.inbox_lines[0], "Line 1");
+        assert_eq!(data.inbox_lines[1], "Line 2");
+    }
+
+    #[test]
+    fn test_notification_data_icon() {
+        let mut data = create_test_data();
+        data.icon = Some("icon_name".to_string());
+        assert_eq!(data.icon, Some("icon_name".to_string()));
+    }
+
+    #[test]
+    fn test_notification_data_large_icon() {
+        let mut data = create_test_data();
+        data.large_icon = Some("large_icon_name".to_string());
+        assert_eq!(data.large_icon, Some("large_icon_name".to_string()));
+    }
+
+    #[test]
+    fn test_notification_data_icon_color() {
+        let mut data = create_test_data();
+        data.icon_color = Some("#FF0000".to_string());
+        assert_eq!(data.icon_color, Some("#FF0000".to_string()));
+    }
+
+    #[test]
+    fn test_notification_data_attachments() {
+        let mut data = create_test_data();
+        let url = url::Url::parse("https://example.com/image.png").expect("Failed to parse URL");
+        let attachment = Attachment::new("attachment1", url);
+        data.attachments.push(attachment);
+        assert_eq!(data.attachments.len(), 1);
+    }
+
+    #[test]
+    fn test_notification_data_extra() {
+        let mut data = create_test_data();
+        data.extra
+            .insert("key1".to_string(), serde_json::json!("value1"));
+        data.extra.insert("key2".to_string(), serde_json::json!(42));
+        assert_eq!(data.extra.len(), 2);
+        assert_eq!(data.extra.get("key1"), Some(&serde_json::json!("value1")));
+        assert_eq!(data.extra.get("key2"), Some(&serde_json::json!(42)));
+    }
+
+    #[test]
+    fn test_notification_data_ongoing() {
+        let mut data = create_test_data();
+        data.ongoing = true;
+        assert!(data.ongoing);
+    }
+
+    #[test]
+    fn test_notification_data_auto_cancel() {
+        let mut data = create_test_data();
+        data.auto_cancel = true;
+        assert!(data.auto_cancel);
+    }
+
+    #[test]
+    fn test_notification_data_silent() {
+        let mut data = create_test_data();
+        data.silent = true;
+        assert!(data.silent);
+    }
+
+    #[test]
+    fn test_notification_data_schedule() {
+        let mut data = create_test_data();
+        let schedule = Schedule::Every {
+            interval: ScheduleEvery::Day,
+            count: 1,
+            allow_while_idle: false,
+        };
+        data.schedule = Some(schedule);
+        assert!(data.schedule.is_some());
+        assert!(matches!(data.schedule, Some(Schedule::Every { .. })));
+    }
+}

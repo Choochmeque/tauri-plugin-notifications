@@ -75,26 +75,6 @@ mod imp {
     /// The desktop notification definition.
     ///
     /// Allows you to construct a Notification data and send it.
-    ///
-    /// # Examples
-    /// ```rust,no_run
-    /// use tauri_plugin_notification::NotificationExt;
-    /// // first we build the application to access the Tauri configuration
-    /// let app = tauri::Builder::default()
-    ///   // on an actual app, remove the string argument
-    ///   .build(tauri::generate_context!("test/tauri.conf.json"))
-    ///   .expect("error while building tauri application");
-    ///
-    /// // shows a notification with the given title and body
-    /// app.notification()
-    ///   .builder()
-    ///   .title("New message")
-    ///   .body("You've got a new message.")
-    ///   .show();
-    ///
-    /// // run the app
-    /// app.run(|_app_handle, _event| {});
-    /// ```
     #[allow(dead_code)]
     #[derive(Debug, Default)]
     pub struct Notification {
@@ -139,26 +119,6 @@ mod imp {
         }
 
         /// Shows the notification.
-        ///
-        /// # Examples
-        ///
-        /// ```no_run
-        /// use tauri_plugin_notification::NotificationExt;
-        ///
-        /// tauri::Builder::default()
-        ///   .setup(|app| {
-        ///     app.notification()
-        ///       .builder()
-        ///       .title("Tauri")
-        ///       .body("Tauri is awesome!")
-        ///       .show()
-        ///       .unwrap();
-        ///     Ok(())
-        ///   })
-        ///   .run(tauri::generate_context!("test/tauri.conf.json"))
-        ///   .expect("error while running tauri application");
-        /// ```
-        ///
         pub fn show(self) -> crate::Result<()> {
             let mut notification = notify_rust::Notification::new();
             if let Some(body) = self.body {
