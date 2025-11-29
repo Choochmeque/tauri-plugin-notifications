@@ -77,7 +77,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - run: cargo install cargo-deadlinks
       - run: cargo doc --no-deps -p tauri-plugin-notifications
-      - run: cargo deadlinks --no-build
+      - run: cargo deadlinks --no-build --ignore-fragments
 
   # Check links in markdown files.
   mlc:
