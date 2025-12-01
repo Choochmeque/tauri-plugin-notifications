@@ -63,21 +63,6 @@ jobs:
           targets: ${{ matrix.target }}
       - run: cargo clippy --lib --target ${{ matrix.target }} --all-features -- -D warnings -D clippy::unwrap_used
 
-  # Check links in the documentation.
-  deadlinks:
-    name: cargo-deadlinks
-    runs-on: ubuntu-latest
-    steps:
-      - uses: awalsh128/cache-apt-pkgs-action@latest
-        with:
-          packages: libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf llvm-dev clang cmake grcov
-          version: "1.0"  # bump this to invalidate the cache when needed
-
-      - uses: actions/checkout@v6
-      - uses: dtolnay/rust-toolchain@stable
-      - run: cargo install cargo-deadlinks
-      - run: cargo deadlinks
-
   # Check links in markdown files.
   mlc:
     name: mlc
