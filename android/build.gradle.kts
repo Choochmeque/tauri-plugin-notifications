@@ -17,7 +17,7 @@ val buildProperties = Properties().apply {
 
 android {
     namespace = "app.tauri.notification"
-    compileSdk = 34
+    compileSdk = 36
 
     defaultConfig {
         minSdk = 24
