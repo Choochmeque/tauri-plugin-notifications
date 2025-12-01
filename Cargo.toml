@@ -1,6 +1,6 @@
 [package]
 name = "tauri-plugin-notifications"
-version = "0.3.0"
+version = "0.3.1"
 authors = ["You"]
 description = "A Tauri v2 plugin for sending notifications on desktop and mobile platforms with support for system notifications and push delivery via FCM and APNs."
 edition = "2021"
