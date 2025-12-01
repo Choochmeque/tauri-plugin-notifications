@@ -36,12 +36,13 @@ fn main() {
             .expect("Failed to write build.properties");
     }
 
-    // Pass the feature flag to iOS via environment variable for xcconfig
+    // Generate marker file for iOS Swift build
+    // Package.swift reads this file to conditionally enable ENABLE_PUSH_NOTIFICATIONS
+    let ios_marker_path = std::path::Path::new("ios/.push-notifications-enabled");
     if enable_push {
-        std::env::set_var(
-            "SWIFT_ACTIVE_COMPILATION_CONDITIONS",
-            "ENABLE_PUSH_NOTIFICATIONS",
-        );
+        std::fs::write(ios_marker_path, "").expect("Failed to write iOS push marker file");
+    } else if ios_marker_path.exists() {
+        std::fs::remove_file(ios_marker_path).ok();
     }
 
     let result = tauri_plugin::Builder::new(COMMANDS)

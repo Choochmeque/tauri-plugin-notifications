@@ -4,6 +4,18 @@
 // SPDX-License-Identifier: MIT
 
 import PackageDescription
+import Foundation
+
+// Check if push notifications feature is enabled via marker file from Rust build
+let enablePushNotifications = FileManager.default.fileExists(
+  atPath: URL(fileURLWithPath: #file).deletingLastPathComponent()
+    .appendingPathComponent(".push-notifications-enabled").path
+)
+
+var swiftSettings: [SwiftSetting] = []
+if enablePushNotifications {
+  swiftSettings.append(.define("ENABLE_PUSH_NOTIFICATIONS"))
+}
 
 let package = Package(
   name: "tauri-plugin-notifications",
@@ -29,7 +41,8 @@ let package = Package(
       dependencies: [
         .byName(name: "Tauri")
       ],
-      path: "Sources"),
+      path: "Sources",
+      swiftSettings: swiftSettings),
     .testTarget(
         name: "PluginTests",
         dependencies: ["tauri-plugin-notifications", .byName(name: "Tauri")]
