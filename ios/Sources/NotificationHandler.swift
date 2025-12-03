@@ -30,8 +30,9 @@ public class NotificationHandler: NSObject, NotificationHandlerProtocol {
   }
 
   public func willPresent(notification: UNNotification) -> UNNotificationPresentationOptions {
-    let notificationData = toActiveNotification(notification.request)
-    try? self.plugin?.trigger("notification", data: notificationData)
+    if let notificationData = toActiveNotification(notification.request) {
+      try? self.plugin?.trigger("notification", data: notificationData)
+    }
 
     if let options = notificationsMap[notification.request.identifier] {
       if options.silent ?? false {
@@ -66,17 +67,43 @@ public class NotificationHandler: NSObject, NotificationHandlerProtocol {
       inputValue = inputType.userText
     }
 
+    // Only trigger actionPerformed for local notifications (those in our map)
+    if let activeNotification = toActiveNotification(originalNotificationRequest) {
+      try? self.plugin?.trigger(
+        "actionPerformed",
+        data: ReceivedNotification(
+          actionId: actionIdValue,
+          inputValue: inputValue,
+          notification: activeNotification
+        ))
+    }
+
+    // Always trigger notificationClicked for both local and push notifications
+    let id = Int(originalNotificationRequest.identifier) ?? -1
+    let userInfo = originalNotificationRequest.content.userInfo
+    var dataDict: [String: String]? = nil
+    if !userInfo.isEmpty {
+      dataDict = [:]
+      for (key, value) in userInfo {
+        if let keyStr = key as? String, let valStr = value as? String {
+          dataDict?[keyStr] = valStr
+        }
+      }
+      if dataDict?.isEmpty == true {
+        dataDict = nil
+      }
+    }
+
     try? self.plugin?.trigger(
-      "actionPerformed",
-      data: ReceivedNotification(
-        actionId: actionIdValue,
-        inputValue: inputValue,
-        notification: toActiveNotification(originalNotificationRequest)
-      ))
+      "notificationClicked",
+      data: NotificationClickedData(id: id, data: dataDict)
+    )
   }
 
-  func toActiveNotification(_ request: UNNotificationRequest) -> ActiveNotification {
-    let notificationRequest = notificationsMap[request.identifier]!
+  func toActiveNotification(_ request: UNNotificationRequest) -> ActiveNotification? {
+    guard let notificationRequest = notificationsMap[request.identifier] else {
+      return nil
+    }
     return ActiveNotification(
       id: Int(request.identifier) ?? -1,
       title: request.content.title,
@@ -115,4 +142,9 @@ struct ReceivedNotification: Encodable {
   let actionId: String
   let inputValue: String?
   let notification: ActiveNotification
+}
+
+struct NotificationClickedData: Encodable {
+  let id: Int
+  let data: [String: String]?
 }

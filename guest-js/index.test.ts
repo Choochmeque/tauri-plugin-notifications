@@ -30,6 +30,7 @@ import {
   channels,
   onNotificationReceived,
   onAction,
+  onNotificationClicked,
 } from "./index";
 
 describe("Schedule", () => {
@@ -928,6 +929,58 @@ describe("Notification Functions", () => {
       capturedCallback?.(mockNotification);
 
       expect(callback).toHaveBeenCalledWith(mockNotification);
+    });
+  });
+
+  describe("onNotificationClicked", () => {
+    it("should register notification clicked listener", async () => {
+      const mockUnlisten = vi.fn();
+      mockAddPluginListener.mockResolvedValue(mockUnlisten);
+
+      const callback = vi.fn();
+      const unlisten = await onNotificationClicked(callback);
+
+      expect(mockAddPluginListener).toHaveBeenCalledWith(
+        "notifications",
+        "notificationClicked",
+        callback,
+      );
+      expect(unlisten).toBe(mockUnlisten);
+    });
+
+    it("should call callback when notification clicked", async () => {
+      const mockClickedData = { id: 123, data: { key: "value" } };
+      let capturedCallback: ((data: any) => void) | undefined;
+
+      mockAddPluginListener.mockImplementation((_plugin, _event, cb) => {
+        capturedCallback = cb;
+        return Promise.resolve(vi.fn());
+      });
+
+      const callback = vi.fn();
+      await onNotificationClicked(callback);
+
+      capturedCallback?.(mockClickedData);
+
+      expect(callback).toHaveBeenCalledWith(mockClickedData);
+    });
+
+    it("should handle notification click without data", async () => {
+      const mockClickedData = { id: 456 };
+      let capturedCallback: ((data: any) => void) | undefined;
+
+      mockAddPluginListener.mockImplementation((_plugin, _event, cb) => {
+        capturedCallback = cb;
+        return Promise.resolve(vi.fn());
+      });
+
+      const callback = vi.fn();
+      await onNotificationClicked(callback);
+
+      capturedCallback?.(mockClickedData);
+
+      expect(callback).toHaveBeenCalledWith(mockClickedData);
+      expect(callback.mock.calls[0][0].data).toBeUndefined();
     });
   });
 });

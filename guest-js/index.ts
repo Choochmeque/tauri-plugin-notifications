@@ -687,6 +687,38 @@ async function onAction(
   return await addPluginListener("notifications", "actionPerformed", cb);
 }
 
+/**
+ * Data received when a notification is clicked/tapped.
+ */
+interface NotificationClickedData {
+  /** Notification ID */
+  id: number;
+  /** Custom data payload attached to the notification */
+  data?: Record<string, string>;
+}
+
+/**
+ * Registers a listener for notification click/tap events.
+ * This fires when the user taps on a notification (both push and local).
+ *
+ * @example
+ * ```typescript
+ * import { onNotificationClicked } from '@choochmeque/tauri-plugin-notifications-api';
+ * const unlisten = await onNotificationClicked((data) => {
+ *   console.log('Notification clicked, id:', data.id);
+ *   console.log('Custom data:', data.data);
+ * });
+ * ```
+ *
+ * @param cb - Callback function to handle notification clicks.
+ * @returns A promise resolving to a function that removes the listener.
+ */
+async function onNotificationClicked(
+  cb: (data: NotificationClickedData) => void,
+): Promise<PluginListener> {
+  return await addPluginListener("notifications", "notificationClicked", cb);
+}
+
 export type {
   Attachment,
   Options,
@@ -696,6 +728,7 @@ export type {
   ActiveNotification,
   Channel,
   ScheduleInterval,
+  NotificationClickedData,
 };
 
 export {
@@ -717,6 +750,7 @@ export {
   channels,
   onNotificationReceived,
   onAction,
+  onNotificationClicked,
   Schedule,
   ScheduleEvery,
 };
