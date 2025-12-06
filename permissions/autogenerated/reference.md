@@ -26,6 +26,7 @@ It allows all notification related features.
 - `allow-delete-channel`
 - `allow-create-channel`
 - `allow-permission-state`
+- `allow-set-click-listener-active`
 
 ## Permission Table
 
@@ -448,6 +449,32 @@ Enables the request_permission command without any pre-configured scope.
 <td>
 
 Denies the request_permission command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`notifications:allow-set-click-listener-active`
+
+</td>
+<td>
+
+Enables the set_click_listener_active command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`notifications:deny-set-click-listener-active`
+
+</td>
+<td>
+
+Denies the set_click_listener_active command without any pre-configured scope.
 
 </td>
 </tr>

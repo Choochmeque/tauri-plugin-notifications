@@ -28,4 +28,5 @@ permissions = [
   "allow-delete-channel",
   "allow-create-channel",
   "allow-permission-state",
+  "allow-set-click-listener-active",
 ]

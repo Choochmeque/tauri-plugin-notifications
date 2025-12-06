@@ -701,6 +701,10 @@ interface NotificationClickedData {
  * Registers a listener for notification click/tap events.
  * This fires when the user taps on a notification (both push and local).
  *
+ * This function handles cold-start scenarios where the app is launched by
+ * tapping a notification. Any pending notification click data is automatically
+ * delivered when the listener is registered.
+ *
  * @example
  * ```typescript
  * import { onNotificationClicked } from '@choochmeque/tauri-plugin-notifications-api';
@@ -716,7 +720,26 @@ interface NotificationClickedData {
 async function onNotificationClicked(
   cb: (data: NotificationClickedData) => void,
 ): Promise<PluginListener> {
-  return await addPluginListener("notifications", "notificationClicked", cb);
+  const listener = await addPluginListener(
+    "notifications",
+    "notificationClicked",
+    cb,
+  );
+
+  // Tell native side listener is active (triggers pending if any)
+  await invoke("plugin:notifications|set_click_listener_active", {
+    active: true,
+  });
+
+  // Return wrapped listener that notifies native side on unregister
+  return {
+    unregister: async () => {
+      await invoke("plugin:notifications|set_click_listener_active", {
+        active: false,
+      });
+      return listener.unregister();
+    },
+  } as PluginListener;
 }
 
 export type {

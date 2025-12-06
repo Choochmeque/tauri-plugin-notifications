@@ -934,18 +934,41 @@ describe("Notification Functions", () => {
 
   describe("onNotificationClicked", () => {
     it("should register notification clicked listener", async () => {
-      const mockUnlisten = vi.fn();
-      mockAddPluginListener.mockResolvedValue(mockUnlisten);
+      const mockUnregister = vi.fn().mockResolvedValue(undefined);
+      mockAddPluginListener.mockResolvedValue({ unregister: mockUnregister });
+      mockInvoke.mockResolvedValue(undefined);
 
       const callback = vi.fn();
-      const unlisten = await onNotificationClicked(callback);
+      const listener = await onNotificationClicked(callback);
 
       expect(mockAddPluginListener).toHaveBeenCalledWith(
         "notifications",
         "notificationClicked",
         callback,
       );
-      expect(unlisten).toBe(mockUnlisten);
+      expect(mockInvoke).toHaveBeenCalledWith(
+        "plugin:notifications|set_click_listener_active",
+        { active: true },
+      );
+      expect(listener).toHaveProperty("unregister");
+    });
+
+    it("should notify native side on unregister", async () => {
+      const mockUnregister = vi.fn().mockResolvedValue(undefined);
+      mockAddPluginListener.mockResolvedValue({ unregister: mockUnregister });
+      mockInvoke.mockResolvedValue(undefined);
+
+      const callback = vi.fn();
+      const listener = await onNotificationClicked(callback);
+
+      mockInvoke.mockClear();
+      await listener.unregister();
+
+      expect(mockInvoke).toHaveBeenCalledWith(
+        "plugin:notifications|set_click_listener_active",
+        { active: false },
+      );
+      expect(mockUnregister).toHaveBeenCalled();
     });
 
     it("should call callback when notification clicked", async () => {

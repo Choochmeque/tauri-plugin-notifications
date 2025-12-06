@@ -153,6 +153,10 @@ struct BatchArgs: Decodable {
   let notifications: [Notification]
 }
 
+struct SetClickListenerActiveArgs: Decodable {
+  let active: Bool
+}
+
 class NotificationPlugin: Plugin {
   let notificationHandler = NotificationHandler()
   let notificationManager = NotificationManager()
@@ -374,6 +378,16 @@ class NotificationPlugin: Plugin {
 
   @objc func listChannels(_ invoke: Invoke) {
     invoke.reject("not implemented")
+  }
+
+  @objc func setClickListenerActive(_ invoke: Invoke) {
+    do {
+      let args = try invoke.parseArgs(SetClickListenerActiveArgs.self)
+      notificationHandler.setClickListenerActive(args.active)
+      invoke.resolve()
+    } catch {
+      invoke.reject(error.localizedDescription)
+    }
   }
 
 }

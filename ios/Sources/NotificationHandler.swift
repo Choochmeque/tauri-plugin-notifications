@@ -10,9 +10,20 @@ public class NotificationHandler: NSObject, NotificationHandlerProtocol {
   public weak var plugin: Plugin?
 
   private var notificationsMap = [String: Notification]()
+  private var hasClickedListener = false
+  private var pendingNotificationClick: NotificationClickedData? = nil
 
   internal func saveNotification(_ key: String, _ notification: Notification) {
     notificationsMap.updateValue(notification, forKey: key)
+  }
+
+  func setClickListenerActive(_ active: Bool) {
+    hasClickedListener = active
+
+    if active, let pending = pendingNotificationClick {
+      pendingNotificationClick = nil
+      try? self.plugin?.trigger("notificationClicked", data: pending)
+    }
   }
 
   public func requestPermissions(with completion: ((Bool, Error?) -> Void)? = nil) {
@@ -78,7 +89,7 @@ public class NotificationHandler: NSObject, NotificationHandlerProtocol {
         ))
     }
 
-    // Always trigger notificationClicked for both local and push notifications
+    // Handle notificationClicked for both local and push notifications
     let id = Int(originalNotificationRequest.identifier) ?? -1
     let userInfo = originalNotificationRequest.content.userInfo
     var dataDict: [String: String]? = nil
@@ -94,10 +105,15 @@ public class NotificationHandler: NSObject, NotificationHandlerProtocol {
       }
     }
 
-    try? self.plugin?.trigger(
-      "notificationClicked",
-      data: NotificationClickedData(id: id, data: dataDict)
-    )
+    let clickedData = NotificationClickedData(id: id, data: dataDict)
+
+    if hasClickedListener {
+      // Listener exists, trigger directly
+      try? self.plugin?.trigger("notificationClicked", data: clickedData)
+    } else {
+      // No listener (cold-start), store for later
+      pendingNotificationClick = clickedData
+    }
   }
 
   func toActiveNotification(_ request: UNNotificationRequest) -> ActiveNotification? {
