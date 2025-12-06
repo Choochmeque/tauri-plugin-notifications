@@ -41,7 +41,11 @@ public class NotificationHandler: NSObject, NotificationHandlerProtocol {
   }
 
   public func willPresent(notification: UNNotification) -> UNNotificationPresentationOptions {
+    // Trigger notification event for both local and push notifications
     if let notificationData = toActiveNotification(notification.request) {
+      try? self.plugin?.trigger("notification", data: notificationData)
+    } else {
+      let notificationData = toReceivedNotification(notification.request)
       try? self.plugin?.trigger("notification", data: notificationData)
     }
 
@@ -56,6 +60,31 @@ public class NotificationHandler: NSObject, NotificationHandlerProtocol {
       .sound,
       .alert,
     ]
+  }
+
+  /// Convert notification request to ReceivedNotification (for push notifications not in map)
+  private func toReceivedNotification(_ request: UNNotificationRequest) -> ReceivedNotificationData {
+    let content = request.content
+    var extra: [String: String]? = nil
+
+    if !content.userInfo.isEmpty {
+      extra = [:]
+      for (key, value) in content.userInfo {
+        if let keyStr = key as? String, let valStr = value as? String {
+          extra?[keyStr] = valStr
+        }
+      }
+      if extra?.isEmpty == true {
+        extra = nil
+      }
+    }
+
+    return ReceivedNotificationData(
+      id: Int(request.identifier) ?? -1,
+      title: content.title,
+      body: content.body,
+      extra: extra
+    )
   }
 
   public func didReceive(response: UNNotificationResponse) {
@@ -163,4 +192,11 @@ struct ReceivedNotification: Encodable {
 struct NotificationClickedData: Encodable {
   let id: Int
   let data: [String: String]?
+}
+
+struct ReceivedNotificationData: Encodable {
+  let id: Int
+  let title: String
+  let body: String
+  let extra: [String: String]?
 }
