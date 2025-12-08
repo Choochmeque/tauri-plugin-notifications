@@ -49,6 +49,14 @@ public class NotificationHandler: NSObject, NotificationHandlerProtocol {
       try? self.plugin?.trigger("notification", data: notificationData)
     }
 
+    // For push notifications in foreground, don't show system notification
+    // (only trigger event so developer can handle it)
+    let isPushNotification = notification.request.trigger?.isKind(of: UNPushNotificationTrigger.self) == true
+    if isPushNotification {
+      return UNNotificationPresentationOptions.init(rawValue: 0)
+    }
+
+    // For local notifications, check if silent
     if let options = notificationsMap[notification.request.identifier] {
       if options.silent ?? false {
         return UNNotificationPresentationOptions.init(rawValue: 0)
