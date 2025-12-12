@@ -238,6 +238,17 @@ class NotificationPlugin: Plugin {
     #endif
   }
 
+  @objc public func unregisterForPushNotifications(_ invoke: Invoke) {
+    #if ENABLE_PUSH_NOTIFICATIONS
+    DispatchQueue.main.async {
+      UIApplication.shared.unregisterForRemoteNotifications()
+      invoke.resolve()
+    }
+    #else
+    invoke.reject("Push notifications are disabled in this build")
+    #endif
+  }
+
   #if ENABLE_PUSH_NOTIFICATIONS
   private func registerForPushNotifications(completion: @escaping (Result<String, Error>) -> Void) {
     // Store completion for later

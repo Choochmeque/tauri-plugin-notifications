@@ -72,6 +72,21 @@ impl<R: Runtime> Notifications<R> {
         }
     }
 
+    pub fn unregister_for_push_notifications(&self) -> crate::Result<()> {
+        #[cfg(feature = "push-notifications")]
+        {
+            self.0
+                .run_mobile_plugin::<()>("unregisterForPushNotifications", ())
+                .map_err(Into::into)
+        }
+        #[cfg(not(feature = "push-notifications"))]
+        {
+            Err(crate::Error::Io(std::io::Error::other(
+                "Push notifications feature is not enabled",
+            )))
+        }
+    }
+
     pub fn permission_state(&self) -> crate::Result<PermissionState> {
         self.0
             .run_mobile_plugin::<PermissionResponse>("checkPermissions", ())

@@ -304,6 +304,38 @@ class NotificationPlugin(private val activity: Activity): Plugin(activity) {
     getFirebaseToken()
   }
 
+  @Command
+  fun unregisterForPushNotifications(invoke: Invoke) {
+    if (!BuildConfig.ENABLE_PUSH_NOTIFICATIONS) {
+      invoke.reject("Push notifications are disabled in this build")
+      return
+    }
+
+    try {
+      val firebaseMessaging = Class.forName("com.google.firebase.messaging.FirebaseMessaging")
+      val getInstance = firebaseMessaging.getMethod("getInstance")
+      val instance = getInstance.invoke(null)
+      val deleteToken = instance.javaClass.getMethod("deleteToken")
+      val task = deleteToken.invoke(instance) as com.google.android.gms.tasks.Task<*>
+
+      task.addOnCompleteListener { completedTask ->
+        if (!completedTask.isSuccessful) {
+          val errorMessage = "Failed to delete FCM token: ${completedTask.exception?.message}"
+          invoke.reject(errorMessage)
+          return@addOnCompleteListener
+        }
+
+        // Clear cached token
+        cachedToken = null
+        invoke.resolve()
+      }
+    } catch (e: Exception) {
+      val actualException = (e as? java.lang.reflect.InvocationTargetException)?.targetException ?: e
+      val errorMessage = "Firebase not available: ${actualException.message ?: actualException.toString()}"
+      invoke.reject(errorMessage)
+    }
+  }
+
   @PermissionCallback
   private fun pushPermissionsCallback(invoke: Invoke) {
     if (!manager.areNotificationsEnabled()) {

@@ -18,6 +18,7 @@ import {
   isPermissionGranted,
   requestPermission,
   registerForPushNotifications,
+  unregisterForPushNotifications,
   registerActionTypes,
   pending,
   cancel,
@@ -482,6 +483,27 @@ describe("Notification Functions", () => {
         "plugin:notifications|register_for_push_notifications",
       );
       expect(result).toBe(mockToken);
+    });
+  });
+
+  describe("unregisterForPushNotifications", () => {
+    it("should call invoke with correct plugin command", async () => {
+      mockInvoke.mockResolvedValue("");
+
+      await unregisterForPushNotifications();
+
+      expect(mockInvoke).toHaveBeenCalledWith(
+        "plugin:notifications|unregister_for_push_notifications",
+      );
+    });
+
+    it("should return the result from invoke", async () => {
+      const mockResult = "unregistered";
+      mockInvoke.mockResolvedValue(mockResult);
+
+      const result = await unregisterForPushNotifications();
+
+      expect(result).toBe(mockResult);
     });
   });
 

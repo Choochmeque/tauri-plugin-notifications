@@ -45,6 +45,23 @@ pub(crate) async fn register_for_push_notifications<R: Runtime>(
 }
 
 #[command]
+pub(crate) async fn unregister_for_push_notifications<R: Runtime>(
+    _app: AppHandle<R>,
+    _notification: State<'_, Notifications<R>>,
+) -> Result<()> {
+    #[cfg(feature = "push-notifications")]
+    {
+        _notification.unregister_for_push_notifications()
+    }
+    #[cfg(not(feature = "push-notifications"))]
+    {
+        Err(crate::Error::Io(std::io::Error::other(
+            "Push notifications feature is not enabled",
+        )))
+    }
+}
+
+#[command]
 pub(crate) async fn notify<R: Runtime>(
     _app: AppHandle<R>,
     notification: State<'_, Notifications<R>>,
