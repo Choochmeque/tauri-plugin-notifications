@@ -14,6 +14,7 @@ permissions = [
   "allow-is-permission-granted",
   "allow-request-permission",
   "allow-register-for-push-notifications",
+  "allow-unregister-for-push-notifications",
   "allow-notify",
   "allow-register-action-types",
   "allow-register-listener",

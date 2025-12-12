@@ -67,19 +67,19 @@ android {
 
 dependencies {
     implementation("androidx.core:core-ktx:1.17.0")
-    implementation("androidx.appcompat:appcompat:1.6.0")
+    implementation("androidx.appcompat:appcompat:1.7.1")
     implementation("com.google.android.material:material:1.13.0")
     implementation("com.fasterxml.jackson.core:jackson-databind:2.20.1")
 
     implementation(platform("com.google.firebase:firebase-bom:34.6.0"))
     implementation("com.google.firebase:firebase-messaging-ktx:24.1.2")
     testImplementation("junit:junit:4.13.2")
-    testImplementation("io.mockk:mockk-android:1.13.3")
-    testImplementation("io.mockk:mockk-agent:1.13.3")
+    testImplementation("io.mockk:mockk-android:1.14.7")
+    testImplementation("io.mockk:mockk-agent:1.14.7")
     testImplementation("org.jetbrains.kotlin:kotlin-test:1.9.20")
-    testImplementation("org.json:json:20231013")
+    testImplementation("org.json:json:20250517")
     testImplementation("org.robolectric:robolectric:4.16")
-    androidTestImplementation("androidx.test.ext:junit:1.1.5")
+    androidTestImplementation("androidx.test.ext:junit:1.3.0")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.7.0")
     implementation(project(":tauri-android"))
 }

@@ -452,6 +452,25 @@ async function registerForPushNotifications(): Promise<string> {
 }
 
 /**
+ * Unregisters the app from push notifications (mobile).
+ *
+ * This removes the device's push notification token and stops receiving
+ * remote push notifications.
+ *
+ * @example
+ * ```typescript
+ * import { unregisterForPushNotifications } from '@choochmeque/tauri-plugin-notifications-api';
+ * await unregisterForPushNotifications();
+ * console.log('Unregistered from push notifications');
+ * ```
+ *
+ * @returns A promise resolving when unregistration is complete.
+ */
+async function unregisterForPushNotifications(): Promise<string> {
+  return await invoke("plugin:notifications|unregister_for_push_notifications");
+}
+
+/**
  * Sends a notification to the user.
  * @example
  * ```typescript
@@ -761,6 +780,7 @@ export {
   requestPermission,
   isPermissionGranted,
   registerForPushNotifications,
+  unregisterForPushNotifications,
   registerActionTypes,
   pending,
   cancel,
