@@ -21,6 +21,7 @@ const COMMANDS: &[&str] = &[
     "delete_channel",
     "create_channel",
     "permission_state",
+    "set_click_listener_active",
 ];
 
 fn main() {

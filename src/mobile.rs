@@ -172,6 +172,17 @@ impl<R: Runtime> Notifications<R> {
             .run_mobile_plugin("listChannels", ())
             .map_err(Into::into)
     }
+
+    /// Set click listener active state.
+    /// Used internally to track if JS listener is registered.
+    #[cfg(target_os = "ios")]
+    pub fn set_click_listener_active(&self, active: bool) -> crate::Result<()> {
+        let mut args = HashMap::new();
+        args.insert("active", active);
+        self.0
+            .run_mobile_plugin("setClickListenerActive", args)
+            .map_err(Into::into)
+    }
 }
 
 #[derive(Deserialize)]

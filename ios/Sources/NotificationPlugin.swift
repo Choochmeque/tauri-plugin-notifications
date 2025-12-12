@@ -153,6 +153,10 @@ struct BatchArgs: Decodable {
   let notifications: [Notification]
 }
 
+struct SetClickListenerActiveArgs: Decodable {
+  let active: Bool
+}
+
 class NotificationPlugin: Plugin {
   let notificationHandler = NotificationHandler()
   let notificationManager = NotificationManager()
@@ -367,7 +371,7 @@ class NotificationPlugin: Plugin {
   @objc func getActive(_ invoke: Invoke) {
     UNUserNotificationCenter.current().getDeliveredNotifications(completionHandler: {
       (notifications) in
-      let ret = notifications.map({ (notification) -> ActiveNotification in
+      let ret = notifications.compactMap({ (notification) -> ActiveNotification? in
         return self.notificationHandler.toActiveNotification(
           notification.request)
       })
@@ -385,6 +389,16 @@ class NotificationPlugin: Plugin {
 
   @objc func listChannels(_ invoke: Invoke) {
     invoke.reject("not implemented")
+  }
+
+  @objc func setClickListenerActive(_ invoke: Invoke) {
+    do {
+      let args = try invoke.parseArgs(SetClickListenerActiveArgs.self)
+      notificationHandler.setClickListenerActive(args.active)
+      invoke.resolve()
+    } catch {
+      invoke.reject(error.localizedDescription)
+    }
   }
 
 }

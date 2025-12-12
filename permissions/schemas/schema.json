@@ -487,6 +487,18 @@
           "markdownDescription": "Denies the request_permission command without any pre-configured scope."
         },
         {
+          "description": "Enables the set_click_listener_active command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-set-click-listener-active",
+          "markdownDescription": "Enables the set_click_listener_active command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the set_click_listener_active command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-set-click-listener-active",
+          "markdownDescription": "Denies the set_click_listener_active command without any pre-configured scope."
+        },
+        {
           "description": "Enables the show command without any pre-configured scope.",
           "type": "string",
           "const": "allow-show",

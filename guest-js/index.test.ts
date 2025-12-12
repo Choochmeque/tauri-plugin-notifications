@@ -31,6 +31,7 @@ import {
   channels,
   onNotificationReceived,
   onAction,
+  onNotificationClicked,
 } from "./index";
 
 describe("Schedule", () => {
@@ -950,6 +951,81 @@ describe("Notification Functions", () => {
       capturedCallback?.(mockNotification);
 
       expect(callback).toHaveBeenCalledWith(mockNotification);
+    });
+  });
+
+  describe("onNotificationClicked", () => {
+    it("should register notification clicked listener", async () => {
+      const mockUnregister = vi.fn().mockResolvedValue(undefined);
+      mockAddPluginListener.mockResolvedValue({ unregister: mockUnregister });
+      mockInvoke.mockResolvedValue(undefined);
+
+      const callback = vi.fn();
+      const listener = await onNotificationClicked(callback);
+
+      expect(mockAddPluginListener).toHaveBeenCalledWith(
+        "notifications",
+        "notificationClicked",
+        callback,
+      );
+      expect(mockInvoke).toHaveBeenCalledWith(
+        "plugin:notifications|set_click_listener_active",
+        { active: true },
+      );
+      expect(listener).toHaveProperty("unregister");
+    });
+
+    it("should notify native side on unregister", async () => {
+      const mockUnregister = vi.fn().mockResolvedValue(undefined);
+      mockAddPluginListener.mockResolvedValue({ unregister: mockUnregister });
+      mockInvoke.mockResolvedValue(undefined);
+
+      const callback = vi.fn();
+      const listener = await onNotificationClicked(callback);
+
+      mockInvoke.mockClear();
+      await listener.unregister();
+
+      expect(mockInvoke).toHaveBeenCalledWith(
+        "plugin:notifications|set_click_listener_active",
+        { active: false },
+      );
+      expect(mockUnregister).toHaveBeenCalled();
+    });
+
+    it("should call callback when notification clicked", async () => {
+      const mockClickedData = { id: 123, data: { key: "value" } };
+      let capturedCallback: ((data: any) => void) | undefined;
+
+      mockAddPluginListener.mockImplementation((_plugin, _event, cb) => {
+        capturedCallback = cb;
+        return Promise.resolve(vi.fn());
+      });
+
+      const callback = vi.fn();
+      await onNotificationClicked(callback);
+
+      capturedCallback?.(mockClickedData);
+
+      expect(callback).toHaveBeenCalledWith(mockClickedData);
+    });
+
+    it("should handle notification click without data", async () => {
+      const mockClickedData = { id: 456 };
+      let capturedCallback: ((data: any) => void) | undefined;
+
+      mockAddPluginListener.mockImplementation((_plugin, _event, cb) => {
+        capturedCallback = cb;
+        return Promise.resolve(vi.fn());
+      });
+
+      const callback = vi.fn();
+      await onNotificationClicked(callback);
+
+      capturedCallback?.(mockClickedData);
+
+      expect(callback).toHaveBeenCalledWith(mockClickedData);
+      expect(callback.mock.calls[0][0].data).toBeUndefined();
     });
   });
 });

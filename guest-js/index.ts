@@ -706,6 +706,61 @@ async function onAction(
   return await addPluginListener("notifications", "actionPerformed", cb);
 }
 
+/**
+ * Data received when a notification is clicked/tapped.
+ */
+interface NotificationClickedData {
+  /** Notification ID */
+  id: number;
+  /** Custom data payload attached to the notification */
+  data?: Record<string, string>;
+}
+
+/**
+ * Registers a listener for notification click/tap events.
+ * This fires when the user taps on a notification (both push and local).
+ *
+ * This function handles cold-start scenarios where the app is launched by
+ * tapping a notification. Any pending notification click data is automatically
+ * delivered when the listener is registered.
+ *
+ * @example
+ * ```typescript
+ * import { onNotificationClicked } from '@choochmeque/tauri-plugin-notifications-api';
+ * const unlisten = await onNotificationClicked((data) => {
+ *   console.log('Notification clicked, id:', data.id);
+ *   console.log('Custom data:', data.data);
+ * });
+ * ```
+ *
+ * @param cb - Callback function to handle notification clicks.
+ * @returns A promise resolving to a function that removes the listener.
+ */
+async function onNotificationClicked(
+  cb: (data: NotificationClickedData) => void,
+): Promise<PluginListener> {
+  const listener = await addPluginListener(
+    "notifications",
+    "notificationClicked",
+    cb,
+  );
+
+  // Tell native side listener is active (triggers pending if any)
+  await invoke("plugin:notifications|set_click_listener_active", {
+    active: true,
+  });
+
+  // Return wrapped listener that notifies native side on unregister
+  return {
+    unregister: async () => {
+      await invoke("plugin:notifications|set_click_listener_active", {
+        active: false,
+      });
+      return listener.unregister();
+    },
+  } as PluginListener;
+}
+
 export type {
   Attachment,
   Options,
@@ -715,6 +770,7 @@ export type {
   ActiveNotification,
   Channel,
   ScheduleInterval,
+  NotificationClickedData,
 };
 
 export {
@@ -737,6 +793,7 @@ export {
   channels,
   onNotificationReceived,
   onAction,
+  onNotificationClicked,
   Schedule,
   ScheduleEvery,
 };
