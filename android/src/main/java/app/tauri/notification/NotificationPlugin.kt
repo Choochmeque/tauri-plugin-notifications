@@ -62,11 +62,6 @@ class RegisterActionTypesArgs {
 }
 
 @InvokeArg
-class SetClickListenerActiveArgs {
-  var active: Boolean = false
-}
-
-@InvokeArg
 class ActiveNotification {
   var id: Int = 0
   var tag: String? = null
@@ -91,10 +86,6 @@ class NotificationPlugin(private val activity: Activity): Plugin(activity) {
 
   private var pendingTokenInvoke: Invoke? = null
   private var cachedToken: String? = null
-
-  // Click listener tracking for cold-start support
-  private var hasClickedListener = false
-  private var pendingNotificationClick: JSObject? = null
 
   companion object {
     var instance: NotificationPlugin? = null
@@ -138,62 +129,9 @@ class NotificationPlugin(private val activity: Activity): Plugin(activity) {
     if (Intent.ACTION_MAIN != intent.action) {
       return
     }
-
-    // Handle local notification click
     val dataJson = manager.handleNotificationActionPerformed(intent, notificationStorage)
     if (dataJson != null) {
       trigger("actionPerformed", dataJson)
-      triggerNotificationClicked(
-        intent.getIntExtra(NOTIFICATION_INTENT_KEY, -1),
-        extractLocalNotificationData(intent)
-      )
-      return
-    }
-
-    // Handle push notification click (Firebase background notification)
-    val pushData = extractPushNotificationData(intent)
-    if (pushData != null) {
-      triggerNotificationClicked(-1, pushData)
-    }
-  }
-
-  private fun extractLocalNotificationData(intent: Intent): JSObject? {
-    val notificationJson = intent.getStringExtra(NOTIFICATION_OBJ_INTENT_KEY) ?: return null
-    return try {
-      val notification = JSObject(notificationJson)
-      if (notification.has("extra")) notification.getJSObject("extra") else null
-    } catch (_: Exception) {
-      null
-    }
-  }
-
-  private fun extractPushNotificationData(intent: Intent): JSObject? {
-    val extras = intent.extras ?: return null
-    // Skip if no extras or if it's a regular app launch
-    if (extras.isEmpty) return null
-
-    // Filter out system/internal keys, keep user data
-    val data = JSObject()
-    for (key in extras.keySet()) {
-      // Skip Android/Firebase internal keys
-      if (key.startsWith("android.") || key.startsWith("google.") ||
-          key.startsWith("gcm.") || key == "from" || key == "collapse_key") continue
-      extras.getString(key)?.let { data.put(key, it) }
-    }
-    return if (data.length() > 0) data else null
-  }
-
-  private fun triggerNotificationClicked(id: Int, data: JSObject?) {
-    val clickedData = JSObject()
-    clickedData.put("id", id)
-    if (data != null) {
-      clickedData.put("data", data)
-    }
-
-    if (hasClickedListener) {
-      trigger("notificationClicked", clickedData)
-    } else {
-      pendingNotificationClick = clickedData
     }
   }
 
@@ -479,19 +417,5 @@ class NotificationPlugin(private val activity: Activity): Plugin(activity) {
     } else {
       "denied"
     }
-  }
-
-  @Command
-  fun setClickListenerActive(invoke: Invoke) {
-    val args = invoke.parseArgs(SetClickListenerActiveArgs::class.java)
-    hasClickedListener = args.active
-
-    // If listener just became active and we have pending click, trigger it
-    if (args.active && pendingNotificationClick != null) {
-      trigger("notificationClicked", pendingNotificationClick!!)
-      pendingNotificationClick = null
-    }
-
-    invoke.resolve()
   }
 }
