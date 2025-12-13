@@ -175,7 +175,6 @@ impl<R: Runtime> Notifications<R> {
 
     /// Set click listener active state.
     /// Used internally to track if JS listener is registered.
-    #[cfg(target_os = "ios")]
     pub fn set_click_listener_active(&self, active: bool) -> crate::Result<()> {
         let mut args = HashMap::new();
         args.insert("active", active);
