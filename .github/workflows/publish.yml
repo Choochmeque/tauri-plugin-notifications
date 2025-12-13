@@ -38,6 +38,9 @@ jobs:
           registry-url: "https://registry.npmjs.org"
           cache: "pnpm"
 
+      - name: Update npm
+        run: npm install -g npm@latest
+
       # Install dependencies
       - run: pnpm install
 
@@ -50,8 +53,6 @@ jobs:
 
       # Publish
       - name: pnpm publish
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           # If you want supply-chain provenance (npm >=9.5, Node >=20)
           npm config set provenance true
