@@ -71,7 +71,7 @@ jobs:
           name: javascript-coverage
 
       - name: Upload coverage reports
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         if: always()
         with:
           name: js-coverage
@@ -121,14 +121,14 @@ jobs:
           name: android-coverage
 
       - name: Upload test results
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         if: always()
         with:
           name: android-test-results
           path: android/build/test-results/
 
       - name: Upload coverage reports
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         if: always()
         with:
           name: android-coverage
@@ -180,7 +180,7 @@ jobs:
           script: cd android && ./gradlew clean connectedDebugAndroidTest --stacktrace --no-daemon
 
       - name: Upload instrumented test results
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         if: always()
         with:
           name: android-instrumented-test-results
@@ -227,14 +227,14 @@ jobs:
           name: ios-coverage
 
       - name: Upload test results
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         if: always()
         with:
           name: ios-test-results
           path: ios/TestResults.xcresult
 
       - name: Upload coverage reports
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         if: always()
         with:
           name: ios-coverage
