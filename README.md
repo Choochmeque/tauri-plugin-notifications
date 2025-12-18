@@ -89,6 +89,24 @@ fn main() {
 }
 ```
 
+## Example App
+
+An example app is available in [`examples/notifications-demo`](examples/notifications-demo) demonstrating all plugin features:
+
+- Permission management and push notifications (mobile)
+- Basic, scheduled, and styled notifications
+- Interactive notifications with action buttons
+- Notification channels (Android)
+- Pending and active notification management
+- Event listeners with logging
+
+**Run it:**
+```bash
+cd examples/notifications-demo
+pnpm install
+pnpm tauri dev
+```
+
 ## Usage
 
 ### JavaScript/TypeScript

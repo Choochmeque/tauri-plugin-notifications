@@ -5,15 +5,27 @@
 
 version: 2
 updates:
-  # Enable version updates for npm
+  # Enable version updates for rust
   - package-ecosystem: "cargo"
     directory: "/"
     schedule:
       interval: "weekly"
       
+  # Enable version updates for rust (example project)
+  - package-ecosystem: "cargo"
+    directory: "/example/"
+    schedule:
+      interval: "weekly"
+
   # Enable version updates for npm
   - package-ecosystem: "npm"
     directory: "/"
+    schedule:
+      interval: "weekly"
+
+  # Enable version updates for npm (example project)
+  - package-ecosystem: "npm"
+    directory: "/example/"
     schedule:
       interval: "weekly"
 
