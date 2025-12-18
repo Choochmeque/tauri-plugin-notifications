@@ -13,7 +13,7 @@ updates:
       
   # Enable version updates for rust (example project)
   - package-ecosystem: "cargo"
-    directory: "/examples/notifications-demo/"
+    directory: "/examples/notifications-demo/src-tauri/"
     schedule:
       interval: "weekly"
 
