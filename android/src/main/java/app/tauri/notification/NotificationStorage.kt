@@ -6,8 +6,10 @@ package app.tauri.notification
 
 import android.content.Context
 import android.content.SharedPreferences
+import app.tauri.Logger
 import com.fasterxml.jackson.databind.ObjectMapper
 
+private const val STORAGE_TAG = "NotificationStorage"
 // Key for private preferences
 private const val NOTIFICATION_STORE_ID = "NOTIFICATION_STORE"
 // Key used to save action types
@@ -45,7 +47,8 @@ class NotificationStorage(private val context: Context, private val jsonMapper: 
     val storage = getStorage(NOTIFICATION_STORE_ID)
     val notificationString = try {
       storage.getString(key, null)
-    } catch (_: ClassCastException) {
+    } catch (e: ClassCastException) {
+      Logger.error(Logger.tags(STORAGE_TAG), "Failed to get notification string for key $key: ${e.message}", e)
       return null
     }
     return parseNotification(notificationString)
@@ -55,7 +58,8 @@ class NotificationStorage(private val context: Context, private val jsonMapper: 
     if (json == null) return null
     return try {
       jsonMapper.readValue(json, Notification::class.java)
-    } catch (_: Exception) {
+    } catch (e: Exception) {
+      Logger.error(Logger.tags(STORAGE_TAG), "Failed to parse notification: ${e.message}", e)
       null
     }
   }
