@@ -11,6 +11,7 @@ const COMMANDS: &[&str] = &[
     "register_action_types",
     "register_listener",
     "cancel",
+    "cancel_all",
     "get_pending",
     "remove_active",
     "get_active",

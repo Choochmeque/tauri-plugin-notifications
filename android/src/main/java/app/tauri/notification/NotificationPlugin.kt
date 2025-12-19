@@ -227,6 +227,13 @@ class NotificationPlugin(private val activity: Activity): Plugin(activity) {
   }
 
   @Command
+  fun cancelAll(invoke: Invoke) {
+    val ids = notificationStorage.getSavedNotificationIds().mapNotNull { it.toIntOrNull() }
+    manager.cancel(ids)
+    invoke.resolve()
+  }
+
+  @Command
   fun removeActive(invoke: Invoke) {
     val args = invoke.parseArgs(RemoveActiveArgs::class.java)
 

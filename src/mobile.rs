@@ -147,7 +147,9 @@ impl<R: Runtime> Notifications<R> {
 
     /// Cancel all pending notifications.
     pub fn cancel_all(&self) -> crate::Result<()> {
-        self.0.run_mobile_plugin("cancel", ()).map_err(Into::into)
+        self.0
+            .run_mobile_plugin("cancelAll", ())
+            .map_err(Into::into)
     }
 
     #[cfg(target_os = "android")]

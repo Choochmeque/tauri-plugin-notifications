@@ -336,6 +336,11 @@ class NotificationPlugin: Plugin {
     invoke.resolve()
   }
 
+  @objc func cancelAll(_ invoke: Invoke) {
+    UNUserNotificationCenter.current().removeAllPendingNotificationRequests()
+    invoke.resolve()
+  }
+
   @objc func getPending(_ invoke: Invoke) {
     UNUserNotificationCenter.current().getPendingNotificationRequests(completionHandler: {
       (notifications) in

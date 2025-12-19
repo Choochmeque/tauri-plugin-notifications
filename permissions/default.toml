@@ -19,6 +19,7 @@ permissions = [
   "allow-register-action-types",
   "allow-register-listener",
   "allow-cancel",
+  "allow-cancel-all",
   "allow-get-pending",
   "allow-remove-active",
   "allow-get-active",

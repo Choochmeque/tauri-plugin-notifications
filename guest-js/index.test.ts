@@ -708,7 +708,7 @@ describe("Notification Functions", () => {
 
       await cancelAll();
 
-      expect(mockInvoke).toHaveBeenCalledWith("plugin:notifications|cancel");
+      expect(mockInvoke).toHaveBeenCalledWith("plugin:notifications|cancel_all");
     });
   });
 
@@ -872,7 +872,7 @@ describe("Notification Functions", () => {
       const result = await channels();
 
       expect(mockInvoke).toHaveBeenCalledWith(
-        "plugin:notifications|listChannels",
+        "plugin:notifications|list_channels",
       );
       expect(result).toEqual(mockChannels);
     });

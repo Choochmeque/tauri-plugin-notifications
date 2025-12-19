@@ -12,10 +12,7 @@ import android.os.Build
 import android.service.notification.StatusBarNotification
 import androidx.annotation.RequiresApi
 import app.tauri.annotation.InvokeArg
-import app.tauri.plugin.JSArray
 import app.tauri.plugin.JSObject
-import org.json.JSONException
-import org.json.JSONObject
 
 @InvokeArg
 class Notification {
@@ -87,7 +84,13 @@ class Notification {
     fun buildNotificationPendingList(notifications: List<Notification>): List<PendingNotification> {
       val pendingNotifications = mutableListOf<PendingNotification>()
       for (notification in notifications) {
-        val pendingNotification = PendingNotification(notification.id, notification.title, notification.body, notification.schedule, notification.extra)
+        val pendingNotification = PendingNotification(
+          id = notification.id,
+          title = notification.title,
+          body = notification.body,
+          schedule = notification.schedule,
+          extra = notification.extra
+        )
         pendingNotifications.add(pendingNotification)
       }
       return pendingNotifications
@@ -98,13 +101,14 @@ class Notification {
       val activeNotifications = mutableListOf<ActiveNotificationInfo>()
       for (statusBarNotification in statusBarNotifications) {
         val notification = statusBarNotification.notification
-        val data = if (notification != null) {
-          val extras = JSObject()
+        val data = mutableMapOf<String, String>()
+        if (notification != null) {
           for (key in notification.extras.keySet()) {
-            extras.put(key!!, notification.extras.getString(key))
+            notification.extras.getString(key)?.let { value ->
+              data[key] = value
+            }
           }
-          extras
-        } else null
+        }
 
         val activeNotification = ActiveNotificationInfo(
           id = statusBarNotification.id,
@@ -113,7 +117,12 @@ class Notification {
           body = notification?.extras?.getCharSequence(android.app.Notification.EXTRA_TEXT)?.toString(),
           group = notification?.group,
           groupSummary = notification?.let { 0 != it.flags and android.app.Notification.FLAG_GROUP_SUMMARY } ?: false,
-          data = data
+          data = data,
+          extra = emptyMap(),
+          attachments = emptyList(),
+          actionTypeId = null,
+          schedule = null,
+          sound = null
         )
         activeNotifications.add(activeNotification)
       }
@@ -122,7 +131,13 @@ class Notification {
   }
 }
 
-class PendingNotification(val id: Int, val title: String?, val body: String?, val schedule: NotificationSchedule?, val extra: JSObject?)
+class PendingNotification(
+  val id: Int,
+  val title: String?,
+  val body: String?,
+  val schedule: NotificationSchedule?,
+  val extra: JSObject?
+)
 
 class ActiveNotificationInfo(
   val id: Int,
@@ -131,5 +146,15 @@ class ActiveNotificationInfo(
   val body: String?,
   val group: String?,
   val groupSummary: Boolean,
-  val data: JSObject?
+  val data: Map<String, String>,
+  val extra: Map<String, Any>,
+  val attachments: List<AttachmentInfo>,
+  val actionTypeId: String?,
+  val schedule: NotificationSchedule?,
+  val sound: String?
+)
+
+class AttachmentInfo(
+  val id: String,
+  val url: String
 )

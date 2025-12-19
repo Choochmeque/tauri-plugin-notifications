@@ -7,8 +7,6 @@ package app.tauri.notification
 import android.content.Context
 import android.content.SharedPreferences
 import com.fasterxml.jackson.databind.ObjectMapper
-import org.json.JSONException
-import java.lang.Exception
 
 // Key for private preferences
 private const val NOTIFICATION_STORE_ID = "NOTIFICATION_STORE"
@@ -38,32 +36,26 @@ class NotificationStorage(private val context: Context, private val jsonMapper: 
 
   fun getSavedNotifications(): List<Notification> {
     val storage = getStorage(NOTIFICATION_STORE_ID)
-    val all = storage.all
-    if (all != null) {
-      val notifications = ArrayList<Notification>()
-      for (key in all.keys) {
-        val notificationString = all[key] as String?
-        try {
-          val notification = jsonMapper.readValue(notificationString, Notification::class.java)
-          notifications.add(notification)
-        } catch (_: Exception) { }
-      }
-      return notifications
-    }
-    return ArrayList()
+    return storage.all?.keys?.mapNotNull { key ->
+      parseNotification(storage.all?.get(key) as? String)
+    } ?: emptyList()
   }
 
   fun getSavedNotification(key: String): Notification? {
     val storage = getStorage(NOTIFICATION_STORE_ID)
     val notificationString = try {
       storage.getString(key, null)
-    } catch (ex: ClassCastException) {
+    } catch (_: ClassCastException) {
       return null
-    } ?: return null
+    }
+    return parseNotification(notificationString)
+  }
 
+  private fun parseNotification(json: String?): Notification? {
+    if (json == null) return null
     return try {
-      jsonMapper.readValue(notificationString, Notification::class.java)
-    } catch (ex: JSONException) {
+      jsonMapper.readValue(json, Notification::class.java)
+    } catch (_: Exception) {
       null
     }
   }
