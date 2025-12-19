@@ -5,21 +5,39 @@
 
 version: 2
 updates:
-  # Enable version updates for npm
+  # Enable version updates for rust
   - package-ecosystem: "cargo"
     directory: "/"
     schedule:
       interval: "weekly"
       
+  # Enable version updates for rust (example project)
+  - package-ecosystem: "cargo"
+    directory: "/examples/notifications-demo/src-tauri/"
+    schedule:
+      interval: "weekly"
+
   # Enable version updates for npm
   - package-ecosystem: "npm"
     directory: "/"
     schedule:
       interval: "weekly"
 
+  # Enable version updates for npm (example project)
+  - package-ecosystem: "npm"
+    directory: "/examples/notifications-demo/"
+    schedule:
+      interval: "weekly"
+
   # Enable version updates for Gradle
   - package-ecosystem: "gradle"
     directory: "/android/"
+    schedule:
+      interval: "weekly"
+
+  # Enable version updates for Gradle (example project)
+  - package-ecosystem: "gradle"
+    directory: "/examples/notifications-demo/src-tauri/gen/android/"
     schedule:
       interval: "weekly"
 
