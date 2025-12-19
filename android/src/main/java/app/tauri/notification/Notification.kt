@@ -8,6 +8,9 @@ import android.content.ContentResolver
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.os.Build
+import android.service.notification.StatusBarNotification
+import androidx.annotation.RequiresApi
 import app.tauri.annotation.InvokeArg
 import app.tauri.plugin.JSArray
 import app.tauri.plugin.JSObject
@@ -89,7 +92,44 @@ class Notification {
       }
       return pendingNotifications
     }
+
+    @RequiresApi(Build.VERSION_CODES.M)
+    fun buildNotificationActiveList(statusBarNotifications: Array<StatusBarNotification>): List<ActiveNotificationInfo> {
+      val activeNotifications = mutableListOf<ActiveNotificationInfo>()
+      for (statusBarNotification in statusBarNotifications) {
+        val notification = statusBarNotification.notification
+        val data = if (notification != null) {
+          val extras = JSObject()
+          for (key in notification.extras.keySet()) {
+            extras.put(key!!, notification.extras.getString(key))
+          }
+          extras
+        } else null
+
+        val activeNotification = ActiveNotificationInfo(
+          id = statusBarNotification.id,
+          tag = statusBarNotification.tag,
+          title = notification?.extras?.getCharSequence(android.app.Notification.EXTRA_TITLE)?.toString(),
+          body = notification?.extras?.getCharSequence(android.app.Notification.EXTRA_TEXT)?.toString(),
+          group = notification?.group,
+          groupSummary = notification?.let { 0 != it.flags and android.app.Notification.FLAG_GROUP_SUMMARY } ?: false,
+          data = data
+        )
+        activeNotifications.add(activeNotification)
+      }
+      return activeNotifications
+    }
   }
 }
 
 class PendingNotification(val id: Int, val title: String?, val body: String?, val schedule: NotificationSchedule?, val extra: JSObject?)
+
+class ActiveNotificationInfo(
+  val id: Int,
+  val tag: String?,
+  val title: String?,
+  val body: String?,
+  val group: String?,
+  val groupSummary: Boolean,
+  val data: JSObject?
+)
