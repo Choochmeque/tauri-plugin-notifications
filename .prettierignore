@@ -8,3 +8,4 @@ node_modules
 schema.json
 target
 **/gen/*
+**/.svelte-kit/

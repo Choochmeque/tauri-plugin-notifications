@@ -708,7 +708,9 @@ describe("Notification Functions", () => {
 
       await cancelAll();
 
-      expect(mockInvoke).toHaveBeenCalledWith("plugin:notifications|cancel_all");
+      expect(mockInvoke).toHaveBeenCalledWith(
+        "plugin:notifications|cancel_all",
+      );
     });
   });
 
