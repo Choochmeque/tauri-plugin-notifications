@@ -135,24 +135,26 @@ class NotificationPlugin(private val activity: Activity): Plugin(activity) {
   }
 
   fun onIntent(intent: Intent) {
-    if (Intent.ACTION_MAIN != intent.action) {
-      return
-    }
+    Logger.debug(Logger.tags(TAG), "onIntent called - action: ${intent.action}, extras: ${intent.extras?.keySet()}")
 
-    // Handle local notification click
-    val dataJson = manager.handleNotificationActionPerformed(intent, notificationStorage)
-    if (dataJson != null) {
-      trigger("actionPerformed", dataJson)
-      triggerNotificationClicked(
-        intent.getIntExtra(NOTIFICATION_INTENT_KEY, -1),
-        extractLocalNotificationData(intent)
-      )
-      return
+    // Handle local notification click (requires ACTION_MAIN)
+    if (Intent.ACTION_MAIN == intent.action) {
+      val dataJson = manager.handleNotificationActionPerformed(intent, notificationStorage)
+      if (dataJson != null) {
+        trigger("actionPerformed", dataJson)
+        triggerNotificationClicked(
+          intent.getIntExtra(NOTIFICATION_INTENT_KEY, -1),
+          extractLocalNotificationData(intent)
+        )
+        return
+      }
     }
 
     // Handle push notification click (Firebase background notification)
+    // Firebase may use different actions, so check for push data regardless of action
     val pushData = extractPushNotificationData(intent)
     if (pushData != null) {
+      Logger.debug(Logger.tags(TAG), "Push notification clicked with data: $pushData")
       triggerNotificationClicked(-1, pushData)
     }
   }
@@ -173,6 +175,8 @@ class NotificationPlugin(private val activity: Activity): Plugin(activity) {
     // Skip if no extras or if it's a regular app launch
     if (extras.isEmpty) return null
 
+    Logger.debug(Logger.tags(TAG), "extractPushNotificationData - all extras: ${extras.keySet().map { "$it=${extras.get(it)}" }}")
+
     // Filter out system/internal keys, keep user data
     val data = JSObject()
     for (key in extras.keySet()) {
@@ -181,6 +185,7 @@ class NotificationPlugin(private val activity: Activity): Plugin(activity) {
           key.startsWith("gcm.") || key == "from" || key == "collapse_key") continue
       extras.getString(key)?.let { data.put(key, it) }
     }
+    Logger.debug(Logger.tags(TAG), "extractPushNotificationData - filtered data length: ${data.length()}")
     return if (data.length() > 0) data else null
   }
 
@@ -191,9 +196,12 @@ class NotificationPlugin(private val activity: Activity): Plugin(activity) {
       clickedData.put("data", data)
     }
 
+    Logger.debug(Logger.tags(TAG), "triggerNotificationClicked - id: $id, hasClickedListener: $hasClickedListener, data: $data")
+
     if (hasClickedListener) {
       trigger("notificationClicked", clickedData)
     } else {
+      Logger.debug(Logger.tags(TAG), "No click listener, storing as pending")
       pendingNotificationClick = clickedData
     }
   }
