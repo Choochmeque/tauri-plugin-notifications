@@ -92,27 +92,29 @@ class NotificationStorage(private val context: Context, private val jsonMapper: 
 
   fun writeActionGroup(actions: List<ActionType>) {
     for (type in actions) {
-      val i = type.id
       val editor = getStorage(ACTION_TYPES_ID + type.id).edit()
       editor.clear()
       editor.putInt("count", type.actions.size)
-      for (action in type.actions) {
-        editor.putString("id$i", action.id)
-        editor.putString("title$i", action.title)
-        editor.putBoolean("input$i", action.input ?: false)
+      for ((index, action) in type.actions.withIndex()) {
+        editor.putString("id$index", action.id)
+        editor.putString("title$index", action.title)
+        editor.putBoolean("input$index", action.input ?: false)
       }
       editor.apply()
+      Logger.debug(Logger.tags(STORAGE_TAG), "Saved action group ${type.id} with ${type.actions.size} actions")
     }
   }
 
   fun getActionGroup(forId: String): Array<NotificationAction?> {
     val storage = getStorage(ACTION_TYPES_ID + forId)
     val count = storage.getInt("count", 0)
+    Logger.debug(Logger.tags(STORAGE_TAG), "Getting action group $forId, count: $count")
     val actions: Array<NotificationAction?> = arrayOfNulls(count)
     for (i in 0 until count) {
       val id = storage.getString("id$i", "")
       val title = storage.getString("title$i", "")
       val input = storage.getBoolean("input$i", false)
+      Logger.debug(Logger.tags(STORAGE_TAG), "Action $i: id=$id, title=$title, input=$input")
 
       val action = NotificationAction()
       action.id = id ?: ""

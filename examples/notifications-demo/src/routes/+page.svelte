@@ -550,8 +550,8 @@
       });
 
       // Listen for action button clicks
-      const unlistenAction = await onAction((notification) => {
-        addLog(`🔘 Action performed on: ${notification.title || "No title"}`);
+      const unlistenAction = await onAction((data) => {
+        addLog(`🔘 Action performed - actionId: ${data.actionId}, title: ${data.notification?.title || "No title"}, input: ${data.inputValue || "none"}`);
       });
 
       // Listen for notification clicks/taps
