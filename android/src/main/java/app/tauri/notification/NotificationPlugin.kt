@@ -162,7 +162,8 @@ class NotificationPlugin(private val activity: Activity): Plugin(activity) {
     return try {
       val notification = JSObject(notificationJson)
       if (notification.has("extra")) notification.getJSObject("extra") else null
-    } catch (_: Exception) {
+    } catch (e: Exception) {
+      Logger.error(Logger.tags(TAG), "Failed to extract local notification data: ${e.message}", e)
       null
     }
   }
@@ -200,6 +201,7 @@ class NotificationPlugin(private val activity: Activity): Plugin(activity) {
   @Command
   fun show(invoke: Invoke) {
     val notification = invoke.parseArgs(Notification::class.java)
+    notification.sourceJson = invoke.getRawArgs()
 
     val id = manager.schedule(notification)
     if (notification.schedule != null) {
@@ -212,6 +214,10 @@ class NotificationPlugin(private val activity: Activity): Plugin(activity) {
   @Command
   fun batch(invoke: Invoke) {
     val args = invoke.parseArgs(BatchArgs::class.java)
+    val mapper = jsonMapper()
+    for (notification in args.notifications) {
+      notification.sourceJson = mapper.writeValueAsString(notification)
+    }
 
     val ids = manager.schedule(args.notifications)
     notificationStorage.appendNotifications(args.notifications)

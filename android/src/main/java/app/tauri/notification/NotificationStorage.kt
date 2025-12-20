@@ -17,30 +17,45 @@ private const val ACTION_TYPES_ID = "ACTION_TYPE_STORE"
 
 class NotificationStorage(private val context: Context, private val jsonMapper: ObjectMapper) {
   fun appendNotifications(localNotifications: List<Notification>) {
+    Logger.debug(Logger.tags(STORAGE_TAG), "Appending ${localNotifications.size} notifications to storage")
     val storage = getStorage(NOTIFICATION_STORE_ID)
     val editor = storage.edit()
+    var savedCount = 0
     for (request in localNotifications) {
       if (request.schedule != null) {
         val key: String = request.id.toString()
-        editor.putString(key, request.sourceJson.toString())
+        val jsonValue = request.sourceJson?.toString()
+        Logger.debug(Logger.tags(STORAGE_TAG), "Saving notification $key, sourceJson is null: ${request.sourceJson == null}, value: ${jsonValue?.take(100)}")
+        editor.putString(key, jsonValue)
+        savedCount++
+      } else {
+        Logger.debug(Logger.tags(STORAGE_TAG), "Skipping notification ${request.id} - no schedule")
       }
     }
     editor.apply()
+    Logger.debug(Logger.tags(STORAGE_TAG), "Actually saved $savedCount scheduled notifications")
   }
 
   fun getSavedNotificationIds(): List<String> {
     val storage = getStorage(NOTIFICATION_STORE_ID)
     val all = storage.all
-    return if (all != null) {
-      ArrayList(all.keys)
-    } else ArrayList()
+    val ids = if (all != null) ArrayList(all.keys) else ArrayList()
+    Logger.debug(Logger.tags(STORAGE_TAG), "Retrieved ${ids.size} saved notification IDs")
+    return ids
   }
 
   fun getSavedNotifications(): List<Notification> {
     val storage = getStorage(NOTIFICATION_STORE_ID)
-    return storage.all?.keys?.mapNotNull { key ->
-      parseNotification(storage.all?.get(key) as? String)
+    val all = storage.all
+    Logger.debug(Logger.tags(STORAGE_TAG), "Storage keys: ${all?.keys}")
+    val notifications = all?.keys?.mapNotNull { key ->
+      val value = all[key]
+      Logger.debug(Logger.tags(STORAGE_TAG), "Key $key, value type: ${value?.javaClass?.name}, value: ${value.toString().take(100)}")
+      val json = value as? String
+      parseNotification(json)
     } ?: emptyList()
+    Logger.debug(Logger.tags(STORAGE_TAG), "Retrieved ${notifications.size} saved notifications")
+    return notifications
   }
 
   fun getSavedNotification(key: String): Notification? {
@@ -65,6 +80,7 @@ class NotificationStorage(private val context: Context, private val jsonMapper: 
   }
 
   fun deleteNotification(id: String?) {
+    Logger.debug(Logger.tags(STORAGE_TAG), "Deleting notification with id: $id")
     val editor = getStorage(NOTIFICATION_STORE_ID).edit()
     editor.remove(id)
     editor.apply()

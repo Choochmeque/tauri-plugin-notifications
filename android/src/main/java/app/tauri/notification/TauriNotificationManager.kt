@@ -81,7 +81,8 @@ class TauriNotificationManager(
       if (notificationJsonString != null) {
         request = JSObject(notificationJsonString)
       }
-    } catch (_: JSONException) {
+    } catch (e: JSONException) {
+      Logger.error(Logger.tags(TAG), "Failed to parse notification JSON: ${e.message}", e)
     }
     dataJson.put("notification", request)
     return dataJson
@@ -219,7 +220,8 @@ class TauriNotificationManager(
       notificationManager.notify(notification.id, buildNotification)
       try {
         NotificationPlugin.triggerNotification(notification)
-      } catch (_: JSONException) {
+      } catch (e: JSONException) {
+        Logger.error(Logger.tags(TAG), "Failed to trigger notification event: ${e.message}", e)
       }
     }
   }
@@ -582,8 +584,8 @@ class LocalNotificationRestoreReceiver : BroadcastReceiver() {
     var config: PluginConfig? = null
     try {
       config = PluginManager.loadConfig(context, "notification", PluginConfig::class.java)
-    } catch (ex: Exception) {
-      ex.printStackTrace()
+    } catch (e: Exception) {
+      Logger.error(Logger.tags(TAG), "Failed to load notification plugin config: ${e.message}", e)
     }
     val notificationManager = TauriNotificationManager(storage, null, context, config)
     notificationManager.schedule(notifications)

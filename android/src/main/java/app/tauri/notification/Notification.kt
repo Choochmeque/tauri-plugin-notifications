@@ -38,6 +38,7 @@ class Notification {
   var sourceJson: String? = null
   var visibility: Int? = null
   var number: Int? = null
+  var silent: Boolean? = null
 
   fun getSound(context: Context, defaultSound: Int): String? {
     var soundPath: String? = null
