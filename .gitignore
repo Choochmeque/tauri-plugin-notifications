@@ -16,3 +16,6 @@ node_modules/
 dist-js
 dist
 coverage
+
+# Firebase config (users should add their own)
+google-services.json
