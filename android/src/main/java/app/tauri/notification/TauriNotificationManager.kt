@@ -500,11 +500,15 @@ class TimedNotificationPublisher : BroadcastReceiver() {
     }
     val storage = NotificationStorage(context, ObjectMapper())
 
+    // Check if notification still exists in storage (might have been cancelled)
     val savedNotification = storage.getSavedNotification(id.toString())
-    if (savedNotification != null) {
-      NotificationPlugin.triggerNotification(savedNotification)
+    if (savedNotification == null) {
+      // Notification was cancelled, don't show or reschedule
+      Logger.debug(Logger.tags(TAG), "Notification $id was cancelled, skipping")
+      return
     }
 
+    NotificationPlugin.triggerNotification(savedNotification)
     notificationManager.notify(id, notification)
     if (!rescheduleNotificationIfNeeded(context, intent, id)) {
       storage.deleteNotification(id.toString())
