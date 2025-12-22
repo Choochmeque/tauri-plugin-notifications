@@ -24,6 +24,8 @@ mod mobile;
 
 mod commands;
 mod error;
+#[cfg(desktop)]
+mod listeners;
 mod models;
 
 pub use error::{Error, Result};
@@ -222,8 +224,14 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             commands::register_for_push_notifications,
             commands::unregister_for_push_notifications,
             commands::is_permission_granted,
+            #[cfg(desktop)]
+            listeners::register_listener,
+            #[cfg(desktop)]
+            listeners::remove_listener,
         ])
         .setup(|app, api| {
+            #[cfg(desktop)]
+            listeners::init();
             #[cfg(mobile)]
             let notification = mobile::init(app, api)?;
             #[cfg(desktop)]
