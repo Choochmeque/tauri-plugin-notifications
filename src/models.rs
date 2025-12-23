@@ -5,8 +5,22 @@
 use std::{collections::HashMap, fmt::Display};
 
 use serde::{de::Error as DeError, Deserialize, Deserializer, Serialize, Serializer};
+use tauri::plugin::PermissionState;
 
 use url::Url;
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PermissionResponse {
+    pub permission_state: PermissionState,
+}
+
+#[cfg(feature = "push-notifications")]
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PushNotificationResponse {
+    pub device_token: String,
+}
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -307,7 +321,6 @@ impl ActiveNotification {
     }
 }
 
-#[cfg(any(mobile, all(desktop, not(feature = "notify-rust"))))]
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ActionType {
@@ -324,7 +337,6 @@ pub struct ActionType {
     hidden_previews_show_subtitle: bool,
 }
 
-#[cfg(any(mobile, all(desktop, not(feature = "notify-rust"))))]
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Action {
@@ -342,10 +354,8 @@ pub struct Action {
     input_placeholder: Option<String>,
 }
 
-#[cfg(target_os = "android")]
 pub use android::*;
 
-#[cfg(target_os = "android")]
 mod android {
     use serde::{Deserialize, Serialize};
     use serde_repr::{Deserialize_repr, Serialize_repr};

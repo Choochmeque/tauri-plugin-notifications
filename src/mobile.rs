@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use serde::{de::DeserializeOwned, Deserialize};
+use serde::de::DeserializeOwned;
 use tauri::{
     plugin::{PermissionState, PluginApi, PluginHandle},
     AppHandle, Runtime,
@@ -31,9 +31,10 @@ pub fn init<R: Runtime, C: DeserializeOwned>(
 }
 
 impl<R: Runtime> crate::NotificationsBuilder<R> {
-    pub fn show(self) -> crate::Result<()> {
+    pub async fn show(self) -> crate::Result<()> {
         self.handle
-            .run_mobile_plugin::<i32>("show", self.data)
+            .run_mobile_plugin_async::<i32>("show", self.data)
+            .await
             .map(|_| ())
             .map_err(Into::into)
     }
@@ -49,18 +50,23 @@ impl<R: Runtime> Notifications<R> {
         crate::NotificationsBuilder::new(self.0.clone())
     }
 
-    pub fn request_permission(&self) -> crate::Result<PermissionState> {
+    pub async fn request_permission(&self) -> crate::Result<PermissionState> {
         self.0
-            .run_mobile_plugin::<PermissionResponse>("requestPermissions", ())
+            .run_mobile_plugin_async::<PermissionResponse>("requestPermissions", ())
+            .await
             .map(|r| r.permission_state)
             .map_err(Into::into)
     }
 
-    pub fn register_for_push_notifications(&self) -> crate::Result<String> {
+    pub async fn register_for_push_notifications(&self) -> crate::Result<String> {
         #[cfg(feature = "push-notifications")]
         {
             self.0
-                .run_mobile_plugin::<PushNotificationResponse>("registerForPushNotifications", ())
+                .run_mobile_plugin_async::<PushNotificationResponse>(
+                    "registerForPushNotifications",
+                    (),
+                )
+                .await
                 .map(|r| r.device_token)
                 .map_err(Into::into)
         }
@@ -87,9 +93,10 @@ impl<R: Runtime> Notifications<R> {
         }
     }
 
-    pub fn permission_state(&self) -> crate::Result<PermissionState> {
+    pub async fn permission_state(&self) -> crate::Result<PermissionState> {
         self.0
-            .run_mobile_plugin::<PermissionResponse>("checkPermissions", ())
+            .run_mobile_plugin_async::<PermissionResponse>("checkPermissions", ())
+            .await
             .map(|r| r.permission_state)
             .map_err(Into::into)
     }
@@ -120,9 +127,10 @@ impl<R: Runtime> Notifications<R> {
             .map_err(Into::into)
     }
 
-    pub fn active(&self) -> crate::Result<Vec<ActiveNotification>> {
+    pub async fn active(&self) -> crate::Result<Vec<ActiveNotification>> {
         self.0
-            .run_mobile_plugin("getActive", ())
+            .run_mobile_plugin_async("getActive", ())
+            .await
             .map_err(Into::into)
     }
 
@@ -132,9 +140,10 @@ impl<R: Runtime> Notifications<R> {
             .map_err(Into::into)
     }
 
-    pub fn pending(&self) -> crate::Result<Vec<PendingNotification>> {
+    pub async fn pending(&self) -> crate::Result<Vec<PendingNotification>> {
         self.0
-            .run_mobile_plugin("getPending", ())
+            .run_mobile_plugin_async("getPending", ())
+            .await
             .map_err(Into::into)
     }
 
@@ -152,27 +161,44 @@ impl<R: Runtime> Notifications<R> {
             .map_err(Into::into)
     }
 
-    #[cfg(target_os = "android")]
     pub fn create_channel(&self, channel: Channel) -> crate::Result<()> {
-        self.0
+        #[cfg(target_os = "android")]
+        return self
+            .0
             .run_mobile_plugin("createChannel", channel)
-            .map_err(Into::into)
+            .map_err(Into::into);
+        #[cfg(target_os = "ios")]
+        return Err(crate::Error::Io(std::io::Error::other(
+            "Channels are not supported on iOS",
+        )));
     }
 
-    #[cfg(target_os = "android")]
     pub fn delete_channel(&self, id: impl Into<String>) -> crate::Result<()> {
-        let mut args = HashMap::new();
-        args.insert("id", id.into());
-        self.0
-            .run_mobile_plugin("deleteChannel", args)
-            .map_err(Into::into)
+        #[cfg(target_os = "android")]
+        {
+            let mut args = HashMap::new();
+            args.insert("id", id.into());
+            return self
+                .0
+                .run_mobile_plugin("deleteChannel", args)
+                .map_err(Into::into);
+        }
+        #[cfg(target_os = "ios")]
+        return Err(crate::Error::Io(std::io::Error::other(
+            "Channels are not supported on iOS",
+        )));
     }
 
-    #[cfg(target_os = "android")]
     pub fn list_channels(&self) -> crate::Result<Vec<Channel>> {
-        self.0
+        #[cfg(target_os = "android")]
+        return self
+            .0
             .run_mobile_plugin("listChannels", ())
-            .map_err(Into::into)
+            .map_err(Into::into);
+        #[cfg(target_os = "ios")]
+        return Err(crate::Error::Io(std::io::Error::other(
+            "Channels are not supported on iOS",
+        )));
     }
 
     /// Set click listener active state.
@@ -184,18 +210,4 @@ impl<R: Runtime> Notifications<R> {
             .run_mobile_plugin("setClickListenerActive", args)
             .map_err(Into::into)
     }
-}
-
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct PermissionResponse {
-    permission_state: PermissionState,
-}
-
-#[cfg(feature = "push-notifications")]
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct PushNotificationResponse {
-    #[allow(dead_code)]
-    device_token: String,
 }

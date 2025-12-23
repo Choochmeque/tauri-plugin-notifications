@@ -11,7 +11,7 @@ license = "MIT"
 repository = "https://github.com/Choochmeque/tauri-plugin-notifications"
 
 [features]
-default = []
+default = ["notify-rust"]
 push-notifications = []
 notify-rust = ["dep:notify-rust"]
 

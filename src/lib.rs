@@ -43,7 +43,8 @@ pub use mobile::Notifications;
 //#[derive(Debug)]
 pub struct NotificationsBuilder<R: Runtime> {
     #[cfg(desktop)]
-    _app: AppHandle<R>,
+    #[allow(dead_code)]
+    app: AppHandle<R>,
     #[cfg(all(target_os = "macos", not(feature = "notify-rust")))]
     plugin: std::sync::Arc<macos::NotificationPlugin>,
     #[cfg(mobile)]
@@ -55,7 +56,7 @@ impl<R: Runtime> NotificationsBuilder<R> {
     #[cfg(all(desktop, feature = "notify-rust"))]
     fn new(app: AppHandle<R>) -> Self {
         Self {
-            _app: app,
+            app,
             data: Default::default(),
         }
     }
@@ -63,7 +64,7 @@ impl<R: Runtime> NotificationsBuilder<R> {
     #[cfg(all(target_os = "macos", not(feature = "notify-rust")))]
     fn new(app: AppHandle<R>, plugin: std::sync::Arc<macos::NotificationPlugin>) -> Self {
         Self {
-            _app: app,
+            app,
             plugin,
             data: Default::default(),
         }
@@ -246,6 +247,9 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             commands::remove_active,
             commands::cancel,
             commands::cancel_all,
+            commands::create_channel,
+            commands::delete_channel,
+            commands::list_channels,
             #[cfg(desktop)]
             listeners::register_listener,
             #[cfg(desktop)]

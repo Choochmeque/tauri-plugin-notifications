@@ -2,6 +2,23 @@
 // The swift-tools-version declares the minimum version of Swift required to build this package.
 
 import PackageDescription
+import Foundation
+
+// Check if push notifications feature is enabled via marker file from Rust build
+let enablePushNotifications = FileManager.default.fileExists(
+  atPath: URL(fileURLWithPath: #file).deletingLastPathComponent()
+    .appendingPathComponent(".push-notifications-enabled").path
+)
+
+var swiftSettings: [SwiftSetting] = [
+    .unsafeFlags([
+        "-import-objc-header", "\(Context.packageDirectory)/Sources/bridging-header.h",
+        "-disable-bridging-pch"
+    ])
+]
+if enablePushNotifications {
+  swiftSettings.append(.define("ENABLE_PUSH_NOTIFICATIONS"))
+}
 
 let package = Package(
     name: "tauri-plugin-notifications",
@@ -24,12 +41,7 @@ let package = Package(
             name: "tauri-plugin-notifications",
             dependencies: [ ],
             path: "Sources",
-            swiftSettings: [
-                .unsafeFlags([
-                    "-import-objc-header", "\(Context.packageDirectory)/Sources/bridging-header.h",
-                    "-disable-bridging-pch"
-                ])
-            ],
+            swiftSettings: swiftSettings,
             linkerSettings: [
                 .linkedFramework("StoreKit")
             ]
@@ -37,12 +49,7 @@ let package = Package(
         .testTarget(
             name: "PluginTests",
             dependencies: ["tauri-plugin-notifications"],
-            swiftSettings: [
-                .unsafeFlags([
-                    "-import-objc-header", "\(Context.packageDirectory)/Sources/bridging-header.h",
-                    "-disable-bridging-pch"
-                ])
-            ]
+            swiftSettings: swiftSettings
         ),
     ]
 )

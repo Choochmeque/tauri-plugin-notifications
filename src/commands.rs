@@ -39,35 +39,17 @@ pub(crate) async fn request_permission<R: Runtime>(
 #[command]
 pub(crate) async fn register_for_push_notifications<R: Runtime>(
     _app: AppHandle<R>,
-    _notification: State<'_, Notifications<R>>,
+    notification: State<'_, Notifications<R>>,
 ) -> Result<String> {
-    #[cfg(feature = "push-notifications")]
-    {
-        _notification.register_for_push_notifications()
-    }
-    #[cfg(not(feature = "push-notifications"))]
-    {
-        Err(crate::Error::Io(std::io::Error::other(
-            "Push notifications feature is not enabled",
-        )))
-    }
+    notification.register_for_push_notifications().await
 }
 
 #[command]
 pub(crate) async fn unregister_for_push_notifications<R: Runtime>(
     _app: AppHandle<R>,
-    _notification: State<'_, Notifications<R>>,
+    notification: State<'_, Notifications<R>>,
 ) -> Result<()> {
-    #[cfg(feature = "push-notifications")]
-    {
-        _notification.unregister_for_push_notifications()
-    }
-    #[cfg(not(feature = "push-notifications"))]
-    {
-        Err(crate::Error::Io(std::io::Error::other(
-            "Push notifications feature is not enabled",
-        )))
-    }
+    notification.unregister_for_push_notifications()
 }
 
 #[command]
@@ -140,4 +122,30 @@ pub(crate) fn cancel_all<R: Runtime>(
     notification: State<'_, Notifications<R>>,
 ) -> Result<()> {
     notification.cancel_all()
+}
+
+#[command]
+pub(crate) fn create_channel<R: Runtime>(
+    _app: AppHandle<R>,
+    notification: State<'_, Notifications<R>>,
+    channel: crate::Channel,
+) -> Result<()> {
+    notification.create_channel(channel)
+}
+
+#[command]
+pub(crate) fn delete_channel<R: Runtime>(
+    _app: AppHandle<R>,
+    notification: State<'_, Notifications<R>>,
+    id: String,
+) -> Result<()> {
+    notification.delete_channel(id)
+}
+
+#[command]
+pub(crate) fn list_channels<R: Runtime>(
+    _app: AppHandle<R>,
+    notification: State<'_, Notifications<R>>,
+) -> Result<Vec<crate::Channel>> {
+    notification.list_channels()
 }

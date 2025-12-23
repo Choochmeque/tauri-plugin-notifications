@@ -43,13 +43,16 @@ fn main() {
             .expect("Failed to write build.properties");
     }
 
-    // Generate marker file for iOS Swift build
+    // Generate marker file for iOS/macOS Swift build
     // Package.swift reads this file to conditionally enable ENABLE_PUSH_NOTIFICATIONS
     let ios_marker_path = std::path::Path::new("ios/.push-notifications-enabled");
+    let macos_marker_path = std::path::Path::new("macos/.push-notifications-enabled");
     if enable_push {
         std::fs::write(ios_marker_path, "").expect("Failed to write iOS push marker file");
+        std::fs::write(macos_marker_path, "").expect("Failed to write macOS push marker file");
     } else if ios_marker_path.exists() {
         std::fs::remove_file(ios_marker_path).ok();
+        std::fs::remove_file(macos_marker_path).ok();
     }
 
     let result = tauri_plugin::Builder::new(COMMANDS)

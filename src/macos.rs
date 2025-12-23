@@ -10,6 +10,36 @@ use std::{collections::HashMap, sync::Arc};
 
 pub use ffi::NotificationPlugin;
 
+/// Validation checks for macOS notifications functionality.
+///
+/// UserNotifications requires the app to run from a signed .app bundle.
+/// During development with `tauri dev`, the binary runs
+/// directly without a bundle, causing UserNotifications calls to fail silently or crash.
+mod validation {
+    /// Ensures the app is running from a .app bundle.
+    pub fn require_bundle() -> crate::Result<()> {
+        std::env::current_exe()
+            .ok()
+            .and_then(|exe| {
+                let macos = exe.parent()?;
+                let contents = macos.parent()?;
+                let bundle = contents.parent()?;
+                (macos.ends_with("MacOS")
+                    && contents.ends_with("Contents")
+                    && bundle.to_string_lossy().ends_with(".app"))
+                .then_some(())
+            })
+            .ok_or_else(|| {
+                crate::error::PluginInvokeError::InvokeRejected(crate::error::ErrorResponse {
+                    code: None,
+                    message: Some("Notifications plugin requires the app to run from a .app bundle. You can enable notify-rust feature for development.".to_string()),
+                    data: (),
+                })
+                .into()
+            })
+    }
+}
+
 #[swift_bridge::bridge]
 mod ffi {
     pub enum FFIResult {
@@ -30,8 +60,8 @@ mod ffi {
         async fn show(&self, args: String) -> Result<i32, FFIResult>;
 
         async fn requestPermissions(&self) -> Result<String, FFIResult>;
-        fn registerForPushNotifications(&self) -> Result<String, FFIResult>;
-        fn unregisterForPushNotifications(&self) -> Result<String, FFIResult>;
+        async fn registerForPushNotifications(&self) -> Result<String, FFIResult>;
+        fn unregisterForPushNotifications(&self) -> Result<(), FFIResult>;
         async fn checkPermissions(&self) -> Result<String, FFIResult>;
         fn cancel(&self, args: String) -> Result<(), FFIResult>;
         fn cancelAll(&self) -> Result<(), FFIResult>;
@@ -114,6 +144,8 @@ pub fn init<R: Runtime, C: DeserializeOwned>(
     app: &AppHandle<R>,
     _api: PluginApi<R, C>,
 ) -> crate::Result<Notifications<R>> {
+    validation::require_bundle()?;
+
     Ok(Notifications {
         app: app.clone(),
         plugin: Arc::new(ffi::NotificationPlugin::init_plugin()),
@@ -122,6 +154,8 @@ pub fn init<R: Runtime, C: DeserializeOwned>(
 
 impl<R: Runtime> crate::NotificationsBuilder<R> {
     pub async fn show(self) -> crate::Result<()> {
+        validation::require_bundle()?;
+
         self.plugin
             .show(
                 serde_json::to_string(&self.data)
@@ -143,13 +177,20 @@ impl<R: Runtime> Notifications<R> {
     }
 
     pub async fn request_permission(&self) -> crate::Result<PermissionState> {
-        self.plugin.requestPermissions().await.parse()
+        validation::require_bundle()?;
+
+        let response: crate::PermissionResponse = self.plugin.requestPermissions().await.parse()?;
+        Ok(response.permission_state)
     }
 
-    pub fn register_for_push_notifications(&self) -> crate::Result<String> {
+    pub async fn register_for_push_notifications(&self) -> crate::Result<String> {
+        validation::require_bundle()?;
+
         #[cfg(feature = "push-notifications")]
         {
-            self.plugin.registerForPushNotifications().parse()
+            let response: crate::PushNotificationResponse =
+                self.plugin.registerForPushNotifications().await.parse()?;
+            Ok(response.device_token)
         }
         #[cfg(not(feature = "push-notifications"))]
         {
@@ -160,9 +201,11 @@ impl<R: Runtime> Notifications<R> {
     }
 
     pub fn unregister_for_push_notifications(&self) -> crate::Result<()> {
+        validation::require_bundle()?;
+
         #[cfg(feature = "push-notifications")]
         {
-            self.plugin.unregisterForPushNotifications().parse()
+            self.plugin.unregisterForPushNotifications().parse_void()
         }
         #[cfg(not(feature = "push-notifications"))]
         {
@@ -173,10 +216,15 @@ impl<R: Runtime> Notifications<R> {
     }
 
     pub async fn permission_state(&self) -> crate::Result<PermissionState> {
-        self.plugin.checkPermissions().await.parse()
+        validation::require_bundle()?;
+
+        let response: crate::PermissionResponse = self.plugin.checkPermissions().await.parse()?;
+        Ok(response.permission_state)
     }
 
     pub fn register_action_types(&self, types: Vec<ActionType>) -> crate::Result<()> {
+        validation::require_bundle()?;
+
         let mut args = HashMap::new();
         args.insert("types", types);
         self.plugin
@@ -188,6 +236,8 @@ impl<R: Runtime> Notifications<R> {
     }
 
     pub fn remove_active(&self, notifications: Vec<i32>) -> crate::Result<()> {
+        validation::require_bundle()?;
+
         let mut args = HashMap::new();
         args.insert(
             "notifications",
@@ -209,19 +259,27 @@ impl<R: Runtime> Notifications<R> {
     }
 
     pub async fn active(&self) -> crate::Result<Vec<ActiveNotification>> {
+        validation::require_bundle()?;
+
         self.plugin.getActive().await.parse()
     }
 
     pub fn remove_all_active(&self) -> crate::Result<()> {
+        validation::require_bundle()?;
+
         self.plugin.removeAllActive().parse_void()
     }
 
     pub async fn pending(&self) -> crate::Result<Vec<PendingNotification>> {
+        validation::require_bundle()?;
+
         self.plugin.getPending().await.parse()
     }
 
     /// Cancel pending notifications.
     pub fn cancel(&self, notifications: Vec<i32>) -> crate::Result<()> {
+        validation::require_bundle()?;
+
         let mut args = HashMap::new();
         args.insert("notifications", notifications);
         self.plugin
@@ -234,12 +292,16 @@ impl<R: Runtime> Notifications<R> {
 
     /// Cancel all pending notifications.
     pub fn cancel_all(&self) -> crate::Result<()> {
+        validation::require_bundle()?;
+
         self.plugin.cancelAll().parse_void()
     }
 
     /// Set click listener active state.
     /// Used internally to track if JS listener is registered.
     pub fn set_click_listener_active(&self, active: bool) -> crate::Result<()> {
+        validation::require_bundle()?;
+
         let mut args = HashMap::new();
         args.insert("active", active);
         self.plugin
@@ -248,5 +310,26 @@ impl<R: Runtime> Notifications<R> {
                     .map_err(|e| crate::error::PluginInvokeError::CannotSerializePayload(e))?,
             )
             .parse_void()
+    }
+
+    /// Create a notification channel (not supported on macOS).
+    pub fn create_channel(&self, _channel: crate::Channel) -> crate::Result<()> {
+        Err(crate::Error::Io(std::io::Error::other(
+            "Notification channels are not supported on macOS",
+        )))
+    }
+
+    /// Delete a notification channel (not supported on macOS).
+    pub fn delete_channel(&self, _id: impl Into<String>) -> crate::Result<()> {
+        Err(crate::Error::Io(std::io::Error::other(
+            "Notification channels are not supported on macOS",
+        )))
+    }
+
+    /// List notification channels (not supported on macOS).
+    pub fn list_channels(&self) -> crate::Result<Vec<crate::Channel>> {
+        Err(crate::Error::Io(std::io::Error::other(
+            "Notification channels are not supported on macOS",
+        )))
     }
 }

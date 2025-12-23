@@ -23,7 +23,7 @@ pub fn init<R: Runtime, C: DeserializeOwned>(
 pub struct Notifications<R: Runtime>(AppHandle<R>);
 
 impl<R: Runtime> crate::NotificationsBuilder<R> {
-    pub fn show(self) -> crate::Result<()> {
+    pub async fn show(self) -> crate::Result<()> {
         let mut notification = imp::Notification::new(self.app.config().identifier.clone());
 
         if let Some(title) = self
@@ -51,11 +51,11 @@ impl<R: Runtime> Notifications<R> {
         NotificationsBuilder::new(self.0.clone())
     }
 
-    pub fn request_permission(&self) -> crate::Result<PermissionState> {
+    pub async fn request_permission(&self) -> crate::Result<PermissionState> {
         Ok(PermissionState::Granted)
     }
 
-    pub fn register_for_push_notifications(&self) -> crate::Result<String> {
+    pub async fn register_for_push_notifications(&self) -> crate::Result<String> {
         Err(crate::Error::Io(std::io::Error::other(
             "Push notifications are not supported on desktop platforms",
         )))
@@ -67,8 +67,68 @@ impl<R: Runtime> Notifications<R> {
         )))
     }
 
-    pub fn permission_state(&self) -> crate::Result<PermissionState> {
+    pub async fn permission_state(&self) -> crate::Result<PermissionState> {
         Ok(PermissionState::Granted)
+    }
+
+    pub async fn pending(&self) -> crate::Result<Vec<crate::PendingNotification>> {
+        Err(crate::Error::Io(std::io::Error::other(
+            "Pending notifications are not supported with notify-rust",
+        )))
+    }
+
+    pub async fn active(&self) -> crate::Result<Vec<crate::ActiveNotification>> {
+        Err(crate::Error::Io(std::io::Error::other(
+            "Active notifications are not supported with notify-rust",
+        )))
+    }
+
+    pub fn set_click_listener_active(&self, _active: bool) -> crate::Result<()> {
+        Err(crate::Error::Io(std::io::Error::other(
+            "Click listeners are not supported with notify-rust",
+        )))
+    }
+
+    pub fn remove_active(&self, _ids: Vec<i32>) -> crate::Result<()> {
+        Err(crate::Error::Io(std::io::Error::other(
+            "Removing active notifications is not supported with notify-rust",
+        )))
+    }
+
+    pub fn cancel(&self, _notifications: Vec<i32>) -> crate::Result<()> {
+        Err(crate::Error::Io(std::io::Error::other(
+            "Canceling notifications is not supported with notify-rust",
+        )))
+    }
+
+    pub fn cancel_all(&self) -> crate::Result<()> {
+        Err(crate::Error::Io(std::io::Error::other(
+            "Canceling notifications is not supported with notify-rust",
+        )))
+    }
+
+    pub fn register_action_types(&self, _types: Vec<crate::ActionType>) -> crate::Result<()> {
+        Err(crate::Error::Io(std::io::Error::other(
+            "Action types are not supported with notify-rust",
+        )))
+    }
+
+    pub fn create_channel(&self, _channel: crate::Channel) -> crate::Result<()> {
+        Err(crate::Error::Io(std::io::Error::other(
+            "Notification channels are not supported with notify-rust",
+        )))
+    }
+
+    pub fn delete_channel(&self, _id: impl Into<String>) -> crate::Result<()> {
+        Err(crate::Error::Io(std::io::Error::other(
+            "Notification channels are not supported with notify-rust",
+        )))
+    }
+
+    pub fn list_channels(&self) -> crate::Result<Vec<crate::Channel>> {
+        Err(crate::Error::Io(std::io::Error::other(
+            "Notification channels are not supported with notify-rust",
+        )))
     }
 }
 

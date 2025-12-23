@@ -52,7 +52,7 @@
   let newChannelName = $state("App Notifications");
   let newChannelDescription = $state("General app notifications");
 
-  // Push notifications (mobile only)
+  // Push notifications
   let pushToken = $state<string | null>(null);
   let pushRegistered = $state(false);
 
@@ -137,7 +137,7 @@
   }
 
   // ============================================================================
-  // PUSH NOTIFICATIONS (Mobile Only)
+  // PUSH NOTIFICATIONS
   // ============================================================================
 
   /**
@@ -152,7 +152,6 @@
       addLog(`📱 Push token: ${token.substring(0, 20)}...`);
     } catch (error) {
       addLog(`❌ Error registering for push: ${error}`);
-      addLog(`Note: Push notifications are only available on iOS and Android`);
     }
   }
 
@@ -541,7 +540,7 @@
 
     // Register event listeners
     try {
-      // Listen for incoming notifications (push notifications on mobile)
+      // Listen for incoming notifications
       const unlistenReceived = await onNotificationReceived((notification) => {
         addLog(
           `📨 Notification received: ${notification.title || "No title"}`,
@@ -616,11 +615,10 @@
     <!-- PUSH NOTIFICATIONS -->
     <!-- ====================================================================== -->
     <section class="card">
-      <h2>📱 2. Push Notifications (Mobile Only)</h2>
+      <h2>📱 2. Push Notifications</h2>
       <p class="description">
         Register for push notifications to receive remote notifications via FCM
-        (Android) or APNs (iOS). This feature is only available on mobile
-        platforms.
+        (Android) or APNs (iOS/macOS).
       </p>
 
       <div class="status-badge" class:granted={pushRegistered}>
@@ -666,9 +664,9 @@
           <strong>Note:</strong> Push notifications require additional setup:
           <ul style="margin: 0.5rem 0 0; padding-left: 1.5rem;">
             <li><strong>Android:</strong> Configure Firebase Cloud Messaging</li>
-            <li><strong>iOS:</strong> Configure Apple Push Notification service</li>
+            <li><strong>iOS/macOS:</strong> Configure Apple Push Notification service</li>
             <li>
-              <strong>Desktop:</strong> Push notifications are not yet supported
+              <strong>Linux/Windows:</strong> Push notifications are not supported
             </li>
           </ul>
         </div>

@@ -167,7 +167,22 @@ class NotificationPlugin {
   let notificationHandler = NotificationHandler()
   let notificationManager = NotificationManager()
 
+  #if ENABLE_PUSH_NOTIFICATIONS
+    // Completion handler for push token registration
+    private var pushTokenCompletion: ((Result<String, Error>) -> Void)?
+    private let pushTokenTimeout: TimeInterval = 10.0
+    private var pushTokenTimer: Timer?
+  #endif
+
   init() {
+    #if ENABLE_PUSH_NOTIFICATIONS
+      // Store reference to this plugin for event triggering
+      AppDelegateSwizzler.plugin = self
+
+      // swizzle UIApplicationDelegate push methods
+      AppDelegateSwizzler.swizzlePushCallbacks()
+    #endif
+
     notificationHandler.plugin = self
     notificationManager.notificationHandler = notificationHandler
   }
@@ -184,20 +199,50 @@ class NotificationPlugin {
     do {
       let granted = try await notificationHandler.requestPermissions()
       let permissionState = granted ? "granted" : "denied"
-      return "\"\(permissionState)\""
+      return "{\"permissionState\":\"\(permissionState)\"}"
     } catch {
       throw FFIResult.Err(RustString(error.localizedDescription))
     }
   }
 
-  public func registerForPushNotifications() throws(FFIResult) -> String {
-    // TODO: implement macOS push notification registration
-    return "{}"
+  public func registerForPushNotifications() async throws(FFIResult) -> String {
+    #if ENABLE_PUSH_NOTIFICATIONS
+      // First request notification permissions
+      let granted: Bool
+      do {
+        granted = try await notificationHandler.requestPermissions()
+      } catch {
+        throw FFIResult.Err(RustString("Failed to request notification permissions: \(error.localizedDescription)"))
+      }
+
+      guard granted else {
+        throw FFIResult.Err(RustString("Notification permissions not granted"))
+      }
+
+      // Register and wait for token
+      do {
+        let token = try await withCheckedThrowingContinuation { continuation in
+          self.registerForPushNotificationsWithCompletion { result in
+            continuation.resume(with: result)
+          }
+        }
+        return "{\"deviceToken\":\"\(token)\"}"
+      } catch {
+        throw FFIResult.Err(RustString(error.localizedDescription))
+      }
+    #else
+      throw FFIResult.Err(RustString("Push notifications are disabled in this build"))
+    #endif
   }
 
-  public func unregisterForPushNotifications() throws(FFIResult) -> String {
-    // TODO: implement macOS push notification unregistration
-    return "{}"
+  public func unregisterForPushNotifications() throws(FFIResult) {
+    #if ENABLE_PUSH_NOTIFICATIONS
+      DispatchQueue.main.async {
+        NSApplication.shared.unregisterForRemoteNotifications()
+      }
+    #else
+      throw FFIResult.Err(RustString("Push notifications are disabled in this build"))
+    #endif
   }
 
   public func checkPermissions() async throws(FFIResult) -> String {
@@ -215,7 +260,7 @@ class NotificationPlugin {
       permission = "prompt"
     }
 
-    return "\"\(permission)\""
+    return "{\"permissionState\":\"\(permission)\"}"
   }
 
   public func cancel(args: RustString) throws(FFIResult) {
@@ -272,6 +317,63 @@ class NotificationPlugin {
     let args = try args.decode(SetClickListenerActiveArgs.self)
     notificationHandler.setClickListenerActive(args.active)
   }
+
+  #if ENABLE_PUSH_NOTIFICATIONS
+    private func registerForPushNotificationsWithCompletion(_ completion: @escaping (Result<String, Error>) -> Void)
+    {
+      // Store completion for later
+      self.pushTokenCompletion = completion
+
+      // Set up timeout
+      self.pushTokenTimer?.invalidate()
+      self.pushTokenTimer = Timer.scheduledTimer(withTimeInterval: pushTokenTimeout, repeats: false)
+      { [weak self] _ in
+        self?.handlePushTokenTimeout()
+      }
+
+      // Register for remote notifications
+      DispatchQueue.main.async {
+        NSApplication.shared.registerForRemoteNotifications()
+      }
+    }
+
+    private func handlePushTokenTimeout() {
+      pushTokenTimer?.invalidate()
+      pushTokenTimer = nil
+
+      if let completion = pushTokenCompletion {
+        pushTokenCompletion = nil
+        let error = NSError(
+          domain: "NotificationPlugin",
+          code: -1,
+          userInfo: [NSLocalizedDescriptionKey: "Timeout waiting for device token"]
+        )
+        completion(.failure(error))
+      }
+    }
+
+    // Called by AppDelegateSwizzler when token is received
+    func handlePushTokenReceived(_ token: String) {
+      pushTokenTimer?.invalidate()
+      pushTokenTimer = nil
+
+      if let completion = pushTokenCompletion {
+        pushTokenCompletion = nil
+        completion(.success(token))
+      }
+    }
+
+    // Called by AppDelegateSwizzler when registration fails
+    func handlePushTokenError(_ error: Error) {
+      pushTokenTimer?.invalidate()
+      pushTokenTimer = nil
+
+      if let completion = pushTokenCompletion {
+        pushTokenCompletion = nil
+        completion(.failure(error))
+      }
+    }
+  #endif
 
   public func trigger<T: Encodable>(_ event: String, data: T) throws {
     let jsonData = try JSONEncoder().encode(data)

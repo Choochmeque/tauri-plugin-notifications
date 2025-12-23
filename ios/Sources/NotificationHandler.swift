@@ -167,11 +167,16 @@ public class NotificationHandler: NSObject, NotificationHandlerProtocol {
     )
   }
 
-  func toPendingNotification(_ request: UNNotificationRequest) -> PendingNotification {
+  func toPendingNotification(_ request: UNNotificationRequest) -> PendingNotification? {
+    guard let notification = notificationsMap[request.identifier],
+          let schedule = notification.schedule else {
+      return nil
+    }
     return PendingNotification(
       id: Int(request.identifier) ?? -1,
       title: request.content.title,
-      body: request.content.body
+      body: request.content.body,
+      schedule: schedule
     )
   }
 }
@@ -180,6 +185,7 @@ struct PendingNotification: Encodable {
   let id: Int
   let title: String
   let body: String
+  let schedule: NotificationSchedule
 }
 
 struct ActiveNotification: Encodable {
