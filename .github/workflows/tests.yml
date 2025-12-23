@@ -239,3 +239,57 @@ jobs:
         with:
           name: ios-coverage
           path: ios/coverage.json
+
+  test-macos:
+    name: macOS Unit Tests
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin
+
+      - name: Build macOS bindings
+        run: cargo build --target aarch64-apple-darwin
+
+      - name: Run macOS unit tests
+        run: |
+          cd macos
+          xcodebuild test \
+            -scheme tauri-plugin-notifications \
+            -destination 'platform=macOS' \
+            -enableCodeCoverage YES \
+            -resultBundlePath TestResults.xcresult
+
+      - name: Generate coverage report
+        run: |
+          cd macos
+          xcrun xccov view --report --json TestResults.xcresult > coverage.json
+
+      - name: Upload coverage to Codecov
+        if: ${{ github.actor != 'dependabot[bot]' }}
+        uses: codecov/codecov-action@v5
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+        with:
+          files: ./macos/coverage.json
+          flags: macos
+          name: macos-coverage
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: macos-test-results
+          path: macos/TestResults.xcresult
+
+      - name: Upload coverage reports
+        uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: macos-coverage
+          path: macos/coverage.json

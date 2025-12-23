@@ -1,5 +1,5 @@
 import Foundation
-@testable import tauri_plugin_iap
+@testable import tauri_plugin_notifications
 
 // MARK: - Mock Storage
 
@@ -801,9 +801,10 @@ func mock_Vec_f64_as_ptr(_ vecPtr: UnsafeMutableRawPointer) -> UnsafePointer<Dou
     return mockVecF64Storage[vecPtr]?.withUnsafeBufferPointer { $0.baseAddress }
 }
 
-// MARK: - Trigger Mock (Rust FFI callback)
+// MARK: - Bridge Trigger Mock (Rust FFI callback for notifications)
 
-@_cdecl("__swift_bridge__$trigger")
-func mock_trigger(_ event: UnsafeMutableRawPointer, _ payload: UnsafeMutableRawPointer) {
-    // No-op stub for tests
+@_cdecl("__swift_bridge__$bridge_trigger")
+func mock_bridge_trigger(_ event: UnsafeMutableRawPointer, _ payload: UnsafeMutableRawPointer) -> __swift_bridge__$ResultVoidAndFFIResult {
+    // No-op stub for tests - return success
+    return __swift_bridge__$ResultVoidAndFFIResult(tag: __swift_bridge__$ResultVoidAndFFIResult$ResultOk, payload: __swift_bridge__$ResultVoidAndFFIResult$Fields())
 }
