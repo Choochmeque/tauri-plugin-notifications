@@ -812,7 +812,7 @@ describe("Notification Functions", () => {
 
       expect(mockInvoke).toHaveBeenCalledWith(
         "plugin:notifications|create_channel",
-        channel,
+        { channel },
       );
     });
 
@@ -835,7 +835,7 @@ describe("Notification Functions", () => {
 
       expect(mockInvoke).toHaveBeenCalledWith(
         "plugin:notifications|create_channel",
-        channel,
+        { channel },
       );
     });
   });
