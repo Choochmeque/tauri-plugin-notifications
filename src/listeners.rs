@@ -4,7 +4,7 @@
 //! currently only available for mobile plugins. Once Tauri adds desktop support
 //! for plugin listeners, this module can be removed.
 //!
-//! Provides channel-based event delivery for transaction updates and other IAP events.
+//! Provides channel-based event delivery.
 
 use std::collections::HashMap;
 use std::sync::{OnceLock, RwLock};
@@ -22,8 +22,6 @@ pub fn init() {
 }
 
 /// Trigger an event to all registered listeners for the given event name.
-///
-/// Called by platform-specific code when transaction updates occur.
 #[allow(dead_code)]
 pub fn trigger(event: &str, payload: String) -> crate::Result<()> {
     let listeners = LISTENERS.get().ok_or_else(|| {
