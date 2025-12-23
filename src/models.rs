@@ -209,7 +209,7 @@ impl Default for NotificationData {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PendingNotification {
     id: i32,
@@ -236,7 +236,7 @@ impl PendingNotification {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ActiveNotification {
     id: i32,
@@ -307,28 +307,36 @@ impl ActiveNotification {
     }
 }
 
-#[cfg(mobile)]
-#[derive(Debug, Serialize)]
+#[cfg(any(mobile, all(desktop, not(feature = "notify-rust"))))]
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ActionType {
     id: String,
     actions: Vec<Action>,
     hidden_previews_body_placeholder: Option<String>,
+    #[serde(default)]
     custom_dismiss_action: bool,
+    #[serde(default)]
     allow_in_car_play: bool,
+    #[serde(default)]
     hidden_previews_show_title: bool,
+    #[serde(default)]
     hidden_previews_show_subtitle: bool,
 }
 
-#[cfg(mobile)]
-#[derive(Debug, Serialize)]
+#[cfg(any(mobile, all(desktop, not(feature = "notify-rust"))))]
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Action {
     id: String,
     title: String,
+    #[serde(default)]
     requires_authentication: bool,
+    #[serde(default)]
     foreground: bool,
+    #[serde(default)]
     destructive: bool,
+    #[serde(default)]
     input: bool,
     input_button_title: Option<String>,
     input_placeholder: Option<String>,

@@ -11,7 +11,7 @@ use std::sync::{OnceLock, RwLock};
 
 use crate::error::{ErrorResponse, PluginInvokeError};
 
-type ChannelMap = HashMap<u32, tauri::ipc::Channel<String>>;
+type ChannelMap = HashMap<u32, tauri::ipc::Channel<serde_json::Value>>;
 type ListenerMap = HashMap<String, ChannelMap>;
 
 static LISTENERS: OnceLock<RwLock<ListenerMap>> = OnceLock::new();
@@ -43,8 +43,15 @@ pub fn trigger(event: &str, payload: String) -> crate::Result<()> {
     })?;
 
     if let Some(channels) = guard.get(event) {
+        let value: serde_json::Value = serde_json::from_str(&payload).map_err(|e| {
+            crate::Error::from(PluginInvokeError::InvokeRejected(ErrorResponse {
+                code: None,
+                message: Some(format!("Failed to parse payload JSON: {e}")),
+                data: (),
+            }))
+        })?;
         for channel in channels.values() {
-            let _ = channel.send(payload.clone());
+            let _ = channel.send(value.clone());
         }
     }
     Ok(())
@@ -54,7 +61,7 @@ pub fn trigger(event: &str, payload: String) -> crate::Result<()> {
 #[tauri::command]
 pub(crate) fn register_listener(
     event: String,
-    handler: tauri::ipc::Channel<String>,
+    handler: tauri::ipc::Channel<serde_json::Value>,
 ) -> crate::Result<()> {
     let listeners = LISTENERS.get_or_init(|| RwLock::new(HashMap::new()));
     let mut guard = listeners.write().map_err(|e| {
