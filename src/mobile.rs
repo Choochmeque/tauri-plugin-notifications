@@ -178,10 +178,9 @@ impl<R: Runtime> Notifications<R> {
         {
             let mut args = HashMap::new();
             args.insert("id", id.into());
-            return self
-                .0
+            self.0
                 .run_mobile_plugin("deleteChannel", args)
-                .map_err(Into::into);
+                .map_err(Into::into)
         }
         #[cfg(target_os = "ios")]
         return Err(crate::Error::Io(std::io::Error::other(

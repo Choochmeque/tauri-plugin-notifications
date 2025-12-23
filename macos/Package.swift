@@ -43,7 +43,7 @@ let package = Package(
             path: "Sources",
             swiftSettings: swiftSettings,
             linkerSettings: [
-                .linkedFramework("StoreKit")
+                .linkedFramework("UserNotifications")
             ]
         ),
         .testTarget(
