@@ -23,6 +23,8 @@ mod desktop;
 mod macos;
 #[cfg(mobile)]
 mod mobile;
+#[cfg(all(target_os = "windows", not(feature = "notify-rust")))]
+mod windows;
 
 mod commands;
 mod error;
@@ -38,6 +40,8 @@ pub use desktop::Notifications;
 pub use macos::Notifications;
 #[cfg(mobile)]
 pub use mobile::Notifications;
+#[cfg(all(target_os = "windows", not(feature = "notify-rust")))]
+pub use windows::Notifications;
 
 /// The notification builder.
 #[derive(Debug)]
@@ -66,6 +70,14 @@ impl<R: Runtime> NotificationsBuilder<R> {
         Self {
             app,
             plugin,
+            data: Default::default(),
+        }
+    }
+
+    #[cfg(all(target_os = "windows", not(feature = "notify-rust")))]
+    fn new(app: AppHandle<R>) -> Self {
+        Self {
+            app,
             data: Default::default(),
         }
     }
@@ -264,6 +276,8 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             let notification = desktop::init(app, api)?;
             #[cfg(all(target_os = "macos", not(feature = "notify-rust")))]
             let notification = macos::init(app, api)?;
+            #[cfg(all(target_os = "windows", not(feature = "notify-rust")))]
+            let notification = windows::init(app, api)?;
             app.manage(notification);
             Ok(())
         })
