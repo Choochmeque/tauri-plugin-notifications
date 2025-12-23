@@ -505,7 +505,8 @@ final class NotificationTests: XCTestCase {
     // MARK: - Data Structure Tests
 
     func testPendingNotificationEncoding() throws {
-        let pending = PendingNotification(id: 1, title: "Test", body: "Body")
+        let schedule = NotificationSchedule.every(interval: .day, count: 1)
+        let pending = PendingNotification(id: 1, title: "Test", body: "Body", schedule: schedule)
 
         let encoder = JSONEncoder()
         let data = try encoder.encode(pending)
@@ -579,8 +580,43 @@ final class NotificationTests: XCTestCase {
 
     // MARK: - NotificationHandler Tests
 
-    func testNotificationHandlerToPendingNotification() {
+    func testNotificationHandlerToPendingNotificationReturnsNilForUnknown() {
         let handler = NotificationHandler()
+        let content = UNMutableNotificationContent()
+        content.title = "Test Title"
+        content.body = "Test Body"
+
+        let request = UNNotificationRequest(
+            identifier: "123",
+            content: content,
+            trigger: nil
+        )
+
+        // Should return nil since no notification was saved with this identifier
+        let pending = handler.toPendingNotification(request)
+        XCTAssertNil(pending)
+    }
+
+    func testNotificationHandlerToPendingNotificationWithSavedNotification() {
+        let handler = NotificationHandler()
+        let schedule = NotificationSchedule.every(interval: .day, count: 1)
+        let notification = Notification(
+            id: 123,
+            title: "Test Title",
+            body: "Test Body",
+            extra: nil,
+            schedule: schedule,
+            attachments: nil,
+            sound: nil,
+            group: nil,
+            actionTypeId: nil,
+            summary: nil,
+            silent: nil
+        )
+
+        // Save the notification first
+        handler.saveNotification("123", notification)
+
         let content = UNMutableNotificationContent()
         content.title = "Test Title"
         content.body = "Test Body"
@@ -593,9 +629,10 @@ final class NotificationTests: XCTestCase {
 
         let pending = handler.toPendingNotification(request)
 
-        XCTAssertEqual(pending.id, 123)
-        XCTAssertEqual(pending.title, "Test Title")
-        XCTAssertEqual(pending.body, "Test Body")
+        XCTAssertNotNil(pending)
+        XCTAssertEqual(pending?.id, 123)
+        XCTAssertEqual(pending?.title, "Test Title")
+        XCTAssertEqual(pending?.body, "Test Body")
     }
 
     // MARK: - makeAttachments Tests

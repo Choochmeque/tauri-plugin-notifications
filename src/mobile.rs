@@ -161,6 +161,7 @@ impl<R: Runtime> Notifications<R> {
             .map_err(Into::into)
     }
 
+    #[allow(unused_variables)]
     pub fn create_channel(&self, channel: Channel) -> crate::Result<()> {
         #[cfg(target_os = "android")]
         return self
@@ -173,6 +174,7 @@ impl<R: Runtime> Notifications<R> {
         )));
     }
 
+    #[allow(unused_variables)]
     pub fn delete_channel(&self, id: impl Into<String>) -> crate::Result<()> {
         #[cfg(target_os = "android")]
         {
