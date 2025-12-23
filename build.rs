@@ -50,9 +50,13 @@ fn main() {
     if enable_push {
         std::fs::write(ios_marker_path, "").expect("Failed to write iOS push marker file");
         std::fs::write(macos_marker_path, "").expect("Failed to write macOS push marker file");
-    } else if ios_marker_path.exists() {
-        std::fs::remove_file(ios_marker_path).ok();
-        std::fs::remove_file(macos_marker_path).ok();
+    } else {
+        if ios_marker_path.exists() {
+            std::fs::remove_file(ios_marker_path).ok();
+        }
+        if macos_marker_path.exists() {
+            std::fs::remove_file(macos_marker_path).ok();
+        }
     }
 
     let result = tauri_plugin::Builder::new(COMMANDS)
