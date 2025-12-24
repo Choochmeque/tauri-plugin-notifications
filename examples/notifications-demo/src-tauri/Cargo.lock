@@ -3763,6 +3763,7 @@ dependencies = [
  "thiserror 2.0.18",
  "time",
  "url",
+ "windows",
 ]
 
 [[package]]
