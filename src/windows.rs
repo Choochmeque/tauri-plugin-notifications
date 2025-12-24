@@ -206,8 +206,20 @@ impl<R: Runtime> crate::NotificationsBuilder<R> {
             }
 
             if self.plugin.is_click_listener_active()? {
-                let notification_id = self.data.id;
-                let extra_data = self.data.extra.clone();
+                let notification = ActiveNotification {
+                    id: self.data.id,
+                    tag: Some(self.data.id.to_string()),
+                    title: self.data.title.clone(),
+                    body: self.data.body.clone(),
+                    group: self.data.group.clone(),
+                    group_summary: self.data.group_summary,
+                    data: HashMap::new(),
+                    extra: self.data.extra.clone(),
+                    attachments: self.data.attachments.clone(),
+                    action_type_id: self.data.action_type_id.clone(),
+                    schedule: self.data.schedule.clone(),
+                    sound: self.data.sound.clone(),
+                };
 
                 toast.Activated(&TypedEventHandler::new(
                     move |_: windows::core::Ref<'_, ToastNotification>,
@@ -219,23 +231,30 @@ impl<R: Runtime> crate::NotificationsBuilder<R> {
                                     .map(|s| s.to_string_lossy())
                                     .unwrap_or_default();
 
+                                let action_id = if arguments.is_empty() {
+                                    "tap".to_string()
+                                } else {
+                                    arguments.to_string()
+                                };
+
+                                let payload = serde_json::json!({
+                                    "actionId": action_id,
+                                    "inputValue": null,
+                                    "notification": notification,
+                                });
+                                let _ = crate::listeners::trigger(
+                                    "actionPerformed",
+                                    payload.to_string(),
+                                );
+
                                 if arguments.is_empty() {
-                                    let payload = serde_json::json!({
-                                        "id": notification_id,
-                                        "data": extra_data,
+                                    let click_payload = serde_json::json!({
+                                        "id": notification.id,
+                                        "data": notification.extra,
                                     });
                                     let _ = crate::listeners::trigger(
                                         "notificationClicked",
-                                        payload.to_string(),
-                                    );
-                                } else {
-                                    let payload = serde_json::json!({
-                                        "id": notification_id,
-                                        "actionTypeId": arguments.to_string(),
-                                    });
-                                    let _ = crate::listeners::trigger(
-                                        "actionPerformed",
-                                        payload.to_string(),
+                                        click_payload.to_string(),
                                     );
                                 }
                             }
