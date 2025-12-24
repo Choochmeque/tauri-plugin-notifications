@@ -24,7 +24,7 @@ impl From<windows::core::Error> for crate::Error {
     fn from(err: windows::core::Error) -> Self {
         crate::Error::from(PluginInvokeError::InvokeRejected(ErrorResponse {
             code: Some(format!("0x{:08X}", err.code().0)),
-            message: Some(err.message().to_string_lossy()),
+            message: Some(err.message().to_string()),
             data: (),
         }))
     }
@@ -145,17 +145,13 @@ impl<R: Runtime> crate::NotificationsBuilder<R> {
         if let Some(action_type_id) = &self.data.action_type_id {
             if let Some(action_type) = action_types.get(action_type_id) {
                 let actions = doc.CreateElement(&HSTRING::from("actions"))?;
-                for action in &action_type.actions {
+                for action in action_type.actions() {
                     let action_el = doc.CreateElement(&HSTRING::from("action"))?;
-                    action_el.SetAttribute(
-                        &HSTRING::from("content"),
-                        &HSTRING::from(action.title.as_str()),
-                    )?;
-                    action_el.SetAttribute(
-                        &HSTRING::from("arguments"),
-                        &HSTRING::from(action.id.as_str()),
-                    )?;
-                    let activation_type = if action.foreground {
+                    action_el
+                        .SetAttribute(&HSTRING::from("content"), &HSTRING::from(action.title()))?;
+                    action_el
+                        .SetAttribute(&HSTRING::from("arguments"), &HSTRING::from(action.id()))?;
+                    let activation_type = if action.foreground() {
                         "foreground"
                     } else {
                         "background"
@@ -214,32 +210,28 @@ impl<R: Runtime> crate::NotificationsBuilder<R> {
                 let extra_data = self.data.extra.clone();
 
                 toast.Activated(&TypedEventHandler::new(move |_, args| {
-                    if let Some(args) = args {
-                        if let Ok(activated) = args.cast::<ToastActivatedEventArgs>() {
-                            let arguments = activated
-                                .Arguments()
-                                .map(|s| s.to_string_lossy())
-                                .unwrap_or_default();
+                    if let Ok(activated) = args.cast::<ToastActivatedEventArgs>() {
+                        let arguments = activated
+                            .Arguments()
+                            .map(|s| s.to_string_lossy())
+                            .unwrap_or_default();
 
-                            if arguments.is_empty() {
-                                let payload = serde_json::json!({
-                                    "id": notification_id,
-                                    "data": extra_data,
-                                });
-                                let _ = crate::listeners::trigger(
-                                    "notificationClicked",
-                                    payload.to_string(),
-                                );
-                            } else {
-                                let payload = serde_json::json!({
-                                    "id": notification_id,
-                                    "actionTypeId": arguments.to_string(),
-                                });
-                                let _ = crate::listeners::trigger(
-                                    "actionPerformed",
-                                    payload.to_string(),
-                                );
-                            }
+                        if arguments.is_empty() {
+                            let payload = serde_json::json!({
+                                "id": notification_id,
+                                "data": extra_data,
+                            });
+                            let _ = crate::listeners::trigger(
+                                "notificationClicked",
+                                payload.to_string(),
+                            );
+                        } else {
+                            let payload = serde_json::json!({
+                                "id": notification_id,
+                                "actionTypeId": arguments.to_string(),
+                            });
+                            let _ =
+                                crate::listeners::trigger("actionPerformed", payload.to_string());
                         }
                     }
                     Ok(())
@@ -348,7 +340,7 @@ impl<R: Runtime> Notifications<R> {
     pub fn register_action_types(&self, types: Vec<ActionType>) -> crate::Result<()> {
         let mut action_types = self.plugin.action_types_mut()?;
         for action_type in types {
-            action_types.insert(action_type.id.clone(), action_type);
+            action_types.insert(action_type.id().to_string(), action_type);
         }
         Ok(())
     }
@@ -426,7 +418,6 @@ impl<R: Runtime> Notifications<R> {
             let notification = scheduled.GetAt(i)?;
             let tag = notification.Tag()?.to_string_lossy();
             let id = tag.parse::<i32>().unwrap_or(0);
-            let group = notification.Group().ok().map(|s| s.to_string_lossy());
 
             let (title, body) = if let Ok(content) = notification.Content() {
                 let text_elements = content.GetElementsByTagName(&HSTRING::from("text"))?;
@@ -458,14 +449,15 @@ impl<R: Runtime> Notifications<R> {
                     })
             });
 
-            result.push(PendingNotification {
-                id,
-                title,
-                body,
-                group,
-                extra: HashMap::new(),
-                schedule,
-            });
+            // PendingNotification requires schedule (not Option), skip if we can't extract it
+            if let Some(schedule) = schedule {
+                result.push(PendingNotification {
+                    id,
+                    title,
+                    body,
+                    schedule,
+                });
+            }
         }
 
         Ok(result)

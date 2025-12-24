@@ -224,10 +224,10 @@ impl Default for NotificationData {
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PendingNotification {
-    id: i32,
-    title: Option<String>,
-    body: Option<String>,
-    schedule: Schedule,
+    pub(crate) id: i32,
+    pub(crate) title: Option<String>,
+    pub(crate) body: Option<String>,
+    pub(crate) schedule: Schedule,
 }
 
 impl PendingNotification {
@@ -337,7 +337,7 @@ impl ActiveNotification {
 
 // Each bool is an independent UNNotificationCategory option; grouping would change the JSON shape.
 #[allow(clippy::struct_excessive_bools)]
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ActionType {
     id: String,
@@ -353,9 +353,19 @@ pub struct ActionType {
     hidden_previews_show_subtitle: bool,
 }
 
+impl ActionType {
+    pub fn id(&self) -> &str {
+        &self.id
+    }
+
+    pub fn actions(&self) -> &[Action] {
+        &self.actions
+    }
+}
+
 // Each bool is an independent UNNotificationAction option; grouping would change the JSON shape.
 #[allow(clippy::struct_excessive_bools)]
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Action {
     id: String,
@@ -370,6 +380,20 @@ pub struct Action {
     input: bool,
     input_button_title: Option<String>,
     input_placeholder: Option<String>,
+}
+
+impl Action {
+    pub fn id(&self) -> &str {
+        &self.id
+    }
+
+    pub fn title(&self) -> &str {
+        &self.title
+    }
+
+    pub fn foreground(&self) -> bool {
+        self.foreground
+    }
 }
 
 pub use android::*;
