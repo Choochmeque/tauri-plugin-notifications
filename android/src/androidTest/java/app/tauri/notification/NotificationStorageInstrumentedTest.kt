@@ -168,13 +168,13 @@ class NotificationStorageInstrumentedTest {
 
         val retrieved = storage.getActionGroup("message-actions")
 
-        // Note: There's a bug in NotificationStorage.writeActionGroup where it uses
-        // type.id instead of loop index, causing actions to overwrite each other.
-        // This test verifies the actual (buggy) behavior.
         assertEquals(2, retrieved.size)
-        // Actions will be empty because write uses wrong key
-        assertTrue(retrieved[0]?.id.isNullOrEmpty())
-        assertTrue(retrieved[1]?.id.isNullOrEmpty())
+        assertEquals("reply", retrieved[0]?.id)
+        assertEquals("Reply", retrieved[0]?.title)
+        assertEquals(true, retrieved[0]?.input)
+        assertEquals("dismiss", retrieved[1]?.id)
+        assertEquals("Dismiss", retrieved[1]?.title)
+        assertEquals(false, retrieved[1]?.input)
     }
 
     @Test
@@ -260,13 +260,17 @@ class NotificationStorageInstrumentedTest {
 
         val retrieved1 = storage.getActionGroup("group1")
         assertEquals(1, retrieved1.size)
-        // Bug in writeActionGroup causes empty action ids
-        assertTrue(retrieved1[0]?.id.isNullOrEmpty())
+        assertEquals("action1", retrieved1[0]?.id)
+        assertEquals("Action 1", retrieved1[0]?.title)
+        assertEquals(false, retrieved1[0]?.input)
 
         val retrieved2 = storage.getActionGroup("group2")
         assertEquals(2, retrieved2.size)
-        // Bug in writeActionGroup causes empty action ids
-        assertTrue(retrieved2[0]?.id.isNullOrEmpty())
-        assertTrue(retrieved2[1]?.id.isNullOrEmpty())
+        assertEquals("action2", retrieved2[0]?.id)
+        assertEquals("Action 2", retrieved2[0]?.title)
+        assertEquals(true, retrieved2[0]?.input)
+        assertEquals("action3", retrieved2[1]?.id)
+        assertEquals("Action 3", retrieved2[1]?.title)
+        assertEquals(false, retrieved2[1]?.input)
     }
 }
