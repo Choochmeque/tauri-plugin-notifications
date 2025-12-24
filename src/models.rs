@@ -22,7 +22,7 @@ pub struct PushNotificationResponse {
     pub device_token: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Attachment {
     id: String,
@@ -35,7 +35,7 @@ impl Attachment {
     }
 }
 
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ScheduleInterval {
     pub year: Option<u8>,
@@ -47,7 +47,7 @@ pub struct ScheduleInterval {
     pub second: Option<u8>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum ScheduleEvery {
     Year,
     Month,
@@ -107,7 +107,7 @@ impl<'de> Deserialize<'de> for ScheduleEvery {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum Schedule {
     #[serde(rename_all = "camelCase")]
@@ -250,7 +250,7 @@ impl PendingNotification {
     }
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ActiveNotification {
     pub(crate) id: i32,
