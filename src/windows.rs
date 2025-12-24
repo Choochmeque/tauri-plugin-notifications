@@ -209,33 +209,39 @@ impl<R: Runtime> crate::NotificationsBuilder<R> {
                 let notification_id = self.data.id;
                 let extra_data = self.data.extra.clone();
 
-                toast.Activated(&TypedEventHandler::new(move |_, args| {
-                    if let Ok(activated) = args.cast::<ToastActivatedEventArgs>() {
-                        let arguments = activated
-                            .Arguments()
-                            .map(|s| s.to_string_lossy())
-                            .unwrap_or_default();
+                toast.Activated(&TypedEventHandler::new(
+                    move |_, args: &Option<windows::core::IInspectable>| {
+                        if let Some(args) = args {
+                            if let Ok(activated) = args.cast::<ToastActivatedEventArgs>() {
+                                let arguments = activated
+                                    .Arguments()
+                                    .map(|s| s.to_string_lossy())
+                                    .unwrap_or_default();
 
-                        if arguments.is_empty() {
-                            let payload = serde_json::json!({
-                                "id": notification_id,
-                                "data": extra_data,
-                            });
-                            let _ = crate::listeners::trigger(
-                                "notificationClicked",
-                                payload.to_string(),
-                            );
-                        } else {
-                            let payload = serde_json::json!({
-                                "id": notification_id,
-                                "actionTypeId": arguments.to_string(),
-                            });
-                            let _ =
-                                crate::listeners::trigger("actionPerformed", payload.to_string());
+                                if arguments.is_empty() {
+                                    let payload = serde_json::json!({
+                                        "id": notification_id,
+                                        "data": extra_data,
+                                    });
+                                    let _ = crate::listeners::trigger(
+                                        "notificationClicked",
+                                        payload.to_string(),
+                                    );
+                                } else {
+                                    let payload = serde_json::json!({
+                                        "id": notification_id,
+                                        "actionTypeId": arguments.to_string(),
+                                    });
+                                    let _ = crate::listeners::trigger(
+                                        "actionPerformed",
+                                        payload.to_string(),
+                                    );
+                                }
+                            }
                         }
-                    }
-                    Ok(())
-                }))?;
+                        Ok(())
+                    },
+                ))?;
             }
 
             self.plugin.notifier.Show(&toast)?;
