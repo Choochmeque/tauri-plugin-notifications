@@ -33,6 +33,7 @@ impl From<windows::core::Error> for crate::Error {
 /// Shared plugin state wrapped in Arc for thread-safe access.
 #[derive(Debug)]
 pub struct WindowsPlugin {
+    app_id: String,
     notifier: ToastNotifier,
     action_types: RwLock<HashMap<String, ActionType>>,
     click_listener_active: RwLock<bool>,
@@ -75,11 +76,11 @@ pub fn init<R: Runtime, C: DeserializeOwned>(
     app: &AppHandle<R>,
     _api: PluginApi<R, C>,
 ) -> crate::Result<Notifications<R>> {
-    // Use app identifier as AUMID (Application User Model ID)
-    let app_id = &app.config().identifier;
-    let notifier = ToastNotificationManager::CreateToastNotifierWithId(&HSTRING::from(app_id))?;
+    let app_id = app.config().identifier.clone();
+    let notifier = ToastNotificationManager::CreateToastNotifierWithId(&HSTRING::from(&app_id))?;
 
     let plugin = Arc::new(WindowsPlugin {
+        app_id,
         notifier,
         action_types: RwLock::new(HashMap::new()),
         click_listener_active: RwLock::new(false),
@@ -382,7 +383,7 @@ impl<R: Runtime> Notifications<R> {
 
     pub async fn active(&self) -> crate::Result<Vec<ActiveNotification>> {
         let history = ToastNotificationManager::History()?;
-        let app_id = &self.app.config().identifier;
+        let app_id = &self.plugin.app_id;
         let notifications = history.GetHistoryWithId(&HSTRING::from(app_id))?;
 
         let mut result = Vec::new();
@@ -431,7 +432,7 @@ impl<R: Runtime> Notifications<R> {
 
     pub fn remove_all_active(&self) -> crate::Result<()> {
         let history = ToastNotificationManager::History()?;
-        let app_id = &self.app.config().identifier;
+        let app_id = &self.plugin.app_id;
         history.ClearWithId(&HSTRING::from(app_id))?;
         Ok(())
     }
