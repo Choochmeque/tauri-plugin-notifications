@@ -8,7 +8,7 @@ use tauri::{
     plugin::{PermissionState, PluginApi},
     AppHandle, Runtime,
 };
-use windows::core::HSTRING;
+use windows::core::{Interface, HSTRING};
 use windows::Data::Xml::Dom::XmlDocument;
 use windows::Foundation::{DateTime, TypedEventHandler};
 use windows::UI::Notifications::{
@@ -210,9 +210,10 @@ impl<R: Runtime> crate::NotificationsBuilder<R> {
                 let extra_data = self.data.extra.clone();
 
                 toast.Activated(&TypedEventHandler::new(
-                    move |_, args: &Option<windows::core::IInspectable>| {
-                        if let Some(args) = args {
-                            if let Ok(activated) = args.cast::<ToastActivatedEventArgs>() {
+                    move |_: windows::core::Ref<'_, ToastNotification>,
+                          args: windows::core::Ref<'_, windows::core::IInspectable>| {
+                        if let Some(inspectable) = &*args {
+                            if let Ok(activated) = inspectable.cast::<ToastActivatedEventArgs>() {
                                 let arguments = activated
                                     .Arguments()
                                     .map(|s| s.to_string_lossy())
