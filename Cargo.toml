@@ -39,6 +39,7 @@ notify-rust = { version = "4.11", optional = true }
 windows = { version = "0.61", features = [
     "Data_Xml_Dom",
     "Foundation",
+    "Networking_PushNotifications",
     "UI_Notifications",
 ] }
 
