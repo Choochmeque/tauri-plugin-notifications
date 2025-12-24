@@ -51,6 +51,8 @@ pub struct NotificationsBuilder<R: Runtime> {
     app: AppHandle<R>,
     #[cfg(all(target_os = "macos", not(feature = "notify-rust")))]
     plugin: std::sync::Arc<macos::NotificationPlugin>,
+    #[cfg(all(target_os = "windows", not(feature = "notify-rust")))]
+    plugin: std::sync::Arc<windows::WindowsPlugin>,
     #[cfg(mobile)]
     handle: PluginHandle<R>,
     pub(crate) data: NotificationData,
@@ -75,9 +77,10 @@ impl<R: Runtime> NotificationsBuilder<R> {
     }
 
     #[cfg(all(target_os = "windows", not(feature = "notify-rust")))]
-    fn new(app: AppHandle<R>) -> Self {
+    fn new(app: AppHandle<R>, plugin: std::sync::Arc<windows::WindowsPlugin>) -> Self {
         Self {
             app,
+            plugin,
             data: Default::default(),
         }
     }
