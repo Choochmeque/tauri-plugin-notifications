@@ -348,7 +348,7 @@ impl<R: Runtime> Notifications<R> {
         {
             let channel =
                 PushNotificationChannelManager::CreatePushNotificationChannelForApplicationAsync()?
-                    .await?;
+                    .get()?;
             Ok(channel.Uri()?.to_string_lossy())
         }
         #[cfg(not(feature = "push-notifications"))]
