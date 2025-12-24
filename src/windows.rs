@@ -11,6 +11,8 @@ use tauri::{
 use windows::core::{Interface, HSTRING};
 use windows::Data::Xml::Dom::XmlDocument;
 use windows::Foundation::{DateTime, TypedEventHandler};
+#[cfg(feature = "push-notifications")]
+use windows::Networking::PushNotifications::PushNotificationChannelManager;
 use windows::UI::Notifications::{
     NotificationSetting, ScheduledToastNotification, ToastActivatedEventArgs, ToastNotification,
     ToastNotificationManager, ToastNotifier,
@@ -342,14 +344,25 @@ impl<R: Runtime> Notifications<R> {
     }
 
     pub async fn register_for_push_notifications(&self) -> crate::Result<String> {
+        #[cfg(feature = "push-notifications")]
+        {
+            let channel =
+                PushNotificationChannelManager::CreatePushNotificationChannelForApplicationAsync()?
+                    .await?;
+            Ok(channel.Uri()?.to_string_lossy())
+        }
+        #[cfg(not(feature = "push-notifications"))]
         Err(crate::Error::Io(std::io::Error::other(
-            "Push notifications are not supported on Windows",
+            "Push notifications feature not enabled",
         )))
     }
 
     pub fn unregister_for_push_notifications(&self) -> crate::Result<()> {
+        #[cfg(feature = "push-notifications")]
+        return Ok(());
+        #[cfg(not(feature = "push-notifications"))]
         Err(crate::Error::Io(std::io::Error::other(
-            "Push notifications are not supported on Windows",
+            "Push notifications feature not enabled",
         )))
     }
 
