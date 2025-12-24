@@ -253,22 +253,22 @@ impl PendingNotification {
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ActiveNotification {
-    id: i32,
-    tag: Option<String>,
-    title: Option<String>,
-    body: Option<String>,
-    group: Option<String>,
+    pub(crate) id: i32,
+    pub(crate) tag: Option<String>,
+    pub(crate) title: Option<String>,
+    pub(crate) body: Option<String>,
+    pub(crate) group: Option<String>,
     #[serde(default)]
-    group_summary: bool,
+    pub(crate) group_summary: bool,
     #[serde(default)]
-    data: HashMap<String, String>,
+    pub(crate) data: HashMap<String, String>,
     #[serde(default)]
-    extra: HashMap<String, serde_json::Value>,
+    pub(crate) extra: HashMap<String, serde_json::Value>,
     #[serde(default)]
-    attachments: Vec<Attachment>,
-    action_type_id: Option<String>,
-    schedule: Option<Schedule>,
-    sound: Option<String>,
+    pub(crate) attachments: Vec<Attachment>,
+    pub(crate) action_type_id: Option<String>,
+    pub(crate) schedule: Option<Schedule>,
+    pub(crate) sound: Option<String>,
 }
 
 impl ActiveNotification {
