@@ -74,6 +74,12 @@ mod ffi {
     }
 }
 
+impl std::fmt::Debug for ffi::NotificationPlugin {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("NotificationPlugin").finish()
+    }
+}
+
 /// Extension trait for parsing FFI responses from Swift into typed Rust results.
 trait ParseFfiResponse {
     /// Deserializes a JSON response into the target type, converting FFI errors

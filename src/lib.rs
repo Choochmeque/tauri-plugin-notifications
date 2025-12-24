@@ -40,7 +40,7 @@ pub use macos::Notifications;
 pub use mobile::Notifications;
 
 /// The notification builder.
-//#[derive(Debug)]
+#[derive(Debug)]
 pub struct NotificationsBuilder<R: Runtime> {
     #[cfg(desktop)]
     #[allow(dead_code)]
