@@ -245,20 +245,24 @@ impl<R: Runtime> crate::NotificationsBuilder<R> {
                                     "inputValue": null,
                                     "notification": notification,
                                 });
-                                let _ = crate::listeners::trigger(
+                                if let Err(e) = crate::listeners::trigger(
                                     "actionPerformed",
                                     payload.to_string(),
-                                );
+                                ) {
+                                    log::error!("Failed to trigger actionPerformed: {e}");
+                                }
 
                                 if arguments.is_empty() {
                                     let click_payload = serde_json::json!({
                                         "id": notification.id,
                                         "data": notification.extra,
                                     });
-                                    let _ = crate::listeners::trigger(
+                                    if let Err(e) = crate::listeners::trigger(
                                         "notificationClicked",
                                         click_payload.to_string(),
-                                    );
+                                    ) {
+                                        log::error!("Failed to trigger notificationClicked: {e}");
+                                    }
                                 }
                             }
                         }
@@ -278,7 +282,9 @@ impl<R: Runtime> crate::NotificationsBuilder<R> {
             "actionTypeId": self.data.action_type_id,
             "extra": self.data.extra,
         });
-        let _ = crate::listeners::trigger("notification", payload.to_string());
+        if let Err(e) = crate::listeners::trigger("notification", payload.to_string()) {
+            log::error!("Failed to trigger notification: {e}");
+        }
 
         Ok(())
     }
@@ -388,8 +394,9 @@ impl<R: Runtime> Notifications<R> {
     pub fn remove_active(&self, notifications: Vec<i32>) -> crate::Result<()> {
         let history = ToastNotificationManager::History()?;
         for id in notifications {
-            // Remove by tag (which we set to the notification ID)
-            let _ = history.Remove(&HSTRING::from(id.to_string()));
+            if let Err(e) = history.Remove(&HSTRING::from(id.to_string())) {
+                log::error!("Failed to remove notification {id}: {e}");
+            }
         }
         Ok(())
     }
@@ -512,7 +519,9 @@ impl<R: Runtime> Notifications<R> {
                 if let Ok(tag) = notification.Tag() {
                     if let Ok(id) = tag.to_string_lossy().parse::<i32>() {
                         if ids_to_cancel.contains(&id) {
-                            let _ = self.plugin.notifier.RemoveFromSchedule(&notification);
+                            if let Err(e) = self.plugin.notifier.RemoveFromSchedule(&notification) {
+                                log::error!("Failed to cancel notification {id}: {e}");
+                            }
                         }
                     }
                 }
@@ -525,7 +534,9 @@ impl<R: Runtime> Notifications<R> {
         let scheduled = self.plugin.notifier.GetScheduledToastNotifications()?;
         for i in 0..scheduled.Size()? {
             if let Ok(notification) = scheduled.GetAt(i) {
-                let _ = self.plugin.notifier.RemoveFromSchedule(&notification);
+                if let Err(e) = self.plugin.notifier.RemoveFromSchedule(&notification) {
+                    log::error!("Failed to cancel scheduled notification: {e}");
+                }
             }
         }
         Ok(())
