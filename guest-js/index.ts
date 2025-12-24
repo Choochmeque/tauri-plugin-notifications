@@ -629,7 +629,7 @@ async function removeAllActive(): Promise<void> {
  * @returns A promise indicating the success or failure of the operation.
  */
 async function createChannel(channel: Channel): Promise<void> {
-  await invoke("plugin:notifications|create_channel", { ...channel });
+  await invoke("plugin:notifications|create_channel", { channel });
 }
 
 /**

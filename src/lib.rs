@@ -17,8 +17,10 @@ use tauri::{
 pub use models::*;
 pub use tauri::plugin::PermissionState;
 
-#[cfg(desktop)]
+#[cfg(all(desktop, feature = "notify-rust"))]
 mod desktop;
+#[cfg(all(target_os = "macos", not(feature = "notify-rust")))]
+mod macos;
 #[cfg(mobile)]
 mod mobile;
 
@@ -30,8 +32,10 @@ mod models;
 
 pub use error::{Error, Result};
 
-#[cfg(desktop)]
+#[cfg(all(desktop, feature = "notify-rust"))]
 pub use desktop::Notifications;
+#[cfg(all(target_os = "macos", not(feature = "notify-rust")))]
+pub use macos::Notifications;
 #[cfg(mobile)]
 pub use mobile::Notifications;
 
@@ -39,17 +43,29 @@ pub use mobile::Notifications;
 #[derive(Debug)]
 pub struct NotificationsBuilder<R: Runtime> {
     #[cfg(desktop)]
+    #[allow(dead_code)]
     app: AppHandle<R>,
+    #[cfg(all(target_os = "macos", not(feature = "notify-rust")))]
+    plugin: std::sync::Arc<macos::NotificationPlugin>,
     #[cfg(mobile)]
     handle: PluginHandle<R>,
     pub(crate) data: NotificationData,
 }
 
 impl<R: Runtime> NotificationsBuilder<R> {
-    #[cfg(desktop)]
+    #[cfg(all(desktop, feature = "notify-rust"))]
     fn new(app: AppHandle<R>) -> Self {
         Self {
             app,
+            data: Default::default(),
+        }
+    }
+
+    #[cfg(all(target_os = "macos", not(feature = "notify-rust")))]
+    fn new(app: AppHandle<R>, plugin: std::sync::Arc<macos::NotificationPlugin>) -> Self {
+        Self {
+            app,
+            plugin,
             data: Default::default(),
         }
     }
@@ -224,6 +240,16 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             commands::register_for_push_notifications,
             commands::unregister_for_push_notifications,
             commands::is_permission_granted,
+            commands::register_action_types,
+            commands::get_pending,
+            commands::get_active,
+            commands::set_click_listener_active,
+            commands::remove_active,
+            commands::cancel,
+            commands::cancel_all,
+            commands::create_channel,
+            commands::delete_channel,
+            commands::list_channels,
             #[cfg(desktop)]
             listeners::register_listener,
             #[cfg(desktop)]
@@ -234,8 +260,10 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             listeners::init();
             #[cfg(mobile)]
             let notification = mobile::init(app, api)?;
-            #[cfg(desktop)]
+            #[cfg(all(desktop, feature = "notify-rust"))]
             let notification = desktop::init(app, api)?;
+            #[cfg(all(target_os = "macos", not(feature = "notify-rust")))]
+            let notification = macos::init(app, api)?;
             app.manage(notification);
             Ok(())
         })

@@ -175,7 +175,7 @@ class NotificationPlugin(private val activity: Activity): Plugin(activity) {
     // Skip if no extras or if it's a regular app launch
     if (extras.isEmpty) return null
 
-    Logger.debug(Logger.tags(TAG), "extractPushNotificationData - all extras: ${extras.keySet().map { "$it=${extras.get(it)}" }}")
+    Logger.debug(Logger.tags(TAG), "extractPushNotificationData - all extras: ${extras.keySet().map { "$it=${extras.getString(it)}" }}")
 
     // Filter out system/internal keys, keep user data
     val data = JSObject()

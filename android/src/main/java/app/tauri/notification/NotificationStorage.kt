@@ -24,7 +24,7 @@ class NotificationStorage(private val context: Context, private val jsonMapper: 
     for (request in localNotifications) {
       if (request.schedule != null) {
         val key: String = request.id.toString()
-        val jsonValue = request.sourceJson?.toString()
+        val jsonValue = request.sourceJson
         Logger.debug(Logger.tags(STORAGE_TAG), "Saving notification $key, sourceJson is null: ${request.sourceJson == null}, value: ${jsonValue?.take(100)}")
         editor.putString(key, jsonValue)
         savedCount++

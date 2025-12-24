@@ -5,8 +5,22 @@
 use std::{collections::HashMap, fmt::Display};
 
 use serde::{de::Error as DeError, Deserialize, Deserializer, Serialize, Serializer};
+use tauri::plugin::PermissionState;
 
 use url::Url;
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PermissionResponse {
+    pub permission_state: PermissionState,
+}
+
+#[cfg(feature = "push-notifications")]
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PushNotificationResponse {
+    pub device_token: String,
+}
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -209,7 +223,7 @@ impl Default for NotificationData {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PendingNotification {
     id: i32,
@@ -236,7 +250,7 @@ impl PendingNotification {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ActiveNotification {
     id: i32,
@@ -307,37 +321,41 @@ impl ActiveNotification {
     }
 }
 
-#[cfg(mobile)]
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ActionType {
     id: String,
     actions: Vec<Action>,
     hidden_previews_body_placeholder: Option<String>,
+    #[serde(default)]
     custom_dismiss_action: bool,
+    #[serde(default)]
     allow_in_car_play: bool,
+    #[serde(default)]
     hidden_previews_show_title: bool,
+    #[serde(default)]
     hidden_previews_show_subtitle: bool,
 }
 
-#[cfg(mobile)]
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Action {
     id: String,
     title: String,
+    #[serde(default)]
     requires_authentication: bool,
+    #[serde(default)]
     foreground: bool,
+    #[serde(default)]
     destructive: bool,
+    #[serde(default)]
     input: bool,
     input_button_title: Option<String>,
     input_placeholder: Option<String>,
 }
 
-#[cfg(target_os = "android")]
 pub use android::*;
 
-#[cfg(target_os = "android")]
 mod android {
     use serde::{Deserialize, Serialize};
     use serde_repr::{Deserialize_repr, Serialize_repr};
@@ -368,10 +386,10 @@ mod android {
         name: String,
         description: Option<String>,
         sound: Option<String>,
-        lights: bool,
+        lights: Option<bool>,
         light_color: Option<String>,
-        vibration: bool,
-        importance: Importance,
+        vibration: Option<bool>,
+        importance: Option<Importance>,
         visibility: Option<Visibility>,
     }
 
@@ -385,9 +403,9 @@ mod android {
                 name: name.into(),
                 description: None,
                 sound: None,
-                lights: false,
+                lights: Some(false),
                 light_color: None,
-                vibration: false,
+                vibration: Some(false),
                 importance: Default::default(),
                 visibility: None,
             })
@@ -410,7 +428,7 @@ mod android {
         }
 
         pub fn lights(&self) -> bool {
-            self.lights
+            self.lights.unwrap_or(false)
         }
 
         pub fn light_color(&self) -> Option<&str> {
@@ -418,11 +436,11 @@ mod android {
         }
 
         pub fn vibration(&self) -> bool {
-            self.vibration
+            self.vibration.unwrap_or(false)
         }
 
         pub fn importance(&self) -> Importance {
-            self.importance
+            self.importance.unwrap_or_default()
         }
 
         pub fn visibility(&self) -> Option<Visibility> {
@@ -442,7 +460,7 @@ mod android {
         }
 
         pub fn lights(mut self, lights: bool) -> Self {
-            self.0.lights = lights;
+            self.0.lights = Some(lights);
             self
         }
 
@@ -452,12 +470,12 @@ mod android {
         }
 
         pub fn vibration(mut self, vibration: bool) -> Self {
-            self.0.vibration = vibration;
+            self.0.vibration = Some(vibration);
             self
         }
 
         pub fn importance(mut self, importance: Importance) -> Self {
-            self.0.importance = importance;
+            self.0.importance = Some(importance);
             self
         }
 

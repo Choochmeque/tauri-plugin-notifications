@@ -96,7 +96,6 @@ sealed class NotificationSchedule {
       is At -> allowWhileIdle
       is Interval -> allowWhileIdle
       is Every -> allowWhileIdle
-      else -> false
     }
   }
 
