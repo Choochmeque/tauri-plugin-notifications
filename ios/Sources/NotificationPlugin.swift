@@ -22,7 +22,7 @@ enum ShowNotificationError: LocalizedError {
   }
 }
 
-enum ScheduleEveryKind: String, Decodable {
+enum ScheduleEveryKind: String, Codable {
   case year
   case month
   case twoWeeks
@@ -33,7 +33,7 @@ enum ScheduleEveryKind: String, Decodable {
   case second
 }
 
-struct ScheduleInterval: Decodable {
+struct ScheduleInterval: Codable {
   var year: Int?
   var month: Int?
   var day: Int?
@@ -43,7 +43,7 @@ struct ScheduleInterval: Decodable {
   var second: Int?
 }
 
-enum NotificationSchedule: Decodable {
+enum NotificationSchedule: Codable {
   case at(date: String, repeating: Bool)
   case interval(interval: ScheduleInterval)
   case every(interval: ScheduleEveryKind, count: Int)
@@ -162,10 +162,10 @@ class NotificationPlugin: Plugin {
   let notificationManager = NotificationManager()
 
   #if ENABLE_PUSH_NOTIFICATIONS
-  // Completion handler for push token registration
-  private var pushTokenCompletion: ((Result<String, Error>) -> Void)?
-  private let pushTokenTimeout: TimeInterval = 10.0
-  private var pushTokenTimer: Timer?
+    // Completion handler for push token registration
+    private var pushTokenCompletion: ((Result<String, Error>) -> Void)?
+    private let pushTokenTimeout: TimeInterval = 10.0
+    private var pushTokenTimer: Timer?
   #endif
 
   override init() {
@@ -178,11 +178,11 @@ class NotificationPlugin: Plugin {
     super.load(webview: webview)
 
     #if ENABLE_PUSH_NOTIFICATIONS
-    // Store reference to this plugin for event triggering
-    AppDelegateSwizzler.plugin = self
+      // Store reference to this plugin for event triggering
+      AppDelegateSwizzler.plugin = self
 
-    // swizzle UIApplicationDelegate push methods
-    AppDelegateSwizzler.swizzlePushCallbacks()
+      // swizzle UIApplicationDelegate push methods
+      AppDelegateSwizzler.swizzlePushCallbacks()
     #endif
   }
 
@@ -221,91 +221,93 @@ class NotificationPlugin: Plugin {
 
   @objc public func registerForPushNotifications(_ invoke: Invoke) {
     #if ENABLE_PUSH_NOTIFICATIONS
-    // First request notification permissions
-    notificationHandler.requestPermissions { [weak self] granted, error in
-      guard error == nil else {
-        invoke.reject(error!.localizedDescription)
-        return
-      }
+      // First request notification permissions
+      notificationHandler.requestPermissions { [weak self] granted, error in
+        guard error == nil else {
+          invoke.reject(error!.localizedDescription)
+          return
+        }
 
-      self?.registerForPushNotifications { result in
-        switch result {
-        case .success(let token):
-          invoke.resolve(["deviceToken": token])
-        case .failure(let error):
-          invoke.reject(error.localizedDescription)
+        self?.registerForPushNotifications { result in
+          switch result {
+          case .success(let token):
+            invoke.resolve(["deviceToken": token])
+          case .failure(let error):
+            invoke.reject(error.localizedDescription)
+          }
         }
       }
-    }
     #else
-    invoke.reject("Push notifications are disabled in this build")
+      invoke.reject("Push notifications are disabled in this build")
     #endif
   }
 
   @objc public func unregisterForPushNotifications(_ invoke: Invoke) {
     #if ENABLE_PUSH_NOTIFICATIONS
-    DispatchQueue.main.async {
-      UIApplication.shared.unregisterForRemoteNotifications()
-      invoke.resolve()
-    }
+      DispatchQueue.main.async {
+        UIApplication.shared.unregisterForRemoteNotifications()
+        invoke.resolve()
+      }
     #else
-    invoke.reject("Push notifications are disabled in this build")
+      invoke.reject("Push notifications are disabled in this build")
     #endif
   }
 
   #if ENABLE_PUSH_NOTIFICATIONS
-  private func registerForPushNotifications(completion: @escaping (Result<String, Error>) -> Void) {
-    // Store completion for later
-    self.pushTokenCompletion = completion
+    private func registerForPushNotifications(completion: @escaping (Result<String, Error>) -> Void)
+    {
+      // Store completion for later
+      self.pushTokenCompletion = completion
 
-    // Set up timeout
-    self.pushTokenTimer?.invalidate()
-    self.pushTokenTimer = Timer.scheduledTimer(withTimeInterval: pushTokenTimeout, repeats: false) { [weak self] _ in
-      self?.handlePushTokenTimeout()
+      // Set up timeout
+      self.pushTokenTimer?.invalidate()
+      self.pushTokenTimer = Timer.scheduledTimer(withTimeInterval: pushTokenTimeout, repeats: false)
+      { [weak self] _ in
+        self?.handlePushTokenTimeout()
+      }
+
+      // Register for remote notifications
+      DispatchQueue.main.async {
+        UIApplication.shared.registerForRemoteNotifications()
+      }
     }
 
-    // Register for remote notifications
-    DispatchQueue.main.async {
-      UIApplication.shared.registerForRemoteNotifications()
+    private func handlePushTokenTimeout() {
+      pushTokenTimer?.invalidate()
+      pushTokenTimer = nil
+
+      if let completion = pushTokenCompletion {
+        pushTokenCompletion = nil
+        let error = NSError(
+          domain: "NotificationPlugin",
+          code: -1,
+          userInfo: [NSLocalizedDescriptionKey: "Timeout waiting for device token"]
+        )
+        completion(.failure(error))
+      }
     }
-  }
 
-  private func handlePushTokenTimeout() {
-    pushTokenTimer?.invalidate()
-    pushTokenTimer = nil
+    // Called by AppDelegateSwizzler when token is received
+    func handlePushTokenReceived(_ token: String) {
+      pushTokenTimer?.invalidate()
+      pushTokenTimer = nil
 
-    if let completion = pushTokenCompletion {
-      pushTokenCompletion = nil
-      let error = NSError(
-        domain: "NotificationPlugin",
-        code: -1,
-        userInfo: [NSLocalizedDescriptionKey: "Timeout waiting for device token"]
-      )
-      completion(.failure(error))
+      if let completion = pushTokenCompletion {
+        pushTokenCompletion = nil
+        completion(.success(token))
+      }
     }
-  }
 
-  // Called by AppDelegateSwizzler when token is received
-  func handlePushTokenReceived(_ token: String) {
-    pushTokenTimer?.invalidate()
-    pushTokenTimer = nil
+    // Called by AppDelegateSwizzler when registration fails
+    func handlePushTokenError(_ error: Error) {
+      pushTokenTimer?.invalidate()
+      pushTokenTimer = nil
 
-    if let completion = pushTokenCompletion {
-      pushTokenCompletion = nil
-      completion(.success(token))
+      if let completion = pushTokenCompletion {
+        pushTokenCompletion = nil
+        completion(.failure(error))
+      }
     }
-  }
-
-  // Called by AppDelegateSwizzler when registration fails
-  func handlePushTokenError(_ error: Error) {
-    pushTokenTimer?.invalidate()
-    pushTokenTimer = nil
-
-    if let completion = pushTokenCompletion {
-      pushTokenCompletion = nil
-      completion(.failure(error))
-    }
-  }
   #endif
 
   @objc public override func checkPermissions(_ invoke: Invoke) {
@@ -333,6 +335,11 @@ class NotificationPlugin: Plugin {
     UNUserNotificationCenter.current().removePendingNotificationRequests(
       withIdentifiers: args.notifications.map { String($0) }
     )
+    invoke.resolve()
+  }
+
+  @objc func cancelAll(_ invoke: Invoke) {
+    UNUserNotificationCenter.current().removeAllPendingNotificationRequests()
     invoke.resolve()
   }
 
@@ -379,18 +386,6 @@ class NotificationPlugin: Plugin {
     })
   }
 
-  @objc func createChannel(_ invoke: Invoke) {
-    invoke.reject("not implemented")
-  }
-
-  @objc func deleteChannel(_ invoke: Invoke) {
-    invoke.reject("not implemented")
-  }
-
-  @objc func listChannels(_ invoke: Invoke) {
-    invoke.reject("not implemented")
-  }
-
   @objc func setClickListenerActive(_ invoke: Invoke) {
     do {
       let args = try invoke.parseArgs(SetClickListenerActiveArgs.self)
@@ -400,7 +395,6 @@ class NotificationPlugin: Plugin {
       invoke.reject(error.localizedDescription)
     }
   }
-
 }
 
 @_cdecl("init_plugin_notification")

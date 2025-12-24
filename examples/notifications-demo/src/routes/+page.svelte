@@ -52,7 +52,7 @@
   let newChannelName = $state("App Notifications");
   let newChannelDescription = $state("General app notifications");
 
-  // Push notifications (mobile only)
+  // Push notifications
   let pushToken = $state<string | null>(null);
   let pushRegistered = $state(false);
 
@@ -76,7 +76,7 @@
       pendingNotifications = await pending();
       addLog(`Loaded ${pendingNotifications.length} pending notifications`);
     } catch (error) {
-      addLog(`Error loading pending: ${error}`);
+      addLog(`Error loading pending: ${error instanceof Error ? error.message : JSON.stringify(error)}`);
     }
   }
 
@@ -88,7 +88,7 @@
       activeNotifications = await active();
       addLog(`Loaded ${activeNotifications.length} active notifications`);
     } catch (error) {
-      addLog(`Error loading active: ${error}`);
+      addLog(`Error loading active: ${error instanceof Error ? error.message : JSON.stringify(error)}`);
     }
   }
 
@@ -100,7 +100,7 @@
       notificationChannels = await channels();
       addLog(`Loaded ${notificationChannels.length} channels`);
     } catch (error) {
-      addLog(`Error loading channels: ${error}`);
+      addLog(`Error loading channels: ${error instanceof Error ? error.message : JSON.stringify(error)}`);
     }
   }
 
@@ -117,7 +117,7 @@
       permissionStatus = permissionGranted ? "Granted" : "Not Granted";
       addLog(`Permission status: ${permissionStatus}`);
     } catch (error) {
-      addLog(`Error checking permission: ${error}`);
+      addLog(`Error checking permission: ${error instanceof Error ? error.message : JSON.stringify(error)}`);
       permissionStatus = "Error";
     }
   }
@@ -132,12 +132,12 @@
       permissionStatus = result;
       addLog(`Permission request result: ${result}`);
     } catch (error) {
-      addLog(`Error requesting permission: ${error}`);
+      addLog(`Error requesting permission: ${error instanceof Error ? error.message : JSON.stringify(error)}`);
     }
   }
 
   // ============================================================================
-  // PUSH NOTIFICATIONS (Mobile Only)
+  // PUSH NOTIFICATIONS
   // ============================================================================
 
   /**
@@ -152,7 +152,6 @@
       addLog(`📱 Push token: ${token.substring(0, 20)}...`);
     } catch (error) {
       addLog(`❌ Error registering for push: ${error}`);
-      addLog(`Note: Push notifications are only available on iOS and Android`);
     }
   }
 
@@ -166,7 +165,7 @@
       pushRegistered = false;
       addLog(`❌ Unregistered from push notifications`);
     } catch (error) {
-      addLog(`Error unregistering from push: ${error}`);
+      addLog(`Error unregistering from push: ${error instanceof Error ? error.message : JSON.stringify(error)}`);
     }
   }
 
@@ -183,7 +182,7 @@
       await navigator.clipboard.writeText(pushToken);
       addLog(`📋 Push token copied to clipboard`);
     } catch (error) {
-      addLog(`Error copying to clipboard: ${error}`);
+      addLog(`Error copying to clipboard: ${error instanceof Error ? error.message : JSON.stringify(error)}`);
     }
   }
 
@@ -207,7 +206,7 @@
       });
       addLog(`Sent notification: "${basicTitle}"`);
     } catch (error) {
-      addLog(`Error sending notification: ${error}`);
+      addLog(`Error sending notification: ${error instanceof Error ? error.message : JSON.stringify(error)}`);
     }
   }
 
@@ -229,7 +228,7 @@
       });
       addLog(`Sent notification with ID: ${notificationId}`);
     } catch (error) {
-      addLog(`Error sending notification: ${error}`);
+      addLog(`Error sending notification: ${error instanceof Error ? error.message : JSON.stringify(error)}`);
     }
   }
 
@@ -260,7 +259,7 @@
       );
       await refreshPending();
     } catch (error) {
-      addLog(`Error scheduling notification: ${error}`);
+      addLog(`Error scheduling notification: ${error instanceof Error ? error.message : JSON.stringify(error)}`);
     }
   }
 
@@ -282,7 +281,7 @@
       addLog("Scheduled recurring notification (every minute)");
       await refreshPending();
     } catch (error) {
-      addLog(`Error scheduling recurring notification: ${error}`);
+      addLog(`Error scheduling recurring notification: ${error instanceof Error ? error.message : JSON.stringify(error)}`);
     }
   }
 
@@ -334,7 +333,7 @@
       });
       addLog("Sent notification with action buttons");
     } catch (error) {
-      addLog(`Error sending interactive notification: ${error}`);
+      addLog(`Error sending interactive notification: ${error instanceof Error ? error.message : JSON.stringify(error)}`);
     }
   }
 
@@ -363,7 +362,7 @@
       });
       addLog("Sent notification with large body text");
     } catch (error) {
-      addLog(`Error sending large body notification: ${error}`);
+      addLog(`Error sending large body notification: ${error instanceof Error ? error.message : JSON.stringify(error)}`);
     }
   }
 
@@ -391,7 +390,7 @@
       });
       addLog("Sent inbox-style notification");
     } catch (error) {
-      addLog(`Error sending inbox notification: ${error}`);
+      addLog(`Error sending inbox notification: ${error instanceof Error ? error.message : JSON.stringify(error)}`);
     }
   }
 
@@ -416,7 +415,7 @@
       addLog(`Created channel: ${newChannelName} (${newChannelId})`);
       await refreshChannels();
     } catch (error) {
-      addLog(`Error creating channel: ${error}`);
+      addLog(`Error creating channel: ${error instanceof Error ? error.message : JSON.stringify(error)}`);
     }
   }
 
@@ -443,7 +442,7 @@
       });
       addLog(`Sent notification to channel: ${channelId}`);
     } catch (error) {
-      addLog(`Error sending to channel: ${error}`);
+      addLog(`Error sending to channel: ${error instanceof Error ? error.message : JSON.stringify(error)}`);
     }
   }
 
@@ -456,7 +455,7 @@
       addLog(`Deleted channel: ${channelId}`);
       await refreshChannels();
     } catch (error) {
-      addLog(`Error deleting channel: ${error}`);
+      addLog(`Error deleting channel: ${error instanceof Error ? error.message : JSON.stringify(error)}`);
     }
   }
 
@@ -473,7 +472,7 @@
       addLog(`Cancelled pending notification: ${id}`);
       await refreshPending();
     } catch (error) {
-      addLog(`Error cancelling notification: ${error}`);
+      addLog(`Error cancelling notification: ${error instanceof Error ? error.message : JSON.stringify(error)}`);
     }
   }
 
@@ -486,7 +485,7 @@
       addLog("Cancelled all pending notifications");
       await refreshPending();
     } catch (error) {
-      addLog(`Error cancelling all: ${error}`);
+      addLog(`Error cancelling all: ${error instanceof Error ? error.message : JSON.stringify(error)}`);
     }
   }
 
@@ -499,7 +498,7 @@
       addLog(`Removed active notification: ${id}`);
       await refreshActive();
     } catch (error) {
-      addLog(`Error removing active notification: ${error}`);
+      addLog(`Error removing active notification: ${error instanceof Error ? error.message : JSON.stringify(error)}`);
     }
   }
 
@@ -512,7 +511,7 @@
       addLog("Removed all active notifications");
       await refreshActive();
     } catch (error) {
-      addLog(`Error removing all active: ${error}`);
+      addLog(`Error removing all active: ${error instanceof Error ? error.message : JSON.stringify(error)}`);
     }
   }
 
@@ -541,7 +540,7 @@
 
     // Register event listeners
     try {
-      // Listen for incoming notifications (push notifications on mobile)
+      // Listen for incoming notifications
       const unlistenReceived = await onNotificationReceived((notification) => {
         addLog(
           `📨 Notification received: ${notification.title || "No title"}`,
@@ -550,8 +549,8 @@
       });
 
       // Listen for action button clicks
-      const unlistenAction = await onAction((notification) => {
-        addLog(`🔘 Action performed on: ${notification.title || "No title"}`);
+      const unlistenAction = await onAction((data) => {
+        addLog(`🔘 Action performed - actionId: ${data.actionId}, title: ${data.notification?.title || "No title"}, input: ${data.inputValue || "none"}`);
       });
 
       // Listen for notification clicks/taps
@@ -572,7 +571,7 @@
         unlistenClicked.unregister();
       };
     } catch (error) {
-      addLog(`Error setting up event listeners: ${error}`);
+      addLog(`Error setting up event listeners: ${error instanceof Error ? error.message : JSON.stringify(error)}`);
     }
   });
 </script>
@@ -616,11 +615,10 @@
     <!-- PUSH NOTIFICATIONS -->
     <!-- ====================================================================== -->
     <section class="card">
-      <h2>📱 2. Push Notifications (Mobile Only)</h2>
+      <h2>📱 2. Push Notifications</h2>
       <p class="description">
         Register for push notifications to receive remote notifications via FCM
-        (Android) or APNs (iOS). This feature is only available on mobile
-        platforms.
+        (Android) or APNs (iOS/macOS).
       </p>
 
       <div class="status-badge" class:granted={pushRegistered}>
@@ -666,9 +664,9 @@
           <strong>Note:</strong> Push notifications require additional setup:
           <ul style="margin: 0.5rem 0 0; padding-left: 1.5rem;">
             <li><strong>Android:</strong> Configure Firebase Cloud Messaging</li>
-            <li><strong>iOS:</strong> Configure Apple Push Notification service</li>
+            <li><strong>iOS/macOS:</strong> Configure Apple Push Notification service</li>
             <li>
-              <strong>Desktop:</strong> Push notifications are not yet supported
+              <strong>Linux/Windows:</strong> Push notifications are not supported
             </li>
           </ul>
         </div>

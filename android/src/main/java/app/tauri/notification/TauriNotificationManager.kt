@@ -81,7 +81,8 @@ class TauriNotificationManager(
       if (notificationJsonString != null) {
         request = JSObject(notificationJsonString)
       }
-    } catch (_: JSONException) {
+    } catch (e: JSONException) {
+      Logger.error(Logger.tags(TAG), "Failed to parse notification JSON: ${e.message}", e)
     }
     dataJson.put("notification", request)
     return dataJson
@@ -219,7 +220,8 @@ class TauriNotificationManager(
       notificationManager.notify(notification.id, buildNotification)
       try {
         NotificationPlugin.triggerNotification(notification)
-      } catch (_: JSONException) {
+      } catch (e: JSONException) {
+        Logger.error(Logger.tags(TAG), "Failed to trigger notification event: ${e.message}", e)
       }
     }
   }
@@ -498,11 +500,15 @@ class TimedNotificationPublisher : BroadcastReceiver() {
     }
     val storage = NotificationStorage(context, ObjectMapper())
 
+    // Check if notification still exists in storage (might have been cancelled)
     val savedNotification = storage.getSavedNotification(id.toString())
-    if (savedNotification != null) {
-      NotificationPlugin.triggerNotification(savedNotification)
+    if (savedNotification == null) {
+      // Notification was cancelled, don't show or reschedule
+      Logger.debug(Logger.tags(TAG), "Notification $id was cancelled, skipping")
+      return
     }
 
+    NotificationPlugin.triggerNotification(savedNotification)
     notificationManager.notify(id, notification)
     if (!rescheduleNotificationIfNeeded(context, intent, id)) {
       storage.deleteNotification(id.toString())
@@ -582,8 +588,8 @@ class LocalNotificationRestoreReceiver : BroadcastReceiver() {
     var config: PluginConfig? = null
     try {
       config = PluginManager.loadConfig(context, "notification", PluginConfig::class.java)
-    } catch (ex: Exception) {
-      ex.printStackTrace()
+    } catch (e: Exception) {
+      Logger.error(Logger.tags(TAG), "Failed to load notification plugin config: ${e.message}", e)
     }
     val notificationManager = TauriNotificationManager(storage, null, context, config)
     notificationManager.schedule(notifications)

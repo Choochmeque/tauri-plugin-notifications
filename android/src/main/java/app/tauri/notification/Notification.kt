@@ -8,11 +8,11 @@ import android.content.ContentResolver
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.os.Build
+import android.service.notification.StatusBarNotification
+import androidx.annotation.RequiresApi
 import app.tauri.annotation.InvokeArg
-import app.tauri.plugin.JSArray
 import app.tauri.plugin.JSObject
-import org.json.JSONException
-import org.json.JSONObject
 
 @InvokeArg
 class Notification {
@@ -38,6 +38,7 @@ class Notification {
   var sourceJson: String? = null
   var visibility: Int? = null
   var number: Int? = null
+  var silent: Boolean? = null
 
   fun getSound(context: Context, defaultSound: Int): String? {
     var soundPath: String? = null
@@ -84,12 +85,77 @@ class Notification {
     fun buildNotificationPendingList(notifications: List<Notification>): List<PendingNotification> {
       val pendingNotifications = mutableListOf<PendingNotification>()
       for (notification in notifications) {
-        val pendingNotification = PendingNotification(notification.id, notification.title, notification.body, notification.schedule, notification.extra)
+        val pendingNotification = PendingNotification(
+          id = notification.id,
+          title = notification.title,
+          body = notification.body,
+          schedule = notification.schedule,
+          extra = notification.extra
+        )
         pendingNotifications.add(pendingNotification)
       }
       return pendingNotifications
     }
+
+    @RequiresApi(Build.VERSION_CODES.M)
+    fun buildNotificationActiveList(statusBarNotifications: Array<StatusBarNotification>): List<ActiveNotificationInfo> {
+      val activeNotifications = mutableListOf<ActiveNotificationInfo>()
+      for (statusBarNotification in statusBarNotifications) {
+        val notification = statusBarNotification.notification
+        val data = mutableMapOf<String, String>()
+        if (notification != null) {
+          for (key in notification.extras.keySet()) {
+            notification.extras.getString(key)?.let { value ->
+              data[key] = value
+            }
+          }
+        }
+
+        val activeNotification = ActiveNotificationInfo(
+          id = statusBarNotification.id,
+          tag = statusBarNotification.tag,
+          title = notification?.extras?.getCharSequence(android.app.Notification.EXTRA_TITLE)?.toString(),
+          body = notification?.extras?.getCharSequence(android.app.Notification.EXTRA_TEXT)?.toString(),
+          group = notification?.group,
+          groupSummary = notification?.let { 0 != it.flags and android.app.Notification.FLAG_GROUP_SUMMARY } ?: false,
+          data = data,
+          extra = emptyMap(),
+          attachments = emptyList(),
+          actionTypeId = null,
+          schedule = null,
+          sound = null
+        )
+        activeNotifications.add(activeNotification)
+      }
+      return activeNotifications
+    }
   }
 }
 
-class PendingNotification(val id: Int, val title: String?, val body: String?, val schedule: NotificationSchedule?, val extra: JSObject?)
+class PendingNotification(
+  val id: Int,
+  val title: String?,
+  val body: String?,
+  val schedule: NotificationSchedule?,
+  val extra: JSObject?
+)
+
+class ActiveNotificationInfo(
+  val id: Int,
+  val tag: String?,
+  val title: String?,
+  val body: String?,
+  val group: String?,
+  val groupSummary: Boolean,
+  val data: Map<String, String>,
+  val extra: Map<String, Any>,
+  val attachments: List<AttachmentInfo>,
+  val actionTypeId: String?,
+  val schedule: NotificationSchedule?,
+  val sound: String?
+)
+
+class AttachmentInfo(
+  val id: String,
+  val url: String
+)

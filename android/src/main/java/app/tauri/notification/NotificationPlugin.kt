@@ -62,6 +62,11 @@ class RegisterActionTypesArgs {
 }
 
 @InvokeArg
+class SetClickListenerActiveArgs {
+  var active: Boolean = false
+}
+
+@InvokeArg
 class ActiveNotification {
   var id: Int = 0
   var tag: String? = null
@@ -86,6 +91,10 @@ class NotificationPlugin(private val activity: Activity): Plugin(activity) {
 
   private var pendingTokenInvoke: Invoke? = null
   private var cachedToken: String? = null
+
+  // Click listener tracking for cold-start support
+  private var hasClickedListener = false
+  private var pendingNotificationClick: JSObject? = null
 
   companion object {
     var instance: NotificationPlugin? = null
@@ -126,18 +135,81 @@ class NotificationPlugin(private val activity: Activity): Plugin(activity) {
   }
 
   fun onIntent(intent: Intent) {
-    if (Intent.ACTION_MAIN != intent.action) {
-      return
+    Logger.debug(Logger.tags(TAG), "onIntent called - action: ${intent.action}, extras: ${intent.extras?.keySet()}")
+
+    // Handle local notification click (requires ACTION_MAIN)
+    if (Intent.ACTION_MAIN == intent.action) {
+      val dataJson = manager.handleNotificationActionPerformed(intent, notificationStorage)
+      if (dataJson != null) {
+        trigger("actionPerformed", dataJson)
+        triggerNotificationClicked(
+          intent.getIntExtra(NOTIFICATION_INTENT_KEY, -1),
+          extractLocalNotificationData(intent)
+        )
+        return
+      }
     }
-    val dataJson = manager.handleNotificationActionPerformed(intent, notificationStorage)
-    if (dataJson != null) {
-      trigger("actionPerformed", dataJson)
+
+    // Handle push notification click (Firebase background notification)
+    // Firebase may use different actions, so check for push data regardless of action
+    val pushData = extractPushNotificationData(intent)
+    if (pushData != null) {
+      Logger.debug(Logger.tags(TAG), "Push notification clicked with data: $pushData")
+      triggerNotificationClicked(-1, pushData)
+    }
+  }
+
+  private fun extractLocalNotificationData(intent: Intent): JSObject? {
+    val notificationJson = intent.getStringExtra(NOTIFICATION_OBJ_INTENT_KEY) ?: return null
+    return try {
+      val notification = JSObject(notificationJson)
+      if (notification.has("extra")) notification.getJSObject("extra") else null
+    } catch (e: Exception) {
+      Logger.error(Logger.tags(TAG), "Failed to extract local notification data: ${e.message}", e)
+      null
+    }
+  }
+
+  private fun extractPushNotificationData(intent: Intent): JSObject? {
+    val extras = intent.extras ?: return null
+    // Skip if no extras or if it's a regular app launch
+    if (extras.isEmpty) return null
+
+    Logger.debug(Logger.tags(TAG), "extractPushNotificationData - all extras: ${extras.keySet().map { "$it=${extras.getString(it)}" }}")
+
+    // Filter out system/internal keys, keep user data
+    val data = JSObject()
+    for (key in extras.keySet()) {
+      // Skip Android/Firebase internal keys
+      if (key.startsWith("android.") || key.startsWith("google.") ||
+          key.startsWith("gcm.") || key == "from" || key == "collapse_key") continue
+      extras.getString(key)?.let { data.put(key, it) }
+    }
+    Logger.debug(Logger.tags(TAG), "extractPushNotificationData - filtered data length: ${data.length()}")
+    return if (data.length() > 0) data else null
+  }
+
+  private fun triggerNotificationClicked(id: Int, data: JSObject?) {
+    val clickedData = JSObject()
+    clickedData.put("id", id)
+    if (data != null) {
+      clickedData.put("data", data)
+    }
+
+    Logger.debug(Logger.tags(TAG), "triggerNotificationClicked - id: $id, hasClickedListener: $hasClickedListener, data: $data")
+
+    if (hasClickedListener) {
+      trigger("notificationClicked", clickedData)
+    } else {
+      Logger.debug(Logger.tags(TAG), "No click listener, storing as pending")
+      pendingNotificationClick = clickedData
     }
   }
 
   @Command
   fun show(invoke: Invoke) {
     val notification = invoke.parseArgs(Notification::class.java)
+    notification.sourceJson = invoke.getRawArgs()
 
     val id = manager.schedule(notification)
     if (notification.schedule != null) {
@@ -150,6 +222,10 @@ class NotificationPlugin(private val activity: Activity): Plugin(activity) {
   @Command
   fun batch(invoke: Invoke) {
     val args = invoke.parseArgs(BatchArgs::class.java)
+    val mapper = jsonMapper()
+    for (notification in args.notifications) {
+      notification.sourceJson = mapper.writeValueAsString(notification)
+    }
 
     val ids = manager.schedule(args.notifications)
     notificationStorage.appendNotifications(args.notifications)
@@ -161,6 +237,13 @@ class NotificationPlugin(private val activity: Activity): Plugin(activity) {
   fun cancel(invoke: Invoke) {
     val args = invoke.parseArgs(CancelArgs::class.java)
     manager.cancel(args.notifications)
+    invoke.resolve()
+  }
+
+  @Command
+  fun cancelAll(invoke: Invoke) {
+    val ids = notificationStorage.getSavedNotificationIds().mapNotNull { it.toIntOrNull() }
+    manager.cancel(ids)
     invoke.resolve()
   }
 
@@ -185,7 +268,7 @@ class NotificationPlugin(private val activity: Activity): Plugin(activity) {
 
   @Command
   fun getPending(invoke: Invoke) {
-    val notifications= notificationStorage.getSavedNotifications()
+    val notifications = notificationStorage.getSavedNotifications()
     val result = Notification.buildNotificationPendingList(notifications)
     invoke.resolveObject(result)
   }
@@ -200,33 +283,12 @@ class NotificationPlugin(private val activity: Activity): Plugin(activity) {
   @SuppressLint("ObsoleteSdkInt")
   @Command
   fun getActive(invoke: Invoke) {
-    val notifications = JSArray()
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-      val activeNotifications = notificationManager.activeNotifications
-      for (activeNotification in activeNotifications) {
-        val jsNotification = JSObject()
-        jsNotification.put("id", activeNotification.id)
-        jsNotification.put("tag", activeNotification.tag)
-        val notification = activeNotification.notification
-        if (notification != null) {
-          jsNotification.put("title", notification.extras.getCharSequence(android.app.Notification.EXTRA_TITLE))
-          jsNotification.put("body", notification.extras.getCharSequence(android.app.Notification.EXTRA_TEXT))
-          jsNotification.put("group", notification.group)
-          jsNotification.put(
-            "groupSummary",
-            0 != notification.flags and android.app.Notification.FLAG_GROUP_SUMMARY
-          )
-          val extras = JSObject()
-          for (key in notification.extras.keySet()) {
-            extras.put(key!!, notification.extras.getString(key))
-          }
-          jsNotification.put("data", extras)
-        }
-        notifications.put(jsNotification)
-      }
+      val result = Notification.buildNotificationActiveList(notificationManager.activeNotifications)
+      invoke.resolveObject(result)
+    } else {
+      invoke.resolveObject(emptyList<ActiveNotificationInfo>())
     }
-    
-    invoke.resolveObject(notifications)
   }
 
   @Command
@@ -449,5 +511,19 @@ class NotificationPlugin(private val activity: Activity): Plugin(activity) {
     } else {
       "denied"
     }
+  }
+
+  @Command
+  fun setClickListenerActive(invoke: Invoke) {
+    val args = invoke.parseArgs(SetClickListenerActiveArgs::class.java)
+    hasClickedListener = args.active
+
+    // If listener just became active and we have pending click, trigger it
+    if (args.active && pendingNotificationClick != null) {
+      trigger("notificationClicked", pendingNotificationClick!!)
+      pendingNotificationClick = null
+    }
+
+    invoke.resolve()
   }
 }

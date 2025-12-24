@@ -16,7 +16,9 @@ It allows all notification related features.
 - `allow-notify`
 - `allow-register-action-types`
 - `allow-register-listener`
+- `allow-remove-listener`
 - `allow-cancel`
+- `allow-cancel-all`
 - `allow-get-pending`
 - `allow-remove-active`
 - `allow-get-active`
@@ -86,6 +88,32 @@ Enables the cancel command without any pre-configured scope.
 <td>
 
 Denies the cancel command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`notifications:allow-cancel-all`
+
+</td>
+<td>
+
+Enables the cancel_all command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`notifications:deny-cancel-all`
+
+</td>
+<td>
+
+Denies the cancel_all command without any pre-configured scope.
 
 </td>
 </tr>
@@ -424,6 +452,32 @@ Enables the remove_active command without any pre-configured scope.
 <td>
 
 Denies the remove_active command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`notifications:allow-remove-listener`
+
+</td>
+<td>
+
+Enables the remove_listener command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`notifications:deny-remove-listener`
+
+</td>
+<td>
+
+Denies the remove_listener command without any pre-configured scope.
 
 </td>
 </tr>

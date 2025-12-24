@@ -2,12 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-import Tauri
 import UserNotifications
 
 public class NotificationHandler: NSObject, NotificationHandlerProtocol {
 
-  public weak var plugin: Plugin?
+  weak var plugin: NotificationPlugin?
 
   private var notificationsMap = [String: Notification]()
   private var hasClickedListener = false
@@ -26,18 +25,14 @@ public class NotificationHandler: NSObject, NotificationHandlerProtocol {
     }
   }
 
-  public func requestPermissions(with completion: ((Bool, Error?) -> Void)? = nil) {
+  public func requestPermissions() async throws -> Bool {
     let center = UNUserNotificationCenter.current()
-    center.requestAuthorization(options: [.badge, .alert, .sound]) { (granted, error) in
-      completion?(granted, error)
-    }
+    return try await center.requestAuthorization(options: [.badge, .alert, .sound])
   }
 
-  public func checkPermissions(with completion: ((UNAuthorizationStatus) -> Void)? = nil) {
+  public func checkPermissions() async -> UNNotificationSettings {
     let center = UNUserNotificationCenter.current()
-    center.getNotificationSettings { settings in
-      completion?(settings.authorizationStatus)
-    }
+    return await center.notificationSettings()
   }
 
   public func willPresent(notification: UNNotification) -> UNNotificationPresentationOptions {
@@ -57,7 +52,7 @@ public class NotificationHandler: NSObject, NotificationHandlerProtocol {
     }
 
     // For local notifications, check if silent
-    if let options = notificationsMap[notification.request.identifier] {
+    if let options: Notification = notificationsMap[notification.request.identifier] {
       if options.silent ?? false {
         return UNNotificationPresentationOptions.init(rawValue: 0)
       }
@@ -168,15 +163,14 @@ public class NotificationHandler: NSObject, NotificationHandlerProtocol {
   }
 
   func toPendingNotification(_ request: UNNotificationRequest) -> PendingNotification? {
-    guard let notification = notificationsMap[request.identifier],
-          let schedule = notification.schedule else {
+    guard let notification = notificationsMap[request.identifier] else {
       return nil
     }
     return PendingNotification(
       id: Int(request.identifier) ?? -1,
       title: request.content.title,
       body: request.content.body,
-      schedule: schedule
+      schedule: notification.schedule!
     )
   }
 }

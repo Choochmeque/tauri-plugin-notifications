@@ -560,7 +560,7 @@ async function cancel(notifications: number[]): Promise<void> {
  * @returns A promise indicating the success or failure of the operation.
  */
 async function cancelAll(): Promise<void> {
-  await invoke("plugin:notifications|cancel");
+  await invoke("plugin:notifications|cancel_all");
 }
 
 /**
@@ -629,7 +629,7 @@ async function removeAllActive(): Promise<void> {
  * @returns A promise indicating the success or failure of the operation.
  */
 async function createChannel(channel: Channel): Promise<void> {
-  await invoke("plugin:notifications|create_channel", { ...channel });
+  await invoke("plugin:notifications|create_channel", { channel });
 }
 
 /**
@@ -659,7 +659,7 @@ async function removeChannel(id: string): Promise<void> {
  * @returns A promise resolving to the list of notification channels.
  */
 async function channels(): Promise<Channel[]> {
-  return await invoke("plugin:notifications|listChannels");
+  return await invoke("plugin:notifications|list_channels");
 }
 
 /**

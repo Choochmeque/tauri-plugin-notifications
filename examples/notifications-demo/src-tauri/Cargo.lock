@@ -3432,6 +3432,49 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7da8b5736845d9f2fcb837ea5d9e2628564b3b043a70948a3f0b778838c5fb4f"
 
 [[package]]
+name = "swift-bridge"
+version = "0.1.58"
+source = "git+https://github.com/chinedufn/swift-bridge?rev=82b0885#82b08851a9a6ebeed8fd6084f1a41176d904fae5"
+dependencies = [
+ "once_cell",
+ "swift-bridge-build",
+ "swift-bridge-macro",
+ "tokio",
+]
+
+[[package]]
+name = "swift-bridge-build"
+version = "0.1.58"
+source = "git+https://github.com/chinedufn/swift-bridge?rev=82b0885#82b08851a9a6ebeed8fd6084f1a41176d904fae5"
+dependencies = [
+ "proc-macro2",
+ "swift-bridge-ir",
+ "syn 1.0.109",
+ "tempfile",
+]
+
+[[package]]
+name = "swift-bridge-ir"
+version = "0.1.58"
+source = "git+https://github.com/chinedufn/swift-bridge?rev=82b0885#82b08851a9a6ebeed8fd6084f1a41176d904fae5"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 1.0.109",
+]
+
+[[package]]
+name = "swift-bridge-macro"
+version = "0.1.58"
+source = "git+https://github.com/chinedufn/swift-bridge?rev=82b0885#82b08851a9a6ebeed8fd6084f1a41176d904fae5"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "swift-bridge-ir",
+ "syn 1.0.109",
+]
+
+[[package]]
 name = "swift-rs"
 version = "1.0.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3695,6 +3738,8 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_repr",
+ "swift-bridge",
+ "swift-bridge-build",
  "tauri",
  "tauri-plugin",
  "thiserror 2.0.17",
