@@ -28,6 +28,7 @@
     type NotificationClickedData,
   } from "@choochmeque/tauri-plugin-notifications-api";
   import { onMount } from "svelte";
+  import { resolveResource } from "@tauri-apps/api/path";
 
   // ============================================================================
   // STATE MANAGEMENT
@@ -363,6 +364,36 @@
       addLog("Sent notification with large body text");
     } catch (error) {
       addLog(`Error sending large body notification: ${error instanceof Error ? error.message : JSON.stringify(error)}`);
+    }
+  }
+
+  /**
+   * Sends a notification with an image attachment
+   */
+  async function handleSendWithAttachment() {
+    if (!permissionGranted) {
+      addLog("Permission not granted. Please request permission first.");
+      return;
+    }
+
+    try {
+      const imagePath = await resolveResource("_up_/static/test-image.jpg");
+      const imageUrl = `file://${imagePath}`;
+      addLog(`Using image: ${imageUrl}`);
+
+      await sendNotification({
+        title: "Notification with Image",
+        body: "This notification has an attached image!",
+        attachments: [
+          {
+            id: "image-1",
+            url: imageUrl,
+          },
+        ],
+      });
+      addLog("Sent notification with attachment");
+    } catch (error) {
+      addLog(`Error sending notification with attachment: ${error instanceof Error ? error.message : JSON.stringify(error)}`);
     }
   }
 
@@ -782,6 +813,7 @@
         <button onclick={handleSendLargeBody}>Large Body Text</button>
         <button onclick={handleSendInbox}>Inbox Style (Lines)</button>
         <button onclick={handleSendWithActions}>With Action Buttons</button>
+        <button onclick={handleSendWithAttachment}>With Image Attachment</button>
       </div>
 
       <div class="info-box">
