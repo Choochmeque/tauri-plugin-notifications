@@ -12,7 +12,9 @@ use windows::core::{Interface, HSTRING};
 use windows::Data::Xml::Dom::XmlDocument;
 use windows::Foundation::{DateTime, TypedEventHandler};
 #[cfg(feature = "push-notifications")]
-use windows::Networking::PushNotifications::PushNotificationChannelManager;
+use windows::Networking::PushNotifications::{
+    PushNotificationChannel, PushNotificationChannelManager,
+};
 use windows::UI::Notifications::{
     NotificationSetting, ScheduledToastNotification, ToastActivatedEventArgs, ToastNotification,
     ToastNotificationManager, ToastNotifier,
@@ -33,12 +35,21 @@ impl From<windows::core::Error> for crate::Error {
 }
 
 /// Shared plugin state wrapped in Arc for thread-safe access.
-#[derive(Debug)]
 pub struct WindowsPlugin {
     app_id: String,
     notifier: ToastNotifier,
     action_types: RwLock<HashMap<String, ActionType>>,
     click_listener_active: RwLock<bool>,
+    #[cfg(feature = "push-notifications")]
+    push_channel: RwLock<Option<PushNotificationChannel>>,
+}
+
+impl std::fmt::Debug for WindowsPlugin {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("WindowsPlugin")
+            .field("app_id", &self.app_id)
+            .finish_non_exhaustive()
+    }
 }
 
 impl WindowsPlugin {
@@ -72,6 +83,49 @@ impl WindowsPlugin {
             .map_err(|_| crate::Error::Io(std::io::Error::other("Lock poisoned")))? = active;
         Ok(())
     }
+
+    fn open_push_channel(&self) -> crate::Result<String> {
+        #[cfg(feature = "push-notifications")]
+        {
+            let channel =
+                PushNotificationChannelManager::CreatePushNotificationChannelForApplicationAsync()?
+                    .get()?;
+            let uri = channel.Uri()?.to_string_lossy();
+            *self
+                .push_channel
+                .write()
+                .map_err(|_| crate::Error::Io(std::io::Error::other("Lock poisoned")))? =
+                Some(channel);
+            Ok(uri)
+        }
+        #[cfg(not(feature = "push-notifications"))]
+        {
+            Err(crate::Error::Io(std::io::Error::other(
+                "Push notifications feature not enabled",
+            )))
+        }
+    }
+
+    fn close_push_channel(&self) -> crate::Result<()> {
+        #[cfg(feature = "push-notifications")]
+        {
+            if let Some(channel) = self
+                .push_channel
+                .write()
+                .map_err(|_| crate::Error::Io(std::io::Error::other("Lock poisoned")))?
+                .take()
+            {
+                channel.Close()?;
+            }
+            Ok(())
+        }
+        #[cfg(not(feature = "push-notifications"))]
+        {
+            Err(crate::Error::Io(std::io::Error::other(
+                "Push notifications feature not enabled",
+            )))
+        }
+    }
 }
 
 pub fn init<R: Runtime, C: DeserializeOwned>(
@@ -86,6 +140,8 @@ pub fn init<R: Runtime, C: DeserializeOwned>(
         notifier,
         action_types: RwLock::new(HashMap::new()),
         click_listener_active: RwLock::new(false),
+        #[cfg(feature = "push-notifications")]
+        push_channel: RwLock::new(None),
     });
 
     Ok(Notifications {
@@ -350,32 +406,11 @@ impl<R: Runtime> Notifications<R> {
     }
 
     pub async fn register_for_push_notifications(&self) -> crate::Result<String> {
-        #[cfg(feature = "push-notifications")]
-        {
-            let channel =
-                PushNotificationChannelManager::CreatePushNotificationChannelForApplicationAsync()?
-                    .get()?;
-            Ok(channel.Uri()?.to_string_lossy())
-        }
-        #[cfg(not(feature = "push-notifications"))]
-        {
-            Err(crate::Error::Io(std::io::Error::other(
-                "Push notifications feature not enabled",
-            )))
-        }
+        self.plugin.open_push_channel()
     }
 
     pub fn unregister_for_push_notifications(&self) -> crate::Result<()> {
-        #[cfg(feature = "push-notifications")]
-        {
-            Ok(())
-        }
-        #[cfg(not(feature = "push-notifications"))]
-        {
-            Err(crate::Error::Io(std::io::Error::other(
-                "Push notifications feature not enabled",
-            )))
-        }
+        self.plugin.close_push_channel()
     }
 
     pub async fn permission_state(&self) -> crate::Result<PermissionState> {
