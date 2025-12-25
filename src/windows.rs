@@ -197,6 +197,20 @@ impl<R: Runtime> crate::NotificationsBuilder<R> {
             binding.AppendChild(&image)?;
         }
 
+        // Add attachments as images
+        for (i, attachment) in self.data.attachments.iter().enumerate() {
+            let image = doc.CreateElement(&HSTRING::from("image"))?;
+            // First attachment as hero image, rest as inline
+            if i == 0 {
+                image.SetAttribute(&HSTRING::from("placement"), &HSTRING::from("hero"))?;
+            }
+            image.SetAttribute(
+                &HSTRING::from("src"),
+                &HSTRING::from(attachment.url().as_str()),
+            )?;
+            binding.AppendChild(&image)?;
+        }
+
         visual.AppendChild(&binding)?;
         toast.AppendChild(&visual)?;
 

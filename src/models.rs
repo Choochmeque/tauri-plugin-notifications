@@ -33,6 +33,14 @@ impl Attachment {
     pub fn new(id: impl Into<String>, url: Url) -> Self {
         Self { id: id.into(), url }
     }
+
+    pub fn id(&self) -> &str {
+        &self.id
+    }
+
+    pub fn url(&self) -> &Url {
+        &self.url
+    }
 }
 
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
