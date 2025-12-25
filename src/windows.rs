@@ -325,9 +325,9 @@ impl<R: Runtime> crate::NotificationsBuilder<R> {
         let windows_ticks = (unix_nanos / 100) + 116_444_736_000_000_000i128;
 
         Ok(DateTime {
-            UniversalTime: windows_ticks
-                .try_into()
-                .map_err(|_| crate::Error::Io(std::io::Error::other("Schedule date out of range")))?,
+            UniversalTime: windows_ticks.try_into().map_err(|_| {
+                crate::Error::Io(std::io::Error::other("Schedule date out of range"))
+            })?,
         })
     }
 }
@@ -358,18 +358,24 @@ impl<R: Runtime> Notifications<R> {
             Ok(channel.Uri()?.to_string_lossy())
         }
         #[cfg(not(feature = "push-notifications"))]
-        Err(crate::Error::Io(std::io::Error::other(
-            "Push notifications feature not enabled",
-        )))
+        {
+            Err(crate::Error::Io(std::io::Error::other(
+                "Push notifications feature not enabled",
+            )))
+        }
     }
 
     pub fn unregister_for_push_notifications(&self) -> crate::Result<()> {
         #[cfg(feature = "push-notifications")]
-        return Ok(());
+        {
+            Ok(())
+        }
         #[cfg(not(feature = "push-notifications"))]
-        Err(crate::Error::Io(std::io::Error::other(
-            "Push notifications feature not enabled",
-        )))
+        {
+            Err(crate::Error::Io(std::io::Error::other(
+                "Push notifications feature not enabled",
+            )))
+        }
     }
 
     pub async fn permission_state(&self) -> crate::Result<PermissionState> {
