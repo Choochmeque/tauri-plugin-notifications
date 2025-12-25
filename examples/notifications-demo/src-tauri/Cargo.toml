@@ -14,6 +14,11 @@ edition = "2021"
 name = "notifications_demo_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
+# Logging output
+env_logger = { version = "0.11", default-features = false, features = [
+    "humantime",
+] }
+
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
 
