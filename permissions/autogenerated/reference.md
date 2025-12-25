@@ -21,6 +21,7 @@ It allows all notification related features.
 - `allow-cancel-all`
 - `allow-get-pending`
 - `allow-remove-active`
+- `allow-remove-all`
 - `allow-get-active`
 - `allow-check-permissions`
 - `allow-show`
