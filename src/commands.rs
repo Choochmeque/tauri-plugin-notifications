@@ -108,6 +108,14 @@ pub(crate) fn remove_active<R: Runtime>(
 }
 
 #[command]
+pub(crate) fn remove_all<R: Runtime>(
+    _app: AppHandle<R>,
+    notification: State<'_, Notifications<R>>,
+) -> Result<()> {
+    notification.remove_all_active()
+}
+
+#[command]
 pub(crate) fn cancel<R: Runtime>(
     _app: AppHandle<R>,
     notification: State<'_, Notifications<R>>,

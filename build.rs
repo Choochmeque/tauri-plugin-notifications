@@ -18,6 +18,7 @@ const COMMANDS: &[&str] = &[
     "cancel_all",
     "get_pending",
     "remove_active",
+    "remove_all",
     "get_active",
     "check_permissions",
     "show",

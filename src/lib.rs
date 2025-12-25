@@ -260,6 +260,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             commands::get_active,
             commands::set_click_listener_active,
             commands::remove_active,
+            commands::remove_all,
             commands::cancel,
             commands::cancel_all,
             commands::create_channel,

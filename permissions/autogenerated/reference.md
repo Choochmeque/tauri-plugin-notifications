@@ -459,6 +459,32 @@ Denies the remove_active command without any pre-configured scope.
 <tr>
 <td>
 
+`notifications:allow-remove-all`
+
+</td>
+<td>
+
+Enables the remove_all command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`notifications:deny-remove-all`
+
+</td>
+<td>
+
+Denies the remove_all command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
 `notifications:allow-remove-listener`
 
 </td>

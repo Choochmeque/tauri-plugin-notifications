@@ -321,13 +321,13 @@ impl<R: Runtime> crate::NotificationsBuilder<R> {
             }
         };
 
-        // Convert to Windows DateTime (100-nanosecond intervals since 1601-01-01)
-        // Unix epoch is 11644473600 seconds after Windows epoch
         let unix_nanos = delivery_time.unix_timestamp_nanos();
         let windows_ticks = (unix_nanos / 100) + 116_444_736_000_000_000i128;
 
         Ok(DateTime {
-            UniversalTime: windows_ticks as i64,
+            UniversalTime: windows_ticks
+                .try_into()
+                .map_err(|_| crate::Error::Io(std::io::Error::other("Schedule date out of range")))?,
         })
     }
 }
