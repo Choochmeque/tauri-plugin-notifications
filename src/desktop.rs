@@ -95,6 +95,12 @@ impl<R: Runtime> Notifications<R> {
         )))
     }
 
+    pub fn remove_all_active(&self) -> crate::Result<()> {
+        Err(crate::Error::Io(std::io::Error::other(
+            "Removing active notifications is not supported with notify-rust",
+        )))
+    }
+
     pub fn cancel(&self, _notifications: Vec<i32>) -> crate::Result<()> {
         Err(crate::Error::Io(std::io::Error::other(
             "Canceling notifications is not supported with notify-rust",
