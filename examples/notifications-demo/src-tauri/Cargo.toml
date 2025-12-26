@@ -14,11 +14,6 @@ edition = "2021"
 name = "notifications_demo_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
-# Logging output
-env_logger = { version = "0.11", default-features = false, features = [
-    "humantime",
-] }
-
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
 
@@ -29,3 +24,7 @@ tauri-plugin-notifications = { path = "../../../", features = ["push-notificatio
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 
+# Logging output
+env_logger = { version = "0.11", default-features = false, features = [
+    "humantime",
+] }
