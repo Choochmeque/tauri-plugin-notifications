@@ -9,6 +9,8 @@ exclude = ["/examples", "/dist-js", "/guest-js", "/node_modules"]
 links = "tauri-plugin-notifications"
 license = "MIT"
 repository = "https://github.com/Choochmeque/tauri-plugin-notifications"
+categories = ["api-bindings", "gui", "os"]
+keywords = ["tauri", "notifications", "push-notifications", "toast", "desktop"]
 
 [features]
 default = ["notify-rust"]
