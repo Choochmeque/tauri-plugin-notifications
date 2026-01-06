@@ -45,7 +45,7 @@ Add the plugin to your Tauri project's `Cargo.toml`:
 
 ```toml
 [dependencies]
-tauri-plugin-notifications = "0.3"
+tauri-plugin-notifications = "0.4"
 ```
 
 ### Push Notifications Feature
@@ -67,6 +67,33 @@ Without this feature enabled:
 - Firebase dependencies are not included in Android builds
 - Push notification registration code is disabled
 - The `registerForPushNotifications()` function will return an error if called
+
+### Desktop Notification Backend (notify-rust)
+
+The `notify-rust` feature is **enabled by default** and provides cross-platform desktop notifications using the [notify-rust](https://crates.io/crates/notify-rust) crate.
+
+**When to use notify-rust (default):**
+- Simple notifications on Linux, macOS, and Windows
+- Cross-platform consistency
+- Basic notification features (title, body, icon)
+
+**When to disable notify-rust:**
+- You need native Windows toast notifications with advanced features (actions, hero images, scheduling)
+- You want platform-specific notification features on macOS/Windows
+
+To disable `notify-rust` and use native platform implementations:
+
+```toml
+[dependencies]
+tauri-plugin-notifications = { version = "0.3", default-features = false }
+```
+
+To disable `notify-rust` and enable push notifications:
+
+```toml
+[dependencies]
+tauri-plugin-notifications = { version = "0.3", default-features = false, features = ["push-notifications"] }
+```
 
 Configure the plugin permissions in your `capabilities/default.json`:
 

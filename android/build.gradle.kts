@@ -77,7 +77,7 @@ dependencies {
     testImplementation("io.mockk:mockk-android:1.14.7")
     testImplementation("io.mockk:mockk-agent:1.14.7")
     testImplementation("org.jetbrains.kotlin:kotlin-test:2.3.0")
-    testImplementation("org.json:json:20250517")
+    testImplementation("org.json:json:20251224")
     testImplementation("org.robolectric:robolectric:4.16")
     androidTestImplementation("androidx.test.ext:junit:1.3.0")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.7.0")
