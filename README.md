@@ -45,7 +45,7 @@ Add the plugin to your Tauri project's `Cargo.toml`:
 
 ```toml
 [dependencies]
-tauri-plugin-notifications = "0.3"
+tauri-plugin-notifications = "0.4"
 ```
 
 ### Push Notifications Feature
