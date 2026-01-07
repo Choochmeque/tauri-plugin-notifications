@@ -20,7 +20,7 @@
   "devDependencies": {
     "@sveltejs/adapter-static": "^3.0.6",
     "@sveltejs/kit": "^2.49.3",
-    "@sveltejs/vite-plugin-svelte": "^6.2.1",
+    "@sveltejs/vite-plugin-svelte": "^6.2.3",
     "svelte": "^5.46.1",
     "svelte-check": "^4.3.5",
     "typescript": "~5.6.2",
