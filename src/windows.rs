@@ -242,10 +242,14 @@ impl<R: Runtime> crate::NotificationsBuilder<R> {
             }
         }
 
-        // Add <audio silent="true"/> if silent
+        // Add <audio> element for silent or custom sound
         if self.data.silent {
             let audio = doc.CreateElement(&HSTRING::from("audio"))?;
             audio.SetAttribute(&HSTRING::from("silent"), &HSTRING::from("true"))?;
+            toast.AppendChild(&audio)?;
+        } else if let Some(sound) = &self.data.sound {
+            let audio = doc.CreateElement(&HSTRING::from("audio"))?;
+            audio.SetAttribute(&HSTRING::from("src"), &HSTRING::from(sound.as_str()))?;
             toast.AppendChild(&audio)?;
         }
 
@@ -451,8 +455,14 @@ impl<R: Runtime> Notifications<R> {
 
     pub fn remove_active(&self, notifications: Vec<i32>) -> crate::Result<()> {
         let history = ToastNotificationManager::History()?;
+        let app_id = &self.plugin.app_id;
         for id in notifications {
-            if let Err(e) = history.Remove(&HSTRING::from(id.to_string())) {
+            // Use app-scoped removal with empty group (consistent with GetHistoryWithId usage)
+            if let Err(e) = history.RemoveGroupedTagWithId(
+                &HSTRING::from(id.to_string()),
+                &HSTRING::new(),
+                &HSTRING::from(app_id),
+            ) {
                 log::error!("Failed to remove notification {id}: {e}");
             }
         }
