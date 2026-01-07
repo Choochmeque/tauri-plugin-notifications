@@ -36,7 +36,8 @@
     "buildscript",
     "Inspectable",
     "inspectable",
-    "AUMID"
+    "AUMID",
+    "FILETIME",
   ],
   "useGitignore": true,
   "ignorePaths": [
