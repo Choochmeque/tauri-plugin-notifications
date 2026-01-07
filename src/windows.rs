@@ -23,6 +23,9 @@ use windows::UI::Notifications::{
 use crate::error::{ErrorResponse, PluginInvokeError};
 use crate::models::*;
 
+/// Windows FILETIME epoch (January 1, 1601) offset from Unix epoch (January 1, 1970) in 100-nanosecond ticks.
+const WINDOWS_EPOCH_OFFSET_TICKS: i128 = 116_444_736_000_000_000;
+
 // Enable `?` operator for windows::core::Error
 impl From<windows::core::Error> for crate::Error {
     fn from(err: windows::core::Error) -> Self {
@@ -392,7 +395,7 @@ impl<R: Runtime> crate::NotificationsBuilder<R> {
         };
 
         let unix_nanos = delivery_time.unix_timestamp_nanos();
-        let windows_ticks = (unix_nanos / 100) + 116_444_736_000_000_000i128;
+        let windows_ticks = (unix_nanos / 100) + WINDOWS_EPOCH_OFFSET_TICKS;
 
         Ok(DateTime {
             UniversalTime: windows_ticks.try_into().map_err(|_| {
@@ -541,7 +544,7 @@ impl<R: Runtime> Notifications<R> {
             // Convert Windows DateTime back to Schedule::At
             let schedule = notification.DeliveryTime().ok().and_then(|dt| {
                 let windows_ticks = dt.UniversalTime;
-                let unix_nanos = (windows_ticks as i128 - 116_444_736_000_000_000i128) * 100;
+                let unix_nanos = (windows_ticks as i128 - WINDOWS_EPOCH_OFFSET_TICKS) * 100;
                 time::OffsetDateTime::from_unix_timestamp_nanos(unix_nanos)
                     .ok()
                     .map(|date| Schedule::At {
