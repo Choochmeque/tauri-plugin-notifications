@@ -265,7 +265,7 @@ impl<R: Runtime> crate::NotificationsBuilder<R> {
 
         // Check if this is a scheduled notification
         if let Some(schedule) = &self.data.schedule {
-            let delivery_time = Self::schedule_to_datetime(schedule)?;
+            let delivery_time = schedule_to_datetime(schedule)?;
             let scheduled = ScheduledToastNotification::CreateScheduledToastNotification(
                 &toast_xml,
                 delivery_time,
@@ -365,48 +365,61 @@ impl<R: Runtime> crate::NotificationsBuilder<R> {
 
         Ok(())
     }
+}
 
-    /// Convert Schedule to Windows DateTime.
-    fn schedule_to_datetime(schedule: &Schedule) -> crate::Result<DateTime> {
-        let now = time::OffsetDateTime::now_utc();
+/// Convert Schedule to Windows DateTime.
+fn schedule_to_datetime(schedule: &Schedule) -> crate::Result<DateTime> {
+    let now = time::OffsetDateTime::now_utc();
 
-        let delivery_time = match schedule {
-            Schedule::At { date, .. } => *date,
-            Schedule::Interval { interval, .. } => {
-                // Build duration from interval fields
-                let seconds = interval.second.unwrap_or(0) as i64;
-                let minutes = interval.minute.unwrap_or(0) as i64;
-                let hours = interval.hour.unwrap_or(0) as i64;
-                let days = interval.day.unwrap_or(0) as i64;
-                let total_seconds = seconds + minutes * 60 + hours * 3600 + days * 86400;
-                now + time::Duration::seconds(total_seconds)
-            }
-            Schedule::Every {
-                interval, count, ..
-            } => {
-                let base_seconds: i64 = match interval {
-                    ScheduleEvery::Year => 365 * 86400,
-                    ScheduleEvery::Month => 30 * 86400,
-                    ScheduleEvery::TwoWeeks => 14 * 86400,
-                    ScheduleEvery::Week => 7 * 86400,
-                    ScheduleEvery::Day => 86400,
-                    ScheduleEvery::Hour => 3600,
-                    ScheduleEvery::Minute => 60,
-                    ScheduleEvery::Second => 1,
-                };
-                now + time::Duration::seconds(base_seconds * (*count as i64))
-            }
-        };
+    let delivery_time = match schedule {
+        Schedule::At { date, .. } => *date,
+        Schedule::Interval { interval, .. } => {
+            // Build duration from interval fields
+            let seconds = interval.second.unwrap_or(0) as i64;
+            let minutes = interval.minute.unwrap_or(0) as i64;
+            let hours = interval.hour.unwrap_or(0) as i64;
+            let days = interval.day.unwrap_or(0) as i64;
+            let total_seconds = seconds + minutes * 60 + hours * 3600 + days * 86400;
+            now + time::Duration::seconds(total_seconds)
+        }
+        Schedule::Every {
+            interval, count, ..
+        } => {
+            let base_seconds: i64 = match interval {
+                ScheduleEvery::Year => 365 * 86400,
+                ScheduleEvery::Month => 30 * 86400,
+                ScheduleEvery::TwoWeeks => 14 * 86400,
+                ScheduleEvery::Week => 7 * 86400,
+                ScheduleEvery::Day => 86400,
+                ScheduleEvery::Hour => 3600,
+                ScheduleEvery::Minute => 60,
+                ScheduleEvery::Second => 1,
+            };
+            now + time::Duration::seconds(base_seconds * (*count as i64))
+        }
+    };
 
-        let unix_nanos = delivery_time.unix_timestamp_nanos();
-        let windows_ticks = (unix_nanos / 100) + WINDOWS_EPOCH_OFFSET_TICKS;
+    unix_to_windows_datetime(delivery_time)
+}
 
-        Ok(DateTime {
-            UniversalTime: windows_ticks.try_into().map_err(|_| {
-                crate::Error::Io(std::io::Error::other("Schedule date out of range"))
-            })?,
-        })
-    }
+/// Convert a Unix timestamp to Windows DateTime (FILETIME).
+fn unix_to_windows_datetime(time: time::OffsetDateTime) -> crate::Result<DateTime> {
+    let unix_nanos = time.unix_timestamp_nanos();
+    let windows_ticks = (unix_nanos / 100) + WINDOWS_EPOCH_OFFSET_TICKS;
+
+    Ok(DateTime {
+        UniversalTime: windows_ticks
+            .try_into()
+            .map_err(|_| crate::Error::Io(std::io::Error::other("Schedule date out of range")))?,
+    })
+}
+
+/// Convert Windows DateTime (FILETIME) back to Unix timestamp.
+fn windows_datetime_to_unix(dt: DateTime) -> crate::Result<time::OffsetDateTime> {
+    let windows_ticks = dt.UniversalTime as i128;
+    let unix_nanos = (windows_ticks - WINDOWS_EPOCH_OFFSET_TICKS) * 100;
+    time::OffsetDateTime::from_unix_timestamp_nanos(unix_nanos)
+        .map_err(|_| crate::Error::Io(std::io::Error::other("DateTime out of range")))
 }
 
 pub struct Notifications<R: Runtime> {
@@ -633,5 +646,251 @@ impl<R: Runtime> Notifications<R> {
         Err(crate::Error::Io(std::io::Error::other(
             "Notification channels are not supported on Windows",
         )))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// PowerShell App User Model ID - always available on Windows.
+    const POWERSHELL_APP_ID: &str =
+        "{1AC14E77-02E7-4E5D-B744-2EB1AE5198B7}\\WindowsPowerShell\\v1.0\\powershell.exe";
+
+    // ==================== Time Conversion Tests ====================
+
+    #[test]
+    fn test_windows_epoch_offset() {
+        // Windows FILETIME: January 1, 1601 -> Unix: January 1, 1970
+        // Difference: 134,774 days in 100-nanosecond ticks
+        let expected_days = 134_774i128;
+        let ticks_per_day = 24 * 60 * 60 * 10_000_000i128;
+        assert_eq!(WINDOWS_EPOCH_OFFSET_TICKS, expected_days * ticks_per_day);
+    }
+
+    #[test]
+    fn test_unix_to_windows_datetime_epoch() {
+        let result = unix_to_windows_datetime(time::OffsetDateTime::UNIX_EPOCH).unwrap();
+        assert_eq!(result.UniversalTime as i128, WINDOWS_EPOCH_OFFSET_TICKS);
+    }
+
+    #[test]
+    fn test_unix_to_windows_datetime_known_date() {
+        let date = time::macros::datetime!(2000-01-01 00:00:00 UTC);
+        let result = unix_to_windows_datetime(date).unwrap();
+
+        let unix_nanos = 946_684_800i128 * 1_000_000_000;
+        let expected = (unix_nanos / 100) + WINDOWS_EPOCH_OFFSET_TICKS;
+        assert_eq!(result.UniversalTime as i128, expected);
+    }
+
+    #[test]
+    fn test_windows_datetime_roundtrip() {
+        let original = time::macros::datetime!(2024-06-15 14:30:45 UTC);
+        let windows_dt = unix_to_windows_datetime(original).unwrap();
+        let roundtrip = windows_datetime_to_unix(windows_dt).unwrap();
+
+        let diff = (original - roundtrip).whole_nanoseconds().abs();
+        assert!(diff < 100, "Roundtrip diff: {}ns", diff);
+    }
+
+    #[test]
+    fn test_schedule_at_conversion() {
+        let target = time::macros::datetime!(2025-12-25 10:00:00 UTC);
+        let schedule = Schedule::At {
+            date: target,
+            repeating: false,
+            allow_while_idle: false,
+        };
+
+        let result = schedule_to_datetime(&schedule).unwrap();
+        let back = windows_datetime_to_unix(result).unwrap();
+        assert!((target - back).whole_nanoseconds().abs() < 100);
+    }
+
+    #[test]
+    fn test_schedule_interval() {
+        let schedule = Schedule::Interval {
+            interval: ScheduleInterval {
+                year: None,
+                month: None,
+                day: Some(1),
+                hour: Some(2),
+                minute: Some(30),
+                second: Some(45),
+            },
+            allow_while_idle: false,
+        };
+
+        let before = time::OffsetDateTime::now_utc();
+        let result = schedule_to_datetime(&schedule).unwrap();
+        let converted = windows_datetime_to_unix(result).unwrap();
+
+        let expected = 86400 + 7200 + 1800 + 45; // 1d + 2h + 30m + 45s
+        let actual = (converted - before).whole_seconds();
+        assert!((actual - expected).abs() <= 2);
+    }
+
+    #[test]
+    fn test_schedule_every_variants() {
+        let cases = [
+            (ScheduleEvery::Second, 1, 1i64),
+            (ScheduleEvery::Minute, 1, 60),
+            (ScheduleEvery::Hour, 1, 3600),
+            (ScheduleEvery::Day, 1, 86400),
+            (ScheduleEvery::Week, 1, 7 * 86400),
+            (ScheduleEvery::TwoWeeks, 1, 14 * 86400),
+            (ScheduleEvery::Month, 1, 30 * 86400),
+            (ScheduleEvery::Year, 1, 365 * 86400),
+        ];
+
+        for (interval, count, expected) in cases {
+            let schedule = Schedule::Every {
+                interval,
+                count,
+                allow_while_idle: false,
+            };
+
+            let before = time::OffsetDateTime::now_utc();
+            let result = schedule_to_datetime(&schedule).unwrap();
+            let converted = windows_datetime_to_unix(result).unwrap();
+            let actual = (converted - before).whole_seconds();
+            assert!(
+                (actual - expected).abs() <= 2,
+                "{:?}: {} vs {}",
+                interval,
+                actual,
+                expected
+            );
+        }
+    }
+
+    // ==================== Toast Notifier Tests ====================
+
+    #[test]
+    fn test_toast_notifier_creation() {
+        let result =
+            ToastNotificationManager::CreateToastNotifierWithId(&HSTRING::from(POWERSHELL_APP_ID));
+        assert!(result.is_ok(), "Failed: {:?}", result.err());
+    }
+
+    #[test]
+    fn test_notification_setting_query() {
+        let notifier =
+            ToastNotificationManager::CreateToastNotifierWithId(&HSTRING::from(POWERSHELL_APP_ID))
+                .unwrap();
+        assert!(notifier.Setting().is_ok());
+    }
+
+    // ==================== XML Building Tests ====================
+
+    #[test]
+    fn test_xml_document_creation() {
+        assert!(XmlDocument::new().is_ok());
+    }
+
+    #[test]
+    fn test_toast_xml_structure() {
+        let doc = XmlDocument::new().unwrap();
+
+        let toast = doc.CreateElement(&HSTRING::from("toast")).unwrap();
+        doc.AppendChild(&toast).unwrap();
+
+        let visual = doc.CreateElement(&HSTRING::from("visual")).unwrap();
+        let binding = doc.CreateElement(&HSTRING::from("binding")).unwrap();
+        binding
+            .SetAttribute(&HSTRING::from("template"), &HSTRING::from("ToastGeneric"))
+            .unwrap();
+
+        let text = doc.CreateElement(&HSTRING::from("text")).unwrap();
+        text.SetInnerText(&HSTRING::from("Test Title")).unwrap();
+        binding.AppendChild(&text).unwrap();
+        visual.AppendChild(&binding).unwrap();
+        toast.AppendChild(&visual).unwrap();
+
+        let xml = doc.GetXml().unwrap().to_string_lossy();
+        assert!(
+            xml.contains("toast") && xml.contains("ToastGeneric") && xml.contains("Test Title")
+        );
+    }
+
+    #[test]
+    fn test_toast_xml_with_actions() {
+        let doc = XmlDocument::new().unwrap();
+        let toast = doc.CreateElement(&HSTRING::from("toast")).unwrap();
+        doc.AppendChild(&toast).unwrap();
+
+        let actions = doc.CreateElement(&HSTRING::from("actions")).unwrap();
+        let action = doc.CreateElement(&HSTRING::from("action")).unwrap();
+        action
+            .SetAttribute(&HSTRING::from("content"), &HSTRING::from("Accept"))
+            .unwrap();
+        action
+            .SetAttribute(&HSTRING::from("arguments"), &HSTRING::from("accept"))
+            .unwrap();
+        actions.AppendChild(&action).unwrap();
+        toast.AppendChild(&actions).unwrap();
+
+        let xml = doc.GetXml().unwrap().to_string_lossy();
+        assert!(xml.contains("actions") && xml.contains("Accept"));
+    }
+
+    #[test]
+    fn test_toast_xml_silent() {
+        let doc = XmlDocument::new().unwrap();
+        let toast = doc.CreateElement(&HSTRING::from("toast")).unwrap();
+        doc.AppendChild(&toast).unwrap();
+
+        let audio = doc.CreateElement(&HSTRING::from("audio")).unwrap();
+        audio
+            .SetAttribute(&HSTRING::from("silent"), &HSTRING::from("true"))
+            .unwrap();
+        toast.AppendChild(&audio).unwrap();
+
+        assert!(doc.GetXml().unwrap().to_string_lossy().contains("silent"));
+    }
+
+    // ==================== Action Types Tests ====================
+
+    #[test]
+    fn test_action_types_storage() {
+        let types: RwLock<HashMap<String, ActionType>> = RwLock::new(HashMap::new());
+        let action_type = ActionType::new("test", vec![Action::new("btn", "Button", false)]);
+
+        types
+            .write()
+            .unwrap()
+            .insert("test".to_string(), action_type);
+
+        let read = types.read().unwrap();
+        assert!(read.contains_key("test"));
+        assert_eq!(read.get("test").unwrap().actions().len(), 1);
+    }
+
+    #[test]
+    fn test_multiple_action_types() {
+        let types: RwLock<HashMap<String, ActionType>> = RwLock::new(HashMap::new());
+
+        {
+            let mut w = types.write().unwrap();
+            w.insert(
+                "confirm".to_string(),
+                ActionType::new(
+                    "confirm",
+                    vec![
+                        Action::new("yes", "Yes", true),
+                        Action::new("no", "No", false),
+                    ],
+                ),
+            );
+            w.insert(
+                "reply".to_string(),
+                ActionType::new("reply", vec![Action::new("reply", "Reply", true)]),
+            );
+        }
+
+        let r = types.read().unwrap();
+        assert_eq!(r.len(), 2);
+        assert!(r.contains_key("confirm") && r.contains_key("reply"));
     }
 }
