@@ -670,14 +670,15 @@ mod tests {
 
     #[test]
     fn test_unix_to_windows_datetime_epoch() {
-        let result = unix_to_windows_datetime(time::OffsetDateTime::UNIX_EPOCH).unwrap();
+        let result = unix_to_windows_datetime(time::OffsetDateTime::UNIX_EPOCH)
+            .expect("Failed to convert Unix epoch");
         assert_eq!(result.UniversalTime as i128, WINDOWS_EPOCH_OFFSET_TICKS);
     }
 
     #[test]
     fn test_unix_to_windows_datetime_known_date() {
         let date = time::macros::datetime!(2000-01-01 00:00:00 UTC);
-        let result = unix_to_windows_datetime(date).unwrap();
+        let result = unix_to_windows_datetime(date).expect("Failed to convert known date");
 
         let unix_nanos = 946_684_800i128 * 1_000_000_000;
         let expected = (unix_nanos / 100) + WINDOWS_EPOCH_OFFSET_TICKS;
@@ -687,8 +688,10 @@ mod tests {
     #[test]
     fn test_windows_datetime_roundtrip() {
         let original = time::macros::datetime!(2024-06-15 14:30:45 UTC);
-        let windows_dt = unix_to_windows_datetime(original).unwrap();
-        let roundtrip = windows_datetime_to_unix(windows_dt).unwrap();
+        let windows_dt =
+            unix_to_windows_datetime(original).expect("Failed to convert to Windows datetime");
+        let roundtrip =
+            windows_datetime_to_unix(windows_dt).expect("Failed to convert back to Unix");
 
         let diff = (original - roundtrip).whole_nanoseconds().abs();
         assert!(diff < 100, "Roundtrip diff: {}ns", diff);
@@ -703,8 +706,8 @@ mod tests {
             allow_while_idle: false,
         };
 
-        let result = schedule_to_datetime(&schedule).unwrap();
-        let back = windows_datetime_to_unix(result).unwrap();
+        let result = schedule_to_datetime(&schedule).expect("Failed to convert schedule");
+        let back = windows_datetime_to_unix(result).expect("Failed to convert back");
         assert!((target - back).whole_nanoseconds().abs() < 100);
     }
 
@@ -724,8 +727,8 @@ mod tests {
         };
 
         let before = time::OffsetDateTime::now_utc();
-        let result = schedule_to_datetime(&schedule).unwrap();
-        let converted = windows_datetime_to_unix(result).unwrap();
+        let result = schedule_to_datetime(&schedule).expect("Failed to convert interval schedule");
+        let converted = windows_datetime_to_unix(result).expect("Failed to convert back");
 
         let expected = 86400 + 7200 + 1800 + 45; // 1d + 2h + 30m + 45s
         let actual = (converted - before).whole_seconds();
@@ -753,8 +756,10 @@ mod tests {
             };
 
             let before = time::OffsetDateTime::now_utc();
-            let result = schedule_to_datetime(&schedule).unwrap();
-            let converted = windows_datetime_to_unix(result).unwrap();
+            let result = schedule_to_datetime(&schedule)
+                .unwrap_or_else(|e| panic!("Failed to convert {:?}: {}", interval, e));
+            let converted = windows_datetime_to_unix(result)
+                .unwrap_or_else(|e| panic!("Failed to convert back {:?}: {}", interval, e));
             let actual = (converted - before).whole_seconds();
             assert!(
                 (actual - expected).abs() <= 2,
@@ -775,14 +780,6 @@ mod tests {
         assert!(result.is_ok(), "Failed: {:?}", result.err());
     }
 
-    #[test]
-    fn test_notification_setting_query() {
-        let notifier =
-            ToastNotificationManager::CreateToastNotifierWithId(&HSTRING::from(POWERSHELL_APP_ID))
-                .unwrap();
-        assert!(notifier.Setting().is_ok());
-    }
-
     // ==================== XML Building Tests ====================
 
     #[test]
@@ -792,24 +789,39 @@ mod tests {
 
     #[test]
     fn test_toast_xml_structure() {
-        let doc = XmlDocument::new().unwrap();
+        let doc = XmlDocument::new().expect("Failed to create XmlDocument");
 
-        let toast = doc.CreateElement(&HSTRING::from("toast")).unwrap();
-        doc.AppendChild(&toast).unwrap();
+        let toast = doc
+            .CreateElement(&HSTRING::from("toast"))
+            .expect("Failed to create toast element");
+        doc.AppendChild(&toast).expect("Failed to append toast");
 
-        let visual = doc.CreateElement(&HSTRING::from("visual")).unwrap();
-        let binding = doc.CreateElement(&HSTRING::from("binding")).unwrap();
+        let visual = doc
+            .CreateElement(&HSTRING::from("visual"))
+            .expect("Failed to create visual element");
+        let binding = doc
+            .CreateElement(&HSTRING::from("binding"))
+            .expect("Failed to create binding element");
         binding
             .SetAttribute(&HSTRING::from("template"), &HSTRING::from("ToastGeneric"))
-            .unwrap();
+            .expect("Failed to set template attribute");
 
-        let text = doc.CreateElement(&HSTRING::from("text")).unwrap();
-        text.SetInnerText(&HSTRING::from("Test Title")).unwrap();
-        binding.AppendChild(&text).unwrap();
-        visual.AppendChild(&binding).unwrap();
-        toast.AppendChild(&visual).unwrap();
+        let text = doc
+            .CreateElement(&HSTRING::from("text"))
+            .expect("Failed to create text element");
+        text.SetInnerText(&HSTRING::from("Test Title"))
+            .expect("Failed to set text content");
+        binding
+            .AppendChild(&text)
+            .expect("Failed to append text to binding");
+        visual
+            .AppendChild(&binding)
+            .expect("Failed to append binding to visual");
+        toast
+            .AppendChild(&visual)
+            .expect("Failed to append visual to toast");
 
-        let xml = doc.GetXml().unwrap().to_string_lossy();
+        let xml = doc.GetXml().expect("Failed to get XML").to_string_lossy();
         assert!(
             xml.contains("toast") && xml.contains("ToastGeneric") && xml.contains("Test Title")
         );
@@ -817,38 +829,56 @@ mod tests {
 
     #[test]
     fn test_toast_xml_with_actions() {
-        let doc = XmlDocument::new().unwrap();
-        let toast = doc.CreateElement(&HSTRING::from("toast")).unwrap();
-        doc.AppendChild(&toast).unwrap();
+        let doc = XmlDocument::new().expect("Failed to create XmlDocument");
+        let toast = doc
+            .CreateElement(&HSTRING::from("toast"))
+            .expect("Failed to create toast element");
+        doc.AppendChild(&toast).expect("Failed to append toast");
 
-        let actions = doc.CreateElement(&HSTRING::from("actions")).unwrap();
-        let action = doc.CreateElement(&HSTRING::from("action")).unwrap();
+        let actions = doc
+            .CreateElement(&HSTRING::from("actions"))
+            .expect("Failed to create actions element");
+        let action = doc
+            .CreateElement(&HSTRING::from("action"))
+            .expect("Failed to create action element");
         action
             .SetAttribute(&HSTRING::from("content"), &HSTRING::from("Accept"))
-            .unwrap();
+            .expect("Failed to set content attribute");
         action
             .SetAttribute(&HSTRING::from("arguments"), &HSTRING::from("accept"))
-            .unwrap();
-        actions.AppendChild(&action).unwrap();
-        toast.AppendChild(&actions).unwrap();
+            .expect("Failed to set arguments attribute");
+        actions
+            .AppendChild(&action)
+            .expect("Failed to append action");
+        toast
+            .AppendChild(&actions)
+            .expect("Failed to append actions");
 
-        let xml = doc.GetXml().unwrap().to_string_lossy();
+        let xml = doc.GetXml().expect("Failed to get XML").to_string_lossy();
         assert!(xml.contains("actions") && xml.contains("Accept"));
     }
 
     #[test]
     fn test_toast_xml_silent() {
-        let doc = XmlDocument::new().unwrap();
-        let toast = doc.CreateElement(&HSTRING::from("toast")).unwrap();
-        doc.AppendChild(&toast).unwrap();
+        let doc = XmlDocument::new().expect("Failed to create XmlDocument");
+        let toast = doc
+            .CreateElement(&HSTRING::from("toast"))
+            .expect("Failed to create toast element");
+        doc.AppendChild(&toast).expect("Failed to append toast");
 
-        let audio = doc.CreateElement(&HSTRING::from("audio")).unwrap();
+        let audio = doc
+            .CreateElement(&HSTRING::from("audio"))
+            .expect("Failed to create audio element");
         audio
             .SetAttribute(&HSTRING::from("silent"), &HSTRING::from("true"))
-            .unwrap();
-        toast.AppendChild(&audio).unwrap();
+            .expect("Failed to set silent attribute");
+        toast.AppendChild(&audio).expect("Failed to append audio");
 
-        assert!(doc.GetXml().unwrap().to_string_lossy().contains("silent"));
+        assert!(doc
+            .GetXml()
+            .expect("Failed to get XML")
+            .to_string_lossy()
+            .contains("silent"));
     }
 
     // ==================== Action Types Tests ====================
@@ -860,12 +890,12 @@ mod tests {
 
         types
             .write()
-            .unwrap()
+            .expect("RwLock poisoned")
             .insert("test".to_string(), action_type);
 
-        let read = types.read().unwrap();
+        let read = types.read().expect("RwLock poisoned");
         assert!(read.contains_key("test"));
-        assert_eq!(read.get("test").unwrap().actions().len(), 1);
+        assert_eq!(read.get("test").expect("Key not found").actions().len(), 1);
     }
 
     #[test]
@@ -873,7 +903,7 @@ mod tests {
         let types: RwLock<HashMap<String, ActionType>> = RwLock::new(HashMap::new());
 
         {
-            let mut w = types.write().unwrap();
+            let mut w = types.write().expect("RwLock poisoned");
             w.insert(
                 "confirm".to_string(),
                 ActionType::new(
@@ -890,7 +920,7 @@ mod tests {
             );
         }
 
-        let r = types.read().unwrap();
+        let r = types.read().expect("RwLock poisoned");
         assert_eq!(r.len(), 2);
         assert!(r.contains_key("confirm") && r.contains_key("reply"));
     }

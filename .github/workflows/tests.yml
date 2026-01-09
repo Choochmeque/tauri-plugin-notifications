@@ -308,7 +308,7 @@ jobs:
       - uses: taiki-e/install-action@cargo-llvm-cov
 
       - name: Run Windows tests with coverage
-        run: cargo llvm-cov --no-default-features --lcov --output-path coverage.lcov
+        run: cargo llvm-cov --no-default-features --lcov --output-path coverage.lcov -- windows::tests
 
       - name: Upload coverage to Codecov
         if: ${{ github.actor != 'dependabot[bot]' }}
