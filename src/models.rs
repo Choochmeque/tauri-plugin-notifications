@@ -346,6 +346,18 @@ pub struct ActionType {
 }
 
 impl ActionType {
+    pub fn new(id: impl Into<String>, actions: Vec<Action>) -> Self {
+        Self {
+            id: id.into(),
+            actions,
+            hidden_previews_body_placeholder: None,
+            custom_dismiss_action: false,
+            allow_in_car_play: false,
+            hidden_previews_show_title: false,
+            hidden_previews_show_subtitle: false,
+        }
+    }
+
     pub fn id(&self) -> &str {
         &self.id
     }
@@ -373,6 +385,19 @@ pub struct Action {
 }
 
 impl Action {
+    pub fn new(id: impl Into<String>, title: impl Into<String>, foreground: bool) -> Self {
+        Self {
+            id: id.into(),
+            title: title.into(),
+            requires_authentication: false,
+            foreground,
+            destructive: false,
+            input: false,
+            input_button_title: None,
+            input_placeholder: None,
+        }
+    }
+
     pub fn id(&self) -> &str {
         &self.id
     }
