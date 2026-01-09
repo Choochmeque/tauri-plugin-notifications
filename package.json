@@ -1,6 +1,6 @@
 {
   "name": "@choochmeque/tauri-plugin-notifications-api",
-  "version": "0.3.4",
+  "version": "0.4.0",
   "license": "MIT",
   "author": "You",
   "description": "A Tauri v2 plugin for sending notifications on desktop and mobile platforms with support for system notifications and push delivery via FCM and APNs.",
@@ -47,12 +47,12 @@
   },
   "devDependencies": {
     "@rollup/plugin-typescript": "^12.1.4",
-    "@vitest/coverage-v8": "^2.1.8",
+    "@vitest/coverage-v8": "^4.0.16",
     "rollup": "^4.52.4",
     "tslib": "^2.6.2",
     "typescript": "^5.3.3",
     "prettier": "3.7.4",
-    "vitest": "^2.1.8"
+    "vitest": "^4.0.16"
   },
   "packageManager": "pnpm@10.9.0+sha512.0486e394640d3c1fb3c9d43d49cf92879ff74f8516959c235308f5a8f62e2e19528a65cdc2a3058f587cde71eba3d5b56327c8c33a97e4c4051ca48a10ca2d5f"
 }

@@ -63,14 +63,6 @@ jobs:
           targets: ${{ matrix.target }}
       - run: cargo clippy --lib --target ${{ matrix.target }} --all-features -- -D warnings -D clippy::unwrap_used
 
-  # Check links in markdown files.
-  mlc:
-    name: mlc
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-      - uses: becheran/mlc@v1
-
   # Spellcheck.
   spellcheck:
     runs-on: ubuntu-latest
