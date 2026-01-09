@@ -715,6 +715,7 @@ mod tests {
                 year: None,
                 month: None,
                 day: Some(1),
+                weekday: None,
                 hour: Some(2),
                 minute: Some(30),
                 second: Some(45),
