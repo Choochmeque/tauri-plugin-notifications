@@ -6,6 +6,7 @@ pnpm-lock.yaml
 build
 node_modules
 schema.json
+cspell.json
 target
 **/gen/*
 **/.svelte-kit/
