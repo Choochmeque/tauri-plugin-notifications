@@ -1,7 +1,3 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
-// SPDX-License-Identifier: Apache-2.0
-// SPDX-License-Identifier: MIT
-
 package app.tauri.notification
 
 import android.Manifest
@@ -23,6 +19,7 @@ import app.tauri.plugin.Invoke
 import app.tauri.plugin.JSArray
 import app.tauri.plugin.JSObject
 import app.tauri.plugin.Plugin
+import com.google.firebase.messaging.FirebaseMessaging
 
 const val LOCAL_NOTIFICATIONS = "permissionState"
 
@@ -373,28 +370,13 @@ class NotificationPlugin(private val activity: Activity): Plugin(activity) {
       return
     }
 
-    try {
-      val firebaseMessaging = Class.forName("com.google.firebase.messaging.FirebaseMessaging")
-      val getInstance = firebaseMessaging.getMethod("getInstance")
-      val instance = getInstance.invoke(null)
-      val deleteToken = instance.javaClass.getMethod("deleteToken")
-      val task = deleteToken.invoke(instance) as com.google.android.gms.tasks.Task<*>
-
-      task.addOnCompleteListener { completedTask ->
-        if (!completedTask.isSuccessful) {
-          val errorMessage = "Failed to delete FCM token: ${completedTask.exception?.message}"
-          invoke.reject(errorMessage)
-          return@addOnCompleteListener
-        }
-
-        // Clear cached token
-        cachedToken = null
-        invoke.resolve()
+    FirebaseMessaging.getInstance().deleteToken().addOnCompleteListener { task ->
+      if (!task.isSuccessful) {
+        invoke.reject("Failed to delete FCM token: ${task.exception?.message}")
+        return@addOnCompleteListener
       }
-    } catch (e: Exception) {
-      val actualException = (e as? java.lang.reflect.InvocationTargetException)?.targetException ?: e
-      val errorMessage = "Firebase not available: ${actualException.message ?: actualException.toString()}"
-      invoke.reject(errorMessage)
+      cachedToken = null
+      invoke.resolve()
     }
   }
 
@@ -417,38 +399,22 @@ class NotificationPlugin(private val activity: Activity): Plugin(activity) {
       return
     }
 
-    try {
-      val firebaseMessaging = Class.forName("com.google.firebase.messaging.FirebaseMessaging")
-      val getInstance = firebaseMessaging.getMethod("getInstance")
-      val instance = getInstance.invoke(null)
-      val getToken = instance.javaClass.getMethod("getToken")
-      val task = getToken.invoke(instance) as com.google.android.gms.tasks.Task<*>
-
-      task.addOnCompleteListener { completedTask ->
-        if (!completedTask.isSuccessful) {
-          val errorMessage = "Failed to get FCM token: ${completedTask.exception?.message}"
-          val errorData = JSObject()
-          errorData.put("message", errorMessage)
-          trigger("push-error", errorData)
-          pendingTokenInvoke?.reject(errorMessage)
-          pendingTokenInvoke = null
-          return@addOnCompleteListener
-        }
-
-        val token = completedTask.result as String
-        cachedToken = token
-        val result = JSObject()
-        result.put("deviceToken", token)
-        pendingTokenInvoke?.resolve(result)
+    FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
+      if (!task.isSuccessful) {
+        val errorMessage = "Failed to get FCM token: ${task.exception?.message}"
+        val errorData = JSObject()
+        errorData.put("message", errorMessage)
+        trigger("push-error", errorData)
+        pendingTokenInvoke?.reject(errorMessage)
         pendingTokenInvoke = null
+        return@addOnCompleteListener
       }
-    } catch (e: Exception) {
-      val actualException = (e as? java.lang.reflect.InvocationTargetException)?.targetException ?: e
-      val errorMessage = "Firebase not available: ${actualException.message ?: actualException.toString()}"
-      val errorData = JSObject()
-      errorData.put("message", errorMessage)
-      trigger("push-error", errorData)
-      pendingTokenInvoke?.reject(errorMessage)
+
+      val token = task.result
+      cachedToken = token
+      val result = JSObject()
+      result.put("deviceToken", token)
+      pendingTokenInvoke?.resolve(result)
       pendingTokenInvoke = null
     }
   }
