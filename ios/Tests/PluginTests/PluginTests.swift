@@ -1078,6 +1078,87 @@ final class NotificationTests: XCTestCase {
         XCTAssertEqual(attachment.options?.iosUNNotificationAttachmentOptionsThumbnailHiddenKey, "true")
     }
 
+    // MARK: - Push Notification Foreground Path Serialization Tests
+
+    /// Tests encoding of ReceivedNotificationData — the struct used in the foreground push
+    /// notification path (NotificationHandler.willPresent → toReceivedNotification).
+    /// This reproduces the exact serialization that Channel.send<T: Encodable>() performs.
+    func testReceivedNotificationDataEncoding() throws {
+        let data = ReceivedNotificationData(
+            id: 42,
+            title: "Push Title",
+            body: "Push Body",
+            extra: ["key": "value", "another": "data"]
+        )
+
+        let encoder = JSONEncoder()
+        let jsonData = try encoder.encode(data)
+
+        let json = try JSONSerialization.jsonObject(with: jsonData) as? [String: Any]
+        XCTAssertNotNil(json)
+        XCTAssertEqual(json?["id"] as? Int, 42)
+        XCTAssertEqual(json?["title"] as? String, "Push Title")
+        XCTAssertEqual(json?["body"] as? String, "Push Body")
+
+        let extra = json?["extra"] as? [String: String]
+        XCTAssertNotNil(extra)
+        XCTAssertEqual(extra?["key"], "value")
+        XCTAssertEqual(extra?["another"], "data")
+    }
+
+    func testReceivedNotificationDataEncodingWithNilExtra() throws {
+        let data = ReceivedNotificationData(
+            id: 1,
+            title: "Title",
+            body: "Body",
+            extra: nil
+        )
+
+        let encoder = JSONEncoder()
+        let jsonData = try encoder.encode(data)
+
+        let json = try JSONSerialization.jsonObject(with: jsonData) as? [String: Any]
+        XCTAssertNotNil(json)
+        XCTAssertEqual(json?["id"] as? Int, 1)
+        // extra should be absent or null
+        XCTAssertTrue(json?["extra"] == nil || json?["extra"] is NSNull)
+    }
+
+    /// Tests encoding of NotificationClickedData — used for notification click events.
+    func testNotificationClickedDataEncoding() throws {
+        let data = NotificationClickedData(
+            id: 7,
+            data: ["action": "open", "screen": "home"]
+        )
+
+        let encoder = JSONEncoder()
+        let jsonData = try encoder.encode(data)
+
+        let json = try JSONSerialization.jsonObject(with: jsonData) as? [String: Any]
+        XCTAssertNotNil(json)
+        XCTAssertEqual(json?["id"] as? Int, 7)
+
+        let clickData = json?["data"] as? [String: String]
+        XCTAssertNotNil(clickData)
+        XCTAssertEqual(clickData?["action"], "open")
+        XCTAssertEqual(clickData?["screen"], "home")
+    }
+
+    func testNotificationClickedDataEncodingWithNilData() throws {
+        let data = NotificationClickedData(
+            id: -1,
+            data: nil
+        )
+
+        let encoder = JSONEncoder()
+        let jsonData = try encoder.encode(data)
+
+        let json = try JSONSerialization.jsonObject(with: jsonData) as? [String: Any]
+        XCTAssertNotNil(json)
+        XCTAssertEqual(json?["id"] as? Int, -1)
+        XCTAssertTrue(json?["data"] == nil || json?["data"] is NSNull)
+    }
+
     func testMakeNotificationContentWithAttachmentsError() throws {
         let notification = Notification(
             id: 1,

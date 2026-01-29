@@ -97,7 +97,33 @@ class NotificationPlugin(private val activity: Activity): Plugin(activity) {
     var instance: NotificationPlugin? = null
 
     fun triggerNotification(notification: Notification) {
-      instance?.triggerObject("notification", notification)
+      val data = JSObject()
+      data.put("id", notification.id)
+      notification.title?.let { data.put("title", it) }
+      notification.body?.let { data.put("body", it) }
+      notification.largeBody?.let { data.put("largeBody", it) }
+      notification.summary?.let { data.put("summary", it) }
+      notification.sound?.let { data.put("sound", it) }
+      notification.actionTypeId?.let { data.put("actionTypeId", it) }
+      notification.group?.let { data.put("group", it) }
+      notification.channelId?.let { data.put("channelId", it) }
+      if (notification.isGroupSummary) data.put("groupSummary", true)
+      if (notification.isOngoing) data.put("ongoing", true)
+      if (notification.isAutoCancel) data.put("autoCancel", true)
+      notification.silent?.let { data.put("silent", it) }
+      notification.extra?.let { data.put("extra", it) }
+      notification.inboxLines?.let { data.put("inboxLines", JSArray(it)) }
+      notification.attachments?.let { attachments ->
+        val arr = JSArray()
+        for (att in attachments) {
+          val obj = JSObject()
+          att.id?.let { obj.put("id", it) }
+          att.url?.let { obj.put("url", it) }
+          arr.put(obj)
+        }
+        data.put("attachments", arr)
+      }
+      instance?.trigger("notification", data)
     }
   }
 
