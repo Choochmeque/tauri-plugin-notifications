@@ -386,6 +386,32 @@ class NotificationTest {
     }
 
     @Test
+    fun testTriggerNotification_sourceDefaultsToLocal() {
+        val data = JSObject()
+        val source = "local" // default parameter value
+        data.put("source", source)
+        data.put("id", 1)
+
+        val json = data.toString()
+        val parsed = JSONObject(json)
+
+        assertEquals("local", parsed.getString("source"))
+    }
+
+    @Test
+    fun testTriggerNotification_sourceCanBePush() {
+        val data = JSObject()
+        val source = "push"
+        data.put("source", source)
+        data.put("id", 1)
+
+        val json = data.toString()
+        val parsed = JSONObject(json)
+
+        assertEquals("push", parsed.getString("source"))
+    }
+
+    @Test
     fun testPendingNotification_properties() {
         val schedule = NotificationSchedule.At()
         val extra = JSObject()

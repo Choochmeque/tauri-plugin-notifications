@@ -524,7 +524,8 @@ final class NotificationTests: XCTestCase {
             body: "Body",
             sound: "default",
             actionTypeId: "CATEGORY",
-            attachments: nil
+            attachments: nil,
+            source: "local"
         )
 
         let encoder = JSONEncoder()
@@ -540,6 +541,7 @@ final class NotificationTests: XCTestCase {
         XCTAssertEqual(json?["body"] as? String, "Body")
         XCTAssertEqual(json?["sound"] as? String, "default")
         XCTAssertEqual(json?["actionTypeId"] as? String, "CATEGORY")
+        XCTAssertEqual(json?["source"] as? String, "local")
     }
 
     func testReceivedNotificationEncoding() throws {
@@ -1088,7 +1090,8 @@ final class NotificationTests: XCTestCase {
             id: 42,
             title: "Push Title",
             body: "Push Body",
-            extra: ["key": "value", "another": "data"]
+            extra: ["key": "value", "another": "data"],
+            source: "push"
         )
 
         let encoder = JSONEncoder()
@@ -1099,6 +1102,7 @@ final class NotificationTests: XCTestCase {
         XCTAssertEqual(json?["id"] as? Int, 42)
         XCTAssertEqual(json?["title"] as? String, "Push Title")
         XCTAssertEqual(json?["body"] as? String, "Push Body")
+        XCTAssertEqual(json?["source"] as? String, "push")
 
         let extra = json?["extra"] as? [String: String]
         XCTAssertNotNil(extra)
@@ -1111,7 +1115,8 @@ final class NotificationTests: XCTestCase {
             id: 1,
             title: "Title",
             body: "Body",
-            extra: nil
+            extra: nil,
+            source: "push"
         )
 
         let encoder = JSONEncoder()
@@ -1120,6 +1125,7 @@ final class NotificationTests: XCTestCase {
         let json = try JSONSerialization.jsonObject(with: jsonData) as? [String: Any]
         XCTAssertNotNil(json)
         XCTAssertEqual(json?["id"] as? Int, 1)
+        XCTAssertEqual(json?["source"] as? String, "push")
         // extra should be absent or null
         XCTAssertTrue(json?["extra"] == nil || json?["extra"] is NSNull)
     }

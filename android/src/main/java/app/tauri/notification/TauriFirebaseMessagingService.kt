@@ -60,8 +60,8 @@ class TauriFirebaseMessagingService : FirebaseMessagingService() {
         }
       }
 
-      // Trigger notification to be shown
-      NotificationPlugin.triggerNotification(notificationData)
+      // Trigger notification event for push notification received in foreground
+      NotificationPlugin.triggerNotification(notificationData, "push")
     }
   }
 }

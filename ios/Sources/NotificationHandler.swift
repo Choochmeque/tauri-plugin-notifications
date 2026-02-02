@@ -38,10 +38,12 @@ public class NotificationHandler: NSObject, NotificationHandlerProtocol {
 
   public func willPresent(notification: UNNotification) -> UNNotificationPresentationOptions {
     // Trigger notification event for both local and push notifications
-    if let notificationData = toActiveNotification(notification.request) {
+    if var notificationData = toActiveNotification(notification.request) {
+      notificationData.source = "local"
       try? self.plugin?.trigger("notification", data: notificationData)
     } else {
-      let notificationData = toReceivedNotification(notification.request)
+      var notificationData = toReceivedNotification(notification.request)
+      notificationData.source = "push"
       try? self.plugin?.trigger("notification", data: notificationData)
     }
 
@@ -191,6 +193,7 @@ struct ActiveNotification: Encodable {
   let sound: String
   let actionTypeId: String
   let attachments: [NotificationAttachment]?
+  var source: String = "local"
 }
 
 struct ReceivedNotification: Encodable {
@@ -209,4 +212,5 @@ struct ReceivedNotificationData: Encodable {
   let title: String
   let body: String
   let extra: [String: String]?
+  var source: String = "push"
 }

@@ -117,6 +117,12 @@ interface Options {
    */
   silent?: boolean;
   /**
+   * The source of the notification. Only present in `onNotificationReceived` callbacks.
+   * - `"push"` — notification received from a remote push (FCM/APNs).
+   * - `"local"` — notification created locally (immediate or scheduled).
+   */
+  source?: "push" | "local";
+  /**
    * Notification visibility.
    */
   visibility?: Visibility;

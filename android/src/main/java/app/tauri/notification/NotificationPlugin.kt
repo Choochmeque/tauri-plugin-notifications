@@ -96,8 +96,9 @@ class NotificationPlugin(private val activity: Activity): Plugin(activity) {
   companion object {
     var instance: NotificationPlugin? = null
 
-    fun triggerNotification(notification: Notification) {
+    fun triggerNotification(notification: Notification, source: String = "local") {
       val data = JSObject()
+      data.put("source", source)
       data.put("id", notification.id)
       notification.title?.let { data.put("title", it) }
       notification.body?.let { data.put("body", it) }
