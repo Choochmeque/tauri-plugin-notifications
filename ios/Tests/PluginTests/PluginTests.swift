@@ -254,9 +254,9 @@ final class NotificationTests: XCTestCase {
 
         XCTAssertNotNil(interval)
         if let interval = interval {
-            // Month duration varies, so just check it's approximately 30 days
-            XCTAssertGreaterThan(interval.duration, 28 * 24 * 60 * 60)
-            XCTAssertLessThan(interval.duration, 32 * 24 * 60 * 60)
+            // Month duration varies, so just check it's approximately 28-31 days
+            XCTAssertGreaterThanOrEqual(interval.duration, 28 * 24 * 60 * 60)
+            XCTAssertLessThanOrEqual(interval.duration, 31 * 24 * 60 * 60)
         }
     }
 
