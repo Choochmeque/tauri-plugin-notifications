@@ -13,29 +13,29 @@ importers:
         version: file:../..
       '@tauri-apps/api':
         specifier: ^2
-        version: 2.9.1
+        version: 2.10.1
       '@tauri-apps/plugin-opener':
         specifier: ^2
         version: 2.5.3
     devDependencies:
       '@sveltejs/adapter-static':
         specifier: ^3.0.6
-        version: 3.0.10(@sveltejs/kit@2.50.1(@sveltejs/vite-plugin-svelte@6.2.4(svelte@5.48.3)(vite@7.3.1))(svelte@5.48.3)(typescript@5.6.3)(vite@7.3.1))
+        version: 3.0.10(@sveltejs/kit@2.50.2(@sveltejs/vite-plugin-svelte@6.2.4(svelte@5.49.1)(vite@7.3.1))(svelte@5.49.1)(typescript@5.6.3)(vite@7.3.1))
       '@sveltejs/kit':
         specifier: ^2.50.1
-        version: 2.50.1(@sveltejs/vite-plugin-svelte@6.2.4(svelte@5.48.3)(vite@7.3.1))(svelte@5.48.3)(typescript@5.6.3)(vite@7.3.1)
+        version: 2.50.2(@sveltejs/vite-plugin-svelte@6.2.4(svelte@5.49.1)(vite@7.3.1))(svelte@5.49.1)(typescript@5.6.3)(vite@7.3.1)
       '@sveltejs/vite-plugin-svelte':
         specifier: ^6.2.4
-        version: 6.2.4(svelte@5.48.3)(vite@7.3.1)
+        version: 6.2.4(svelte@5.49.1)(vite@7.3.1)
       '@tauri-apps/cli':
         specifier: ^2
-        version: 2.9.6
+        version: 2.10.0
       svelte:
-        specifier: ^5.46.1
-        version: 5.48.3
+        specifier: ^5.49.1
+        version: 5.49.1
       svelte-check:
         specifier: ^4.3.5
-        version: 4.3.5(picomatch@4.0.3)(svelte@5.48.3)(typescript@5.6.3)
+        version: 4.3.6(picomatch@4.0.3)(svelte@5.49.1)(typescript@5.6.3)
       typescript:
         specifier: ~5.6.2
         version: 5.6.3
@@ -361,8 +361,8 @@ packages:
     peerDependencies:
       '@sveltejs/kit': ^2.0.0
 
-  '@sveltejs/kit@2.50.1':
-    resolution: {integrity: sha512-XRHD2i3zC4ukhz2iCQzO4mbsts081PAZnnMAQ7LNpWeYgeBmwMsalf0FGSwhFXBbtr2XViPKnFJBDCckWqrsLw==}
+  '@sveltejs/kit@2.50.2':
+    resolution: {integrity: sha512-875hTUkEbz+MyJIxWbQjfMaekqdmEKUUfR7JyKcpfMRZqcGyrO9Gd+iS1D/Dx8LpE5FEtutWGOtlAh4ReSAiOA==}
     engines: {node: '>=18.13'}
     hasBin: true
     peerDependencies:
@@ -392,77 +392,77 @@ packages:
       svelte: ^5.0.0
       vite: ^6.3.0 || ^7.0.0
 
-  '@tauri-apps/api@2.9.1':
-    resolution: {integrity: sha512-IGlhP6EivjXHepbBic618GOmiWe4URJiIeZFlB7x3czM0yDHHYviH1Xvoiv4FefdkQtn6v7TuwWCRfOGdnVUGw==}
+  '@tauri-apps/api@2.10.1':
+    resolution: {integrity: sha512-hKL/jWf293UDSUN09rR69hrToyIXBb8CjGaWC7gfinvnQrBVvnLr08FeFi38gxtugAVyVcTa5/FD/Xnkb1siBw==}
 
-  '@tauri-apps/cli-darwin-arm64@2.9.6':
-    resolution: {integrity: sha512-gf5no6N9FCk1qMrti4lfwP77JHP5haASZgVbBgpZG7BUepB3fhiLCXGUK8LvuOjP36HivXewjg72LTnPDScnQQ==}
+  '@tauri-apps/cli-darwin-arm64@2.10.0':
+    resolution: {integrity: sha512-avqHD4HRjrMamE/7R/kzJPcAJnZs0IIS+1nkDP5b+TNBn3py7N2aIo9LIpy+VQq0AkN8G5dDpZtOOBkmWt/zjA==}
     engines: {node: '>= 10'}
     cpu: [arm64]
     os: [darwin]
 
-  '@tauri-apps/cli-darwin-x64@2.9.6':
-    resolution: {integrity: sha512-oWh74WmqbERwwrwcueJyY6HYhgCksUc6NT7WKeXyrlY/FPmNgdyQAgcLuTSkhRFuQ6zh4Np1HZpOqCTpeZBDcw==}
+  '@tauri-apps/cli-darwin-x64@2.10.0':
+    resolution: {integrity: sha512-keDmlvJRStzVFjZTd0xYkBONLtgBC9eMTpmXnBXzsHuawV2q9PvDo2x6D5mhuoMVrJ9QWjgaPKBBCFks4dK71Q==}
     engines: {node: '>= 10'}
     cpu: [x64]
     os: [darwin]
 
-  '@tauri-apps/cli-linux-arm-gnueabihf@2.9.6':
-    resolution: {integrity: sha512-/zde3bFroFsNXOHN204DC2qUxAcAanUjVXXSdEGmhwMUZeAQalNj5cz2Qli2elsRjKN/hVbZOJj0gQ5zaYUjSg==}
+  '@tauri-apps/cli-linux-arm-gnueabihf@2.10.0':
+    resolution: {integrity: sha512-e5u0VfLZsMAC9iHaOEANumgl6lfnJx0Dtjkd8IJpysZ8jp0tJ6wrIkto2OzQgzcYyRCKgX72aKE0PFgZputA8g==}
     engines: {node: '>= 10'}
     cpu: [arm]
     os: [linux]
 
-  '@tauri-apps/cli-linux-arm64-gnu@2.9.6':
-    resolution: {integrity: sha512-pvbljdhp9VOo4RnID5ywSxgBs7qiylTPlK56cTk7InR3kYSTJKYMqv/4Q/4rGo/mG8cVppesKIeBMH42fw6wjg==}
+  '@tauri-apps/cli-linux-arm64-gnu@2.10.0':
+    resolution: {integrity: sha512-YrYYk2dfmBs5m+OIMCrb+JH/oo+4FtlpcrTCgiFYc7vcs6m3QDd1TTyWu0u01ewsCtK2kOdluhr/zKku+KP7HA==}
     engines: {node: '>= 10'}
     cpu: [arm64]
     os: [linux]
 
-  '@tauri-apps/cli-linux-arm64-musl@2.9.6':
-    resolution: {integrity: sha512-02TKUndpodXBCR0oP//6dZWGYcc22Upf2eP27NvC6z0DIqvkBBFziQUcvi2n6SrwTRL0yGgQjkm9K5NIn8s6jw==}
+  '@tauri-apps/cli-linux-arm64-musl@2.10.0':
+    resolution: {integrity: sha512-GUoPdVJmrJRIXFfW3Rkt+eGK9ygOdyISACZfC/bCSfOnGt8kNdQIQr5WRH9QUaTVFIwxMlQyV3m+yXYP+xhSVA==}
     engines: {node: '>= 10'}
     cpu: [arm64]
     os: [linux]
 
-  '@tauri-apps/cli-linux-riscv64-gnu@2.9.6':
-    resolution: {integrity: sha512-fmp1hnulbqzl1GkXl4aTX9fV+ubHw2LqlLH1PE3BxZ11EQk+l/TmiEongjnxF0ie4kV8DQfDNJ1KGiIdWe1GvQ==}
+  '@tauri-apps/cli-linux-riscv64-gnu@2.10.0':
+    resolution: {integrity: sha512-JO7s3TlSxshwsoKNCDkyvsx5gw2QAs/Y2GbR5UE2d5kkU138ATKoPOtxn8G1fFT1aDW4LH0rYAAfBpGkDyJJnw==}
     engines: {node: '>= 10'}
     cpu: [riscv64]
     os: [linux]
 
-  '@tauri-apps/cli-linux-x64-gnu@2.9.6':
-    resolution: {integrity: sha512-vY0le8ad2KaV1PJr+jCd8fUF9VOjwwQP/uBuTJvhvKTloEwxYA/kAjKK9OpIslGA9m/zcnSo74czI6bBrm2sYA==}
+  '@tauri-apps/cli-linux-x64-gnu@2.10.0':
+    resolution: {integrity: sha512-Uvh4SUUp4A6DVRSMWjelww0GnZI3PlVy7VS+DRF5napKuIehVjGl9XD0uKoCoxwAQBLctvipyEK+pDXpJeoHng==}
     engines: {node: '>= 10'}
     cpu: [x64]
     os: [linux]
 
-  '@tauri-apps/cli-linux-x64-musl@2.9.6':
-    resolution: {integrity: sha512-TOEuB8YCFZTWVDzsO2yW0+zGcoMiPPwcUgdnW1ODnmgfwccpnihDRoks+ABT1e3fHb1ol8QQWsHSCovb3o2ENQ==}
+  '@tauri-apps/cli-linux-x64-musl@2.10.0':
+    resolution: {integrity: sha512-AP0KRK6bJuTpQ8kMNWvhIpKUkQJfcPFeba7QshOQZjJ8wOS6emwTN4K5g/d3AbCMo0RRdnZWwu67MlmtJyxC1Q==}
     engines: {node: '>= 10'}
     cpu: [x64]
     os: [linux]
 
-  '@tauri-apps/cli-win32-arm64-msvc@2.9.6':
-    resolution: {integrity: sha512-ujmDGMRc4qRLAnj8nNG26Rlz9klJ0I0jmZs2BPpmNNf0gM/rcVHhqbEkAaHPTBVIrtUdf7bGvQAD2pyIiUrBHQ==}
+  '@tauri-apps/cli-win32-arm64-msvc@2.10.0':
+    resolution: {integrity: sha512-97DXVU3dJystrq7W41IX+82JEorLNY+3+ECYxvXWqkq7DBN6FsA08x/EFGE8N/b0LTOui9X2dvpGGoeZKKV08g==}
     engines: {node: '>= 10'}
     cpu: [arm64]
     os: [win32]
 
-  '@tauri-apps/cli-win32-ia32-msvc@2.9.6':
-    resolution: {integrity: sha512-S4pT0yAJgFX8QRCyKA1iKjZ9Q/oPjCZf66A/VlG5Yw54Nnr88J1uBpmenINbXxzyhduWrIXBaUbEY1K80ZbpMg==}
+  '@tauri-apps/cli-win32-ia32-msvc@2.10.0':
+    resolution: {integrity: sha512-EHyQ1iwrWy1CwMalEm9z2a6L5isQ121pe7FcA2xe4VWMJp+GHSDDGvbTv/OPdkt2Lyr7DAZBpZHM6nvlHXEc4A==}
     engines: {node: '>= 10'}
     cpu: [ia32]
     os: [win32]
 
-  '@tauri-apps/cli-win32-x64-msvc@2.9.6':
-    resolution: {integrity: sha512-ldWuWSSkWbKOPjQMJoYVj9wLHcOniv7diyI5UAJ4XsBdtaFB0pKHQsqw/ItUma0VXGC7vB4E9fZjivmxur60aw==}
+  '@tauri-apps/cli-win32-x64-msvc@2.10.0':
+    resolution: {integrity: sha512-NTpyQxkpzGmU6ceWBTY2xRIEaS0ZLbVx1HE1zTA3TY/pV3+cPoPPOs+7YScr4IMzXMtOw7tLw5LEXo5oIG3qaQ==}
     engines: {node: '>= 10'}
     cpu: [x64]
     os: [win32]
 
-  '@tauri-apps/cli@2.9.6':
-    resolution: {integrity: sha512-3xDdXL5omQ3sPfBfdC8fCtDKcnyV7OqyzQgfyT5P3+zY6lcPqIYKQBvUasNvppi21RSdfhy44ttvJmftb0PCDw==}
+  '@tauri-apps/cli@2.10.0':
+    resolution: {integrity: sha512-ZwT0T+7bw4+DPCSWzmviwq5XbXlM0cNoleDKOYPFYqcZqeKY31KlpoMW/MOON/tOFBPgi31a2v3w9gliqwL2+Q==}
     engines: {node: '>= 10'}
     hasBin: true
 
@@ -515,8 +515,8 @@ packages:
   esm-env@1.2.2:
     resolution: {integrity: sha512-Epxrv+Nr/CaL4ZcFGPJIYLWFom+YeV1DqMLHJoEd9SYRxNbaFruBwfEX/kkHUJf55j2+TUbmDcmuilbP1TmXHA==}
 
-  esrap@2.2.1:
-    resolution: {integrity: sha512-GiYWG34AN/4CUyaWAgunGt0Rxvr1PTMlGC0vvEov/uOQYWne2bpN03Um+k8jT+q3op33mKouP2zeJ6OlM+qeUg==}
+  esrap@2.2.2:
+    resolution: {integrity: sha512-zA6497ha+qKvoWIK+WM9NAh5ni17sKZKhbS5B3PoYbBvaYHZWoS33zmFybmyqpn07RLUxSmn+RCls2/XF+d0oQ==}
 
   fdir@6.5.0:
     resolution: {integrity: sha512-tIbYtZbucOs0BRGqPJkshJUYdL+SDH7dVM8gjy+ERp3WAUjLEFJE+02kanyHtwjWOnwrKYBiwAmM0p4kLJAnXg==}
@@ -585,8 +585,8 @@ packages:
     resolution: {integrity: sha512-xal3CZX1Xlo/k4ApwCFrHVACi9fBqJ7V+mwhBsuf/1IOKbBy098Fex+Wa/5QMubw09pSZ/u8EY8PWgevJsXp1A==}
     engines: {node: '>=6'}
 
-  set-cookie-parser@2.7.2:
-    resolution: {integrity: sha512-oeM1lpU/UvhTxw+g3cIfxXHyJRc/uidd3yK1P242gzHds0udQBYzs3y8j4gCCW+ZJ7ad0yctld8RYO+bdurlvw==}
+  set-cookie-parser@3.0.1:
+    resolution: {integrity: sha512-n7Z7dXZhJbwuAHhNzkTti6Aw9QDDjZtm3JTpTGATIdNzdQz5GuFs22w90BcvF4INfnrL5xrX3oGsuqO5Dx3A1Q==}
 
   sirv@3.0.2:
     resolution: {integrity: sha512-2wcC/oGxHis/BoHkkPwldgiPSYcpZK3JU28WoMVv55yHJgcZ8rlXvuG9iZggz+sU1d4bRgIGASwyWqjxu3FM0g==}
@@ -596,16 +596,16 @@ packages:
     resolution: {integrity: sha512-UXWMKhLOwVKb728IUtQPXxfYU+usdybtUrK/8uGE8CQMvrhOpwvzDBwj0QhSL7MQc7vIsISBG8VQ8+IDQxpfQA==}
     engines: {node: '>=0.10.0'}
 
-  svelte-check@4.3.5:
-    resolution: {integrity: sha512-e4VWZETyXaKGhpkxOXP+B/d0Fp/zKViZoJmneZWe/05Y2aqSKj3YN2nLfYPJBQ87WEiY4BQCQ9hWGu9mPT1a1Q==}
+  svelte-check@4.3.6:
+    resolution: {integrity: sha512-uBkz96ElE3G4pt9E1Tw0xvBfIUQkeH794kDQZdAUk795UVMr+NJZpuFSS62vcmO/DuSalK83LyOwhgWq8YGU1Q==}
     engines: {node: '>= 18.0.0'}
     hasBin: true
     peerDependencies:
       svelte: ^4.0.0 || ^5.0.0-next.0
       typescript: '>=5.0.0'
 
-  svelte@5.48.3:
-    resolution: {integrity: sha512-w7QZ398cdNherTdiQ/v3SYLLGOO4948Jgjh04PYqtTYVohmBvbmFwLmo7pp8gp4/1tceRWfSTjHgjtfpCVNJmQ==}
+  svelte@5.49.1:
+    resolution: {integrity: sha512-jj95WnbKbXsXXngYj28a4zx8jeZx50CN/J4r0CEeax2pbfdsETv/J1K8V9Hbu3DCXnpHz5qAikICuxEooi7eNQ==}
     engines: {node: '>=18'}
 
   tinyglobby@0.2.15:
@@ -676,7 +676,7 @@ snapshots:
 
   '@choochmeque/tauri-plugin-notifications-api@file:../..':
     dependencies:
-      '@tauri-apps/api': 2.9.1
+      '@tauri-apps/api': 2.10.1
 
   '@esbuild/aix-ppc64@0.27.2':
     optional: true
@@ -858,15 +858,15 @@ snapshots:
     dependencies:
       acorn: 8.15.0
 
-  '@sveltejs/adapter-static@3.0.10(@sveltejs/kit@2.50.1(@sveltejs/vite-plugin-svelte@6.2.4(svelte@5.48.3)(vite@7.3.1))(svelte@5.48.3)(typescript@5.6.3)(vite@7.3.1))':
+  '@sveltejs/adapter-static@3.0.10(@sveltejs/kit@2.50.2(@sveltejs/vite-plugin-svelte@6.2.4(svelte@5.49.1)(vite@7.3.1))(svelte@5.49.1)(typescript@5.6.3)(vite@7.3.1))':
     dependencies:
-      '@sveltejs/kit': 2.50.1(@sveltejs/vite-plugin-svelte@6.2.4(svelte@5.48.3)(vite@7.3.1))(svelte@5.48.3)(typescript@5.6.3)(vite@7.3.1)
+      '@sveltejs/kit': 2.50.2(@sveltejs/vite-plugin-svelte@6.2.4(svelte@5.49.1)(vite@7.3.1))(svelte@5.49.1)(typescript@5.6.3)(vite@7.3.1)
 
-  '@sveltejs/kit@2.50.1(@sveltejs/vite-plugin-svelte@6.2.4(svelte@5.48.3)(vite@7.3.1))(svelte@5.48.3)(typescript@5.6.3)(vite@7.3.1)':
+  '@sveltejs/kit@2.50.2(@sveltejs/vite-plugin-svelte@6.2.4(svelte@5.49.1)(vite@7.3.1))(svelte@5.49.1)(typescript@5.6.3)(vite@7.3.1)':
     dependencies:
       '@standard-schema/spec': 1.1.0
       '@sveltejs/acorn-typescript': 1.0.8(acorn@8.15.0)
-      '@sveltejs/vite-plugin-svelte': 6.2.4(svelte@5.48.3)(vite@7.3.1)
+      '@sveltejs/vite-plugin-svelte': 6.2.4(svelte@5.49.1)(vite@7.3.1)
       '@types/cookie': 0.6.0
       acorn: 8.15.0
       cookie: 0.6.0
@@ -876,82 +876,82 @@ snapshots:
       magic-string: 0.30.21
       mrmime: 2.0.1
       sade: 1.8.1
-      set-cookie-parser: 2.7.2
+      set-cookie-parser: 3.0.1
       sirv: 3.0.2
-      svelte: 5.48.3
+      svelte: 5.49.1
       vite: 7.3.1
     optionalDependencies:
       typescript: 5.6.3
 
-  '@sveltejs/vite-plugin-svelte-inspector@5.0.2(@sveltejs/vite-plugin-svelte@6.2.4(svelte@5.48.3)(vite@7.3.1))(svelte@5.48.3)(vite@7.3.1)':
+  '@sveltejs/vite-plugin-svelte-inspector@5.0.2(@sveltejs/vite-plugin-svelte@6.2.4(svelte@5.49.1)(vite@7.3.1))(svelte@5.49.1)(vite@7.3.1)':
     dependencies:
-      '@sveltejs/vite-plugin-svelte': 6.2.4(svelte@5.48.3)(vite@7.3.1)
+      '@sveltejs/vite-plugin-svelte': 6.2.4(svelte@5.49.1)(vite@7.3.1)
       obug: 2.1.1
-      svelte: 5.48.3
+      svelte: 5.49.1
       vite: 7.3.1
 
-  '@sveltejs/vite-plugin-svelte@6.2.4(svelte@5.48.3)(vite@7.3.1)':
+  '@sveltejs/vite-plugin-svelte@6.2.4(svelte@5.49.1)(vite@7.3.1)':
     dependencies:
-      '@sveltejs/vite-plugin-svelte-inspector': 5.0.2(@sveltejs/vite-plugin-svelte@6.2.4(svelte@5.48.3)(vite@7.3.1))(svelte@5.48.3)(vite@7.3.1)
+      '@sveltejs/vite-plugin-svelte-inspector': 5.0.2(@sveltejs/vite-plugin-svelte@6.2.4(svelte@5.49.1)(vite@7.3.1))(svelte@5.49.1)(vite@7.3.1)
       deepmerge: 4.3.1
       magic-string: 0.30.21
       obug: 2.1.1
-      svelte: 5.48.3
+      svelte: 5.49.1
       vite: 7.3.1
       vitefu: 1.1.1(vite@7.3.1)
 
-  '@tauri-apps/api@2.9.1': {}
+  '@tauri-apps/api@2.10.1': {}
 
-  '@tauri-apps/cli-darwin-arm64@2.9.6':
+  '@tauri-apps/cli-darwin-arm64@2.10.0':
     optional: true
 
-  '@tauri-apps/cli-darwin-x64@2.9.6':
+  '@tauri-apps/cli-darwin-x64@2.10.0':
     optional: true
 
-  '@tauri-apps/cli-linux-arm-gnueabihf@2.9.6':
+  '@tauri-apps/cli-linux-arm-gnueabihf@2.10.0':
     optional: true
 
-  '@tauri-apps/cli-linux-arm64-gnu@2.9.6':
+  '@tauri-apps/cli-linux-arm64-gnu@2.10.0':
     optional: true
 
-  '@tauri-apps/cli-linux-arm64-musl@2.9.6':
+  '@tauri-apps/cli-linux-arm64-musl@2.10.0':
     optional: true
 
-  '@tauri-apps/cli-linux-riscv64-gnu@2.9.6':
+  '@tauri-apps/cli-linux-riscv64-gnu@2.10.0':
     optional: true
 
-  '@tauri-apps/cli-linux-x64-gnu@2.9.6':
+  '@tauri-apps/cli-linux-x64-gnu@2.10.0':
     optional: true
 
-  '@tauri-apps/cli-linux-x64-musl@2.9.6':
+  '@tauri-apps/cli-linux-x64-musl@2.10.0':
     optional: true
 
-  '@tauri-apps/cli-win32-arm64-msvc@2.9.6':
+  '@tauri-apps/cli-win32-arm64-msvc@2.10.0':
     optional: true
 
-  '@tauri-apps/cli-win32-ia32-msvc@2.9.6':
+  '@tauri-apps/cli-win32-ia32-msvc@2.10.0':
     optional: true
 
-  '@tauri-apps/cli-win32-x64-msvc@2.9.6':
+  '@tauri-apps/cli-win32-x64-msvc@2.10.0':
     optional: true
 
-  '@tauri-apps/cli@2.9.6':
+  '@tauri-apps/cli@2.10.0':
     optionalDependencies:
-      '@tauri-apps/cli-darwin-arm64': 2.9.6
-      '@tauri-apps/cli-darwin-x64': 2.9.6
-      '@tauri-apps/cli-linux-arm-gnueabihf': 2.9.6
-      '@tauri-apps/cli-linux-arm64-gnu': 2.9.6
-      '@tauri-apps/cli-linux-arm64-musl': 2.9.6
-      '@tauri-apps/cli-linux-riscv64-gnu': 2.9.6
-      '@tauri-apps/cli-linux-x64-gnu': 2.9.6
-      '@tauri-apps/cli-linux-x64-musl': 2.9.6
-      '@tauri-apps/cli-win32-arm64-msvc': 2.9.6
-      '@tauri-apps/cli-win32-ia32-msvc': 2.9.6
-      '@tauri-apps/cli-win32-x64-msvc': 2.9.6
+      '@tauri-apps/cli-darwin-arm64': 2.10.0
+      '@tauri-apps/cli-darwin-x64': 2.10.0
+      '@tauri-apps/cli-linux-arm-gnueabihf': 2.10.0
+      '@tauri-apps/cli-linux-arm64-gnu': 2.10.0
+      '@tauri-apps/cli-linux-arm64-musl': 2.10.0
+      '@tauri-apps/cli-linux-riscv64-gnu': 2.10.0
+      '@tauri-apps/cli-linux-x64-gnu': 2.10.0
+      '@tauri-apps/cli-linux-x64-musl': 2.10.0
+      '@tauri-apps/cli-win32-arm64-msvc': 2.10.0
+      '@tauri-apps/cli-win32-ia32-msvc': 2.10.0
+      '@tauri-apps/cli-win32-x64-msvc': 2.10.0
 
   '@tauri-apps/plugin-opener@2.5.3':
     dependencies:
-      '@tauri-apps/api': 2.9.1
+      '@tauri-apps/api': 2.10.1
 
   '@types/cookie@0.6.0': {}
 
@@ -1006,7 +1006,7 @@ snapshots:
 
   esm-env@1.2.2: {}
 
-  esrap@2.2.1:
+  esrap@2.2.2:
     dependencies:
       '@jridgewell/sourcemap-codec': 1.5.5
 
@@ -1084,7 +1084,7 @@ snapshots:
     dependencies:
       mri: 1.2.0
 
-  set-cookie-parser@2.7.2: {}
+  set-cookie-parser@3.0.1: {}
 
   sirv@3.0.2:
     dependencies:
@@ -1094,19 +1094,19 @@ snapshots:
 
   source-map-js@1.2.1: {}
 
-  svelte-check@4.3.5(picomatch@4.0.3)(svelte@5.48.3)(typescript@5.6.3):
+  svelte-check@4.3.6(picomatch@4.0.3)(svelte@5.49.1)(typescript@5.6.3):
     dependencies:
       '@jridgewell/trace-mapping': 0.3.31
       chokidar: 4.0.3
       fdir: 6.5.0(picomatch@4.0.3)
       picocolors: 1.1.1
       sade: 1.8.1
-      svelte: 5.48.3
+      svelte: 5.49.1
       typescript: 5.6.3
     transitivePeerDependencies:
       - picomatch
 
-  svelte@5.48.3:
+  svelte@5.49.1:
     dependencies:
       '@jridgewell/remapping': 2.3.5
       '@jridgewell/sourcemap-codec': 1.5.5
@@ -1118,7 +1118,7 @@ snapshots:
       clsx: 2.1.1
       devalue: 5.6.2
       esm-env: 1.2.2
-      esrap: 2.2.1
+      esrap: 2.2.2
       is-reference: 3.0.3
       locate-character: 3.0.0
       magic-string: 0.30.21
