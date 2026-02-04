@@ -9,6 +9,8 @@ exclude = ["/examples", "/dist-js", "/guest-js", "/node_modules"]
 links = "tauri-plugin-notifications"
 license = "MIT"
 repository = "https://github.com/Choochmeque/tauri-plugin-notifications"
+categories = ["api-bindings", "gui", "os"]
+keywords = ["tauri", "notifications", "push-notifications", "toast", "desktop"]
 
 [features]
 default = ["notify-rust"]
@@ -16,7 +18,7 @@ push-notifications = []
 notify-rust = ["dep:notify-rust"]
 
 [dependencies]
-tauri = { version = "2.8.2" }
+tauri = "2"
 serde = "1.0"
 serde_json = "1"
 serde_repr = "0.1"
@@ -27,7 +29,7 @@ time = { version = "0.3", features = ["serde", "parsing", "formatting"] }
 url = { version = "2", features = ["serde"] }
 
 [target.'cfg(target_os = "ios")'.dependencies]
-tauri = { version = "2.8.2", features = ["wry"] }
+tauri = { version = "2", features = ["wry"] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 swift-bridge = { version = "0.1", features = ["async"] }
@@ -35,8 +37,16 @@ swift-bridge = { version = "0.1", features = ["async"] }
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 notify-rust = { version = "4.11", optional = true }
 
+[target.'cfg(target_os = "windows")'.dependencies]
+windows = { version = "0.61", features = [
+    "Data_Xml_Dom",
+    "Foundation",
+    "Networking_PushNotifications",
+    "UI_Notifications",
+] }
+
 [build-dependencies]
-tauri-plugin = { version = "2.4.0", features = ["build"] }
+tauri-plugin = { version = "2", features = ["build"] }
 
 [target.'cfg(target_os = "macos")'.build-dependencies]
 swift-bridge-build = "0.1"

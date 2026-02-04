@@ -18,7 +18,7 @@ pub struct PushNotificationResponse {
     pub device_token: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Attachment {
     id: String,
@@ -29,9 +29,17 @@ impl Attachment {
     pub fn new(id: impl Into<String>, url: Url) -> Self {
         Self { id: id.into(), url }
     }
+
+    pub fn id(&self) -> &str {
+        &self.id
+    }
+
+    pub fn url(&self) -> &Url {
+        &self.url
+    }
 }
 
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ScheduleInterval {
     pub year: Option<u8>,
@@ -43,7 +51,7 @@ pub struct ScheduleInterval {
     pub second: Option<u8>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum ScheduleEvery {
     Year,
     Month,
@@ -103,7 +111,7 @@ impl<'de> Deserialize<'de> for ScheduleEvery {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum Schedule {
     #[serde(rename_all = "camelCase")]
@@ -222,10 +230,10 @@ impl Default for NotificationData {
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PendingNotification {
-    id: i32,
-    title: Option<String>,
-    body: Option<String>,
-    schedule: Schedule,
+    pub(crate) id: i32,
+    pub(crate) title: Option<String>,
+    pub(crate) body: Option<String>,
+    pub(crate) schedule: Schedule,
 }
 
 impl PendingNotification {
@@ -246,25 +254,25 @@ impl PendingNotification {
     }
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ActiveNotification {
-    id: i32,
-    tag: Option<String>,
-    title: Option<String>,
-    body: Option<String>,
-    group: Option<String>,
+    pub(crate) id: i32,
+    pub(crate) tag: Option<String>,
+    pub(crate) title: Option<String>,
+    pub(crate) body: Option<String>,
+    pub(crate) group: Option<String>,
     #[serde(default)]
-    group_summary: bool,
+    pub(crate) group_summary: bool,
     #[serde(default)]
-    data: HashMap<String, String>,
+    pub(crate) data: HashMap<String, String>,
     #[serde(default)]
-    extra: HashMap<String, serde_json::Value>,
+    pub(crate) extra: HashMap<String, serde_json::Value>,
     #[serde(default)]
-    attachments: Vec<Attachment>,
-    action_type_id: Option<String>,
-    schedule: Option<Schedule>,
-    sound: Option<String>,
+    pub(crate) attachments: Vec<Attachment>,
+    pub(crate) action_type_id: Option<String>,
+    pub(crate) schedule: Option<Schedule>,
+    pub(crate) sound: Option<String>,
 }
 
 impl ActiveNotification {
@@ -317,7 +325,7 @@ impl ActiveNotification {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ActionType {
     id: String,
@@ -333,7 +341,29 @@ pub struct ActionType {
     hidden_previews_show_subtitle: bool,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+impl ActionType {
+    pub fn new(id: impl Into<String>, actions: Vec<Action>) -> Self {
+        Self {
+            id: id.into(),
+            actions,
+            hidden_previews_body_placeholder: None,
+            custom_dismiss_action: false,
+            allow_in_car_play: false,
+            hidden_previews_show_title: false,
+            hidden_previews_show_subtitle: false,
+        }
+    }
+
+    pub fn id(&self) -> &str {
+        &self.id
+    }
+
+    pub fn actions(&self) -> &[Action] {
+        &self.actions
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Action {
     id: String,
@@ -348,6 +378,33 @@ pub struct Action {
     input: bool,
     input_button_title: Option<String>,
     input_placeholder: Option<String>,
+}
+
+impl Action {
+    pub fn new(id: impl Into<String>, title: impl Into<String>, foreground: bool) -> Self {
+        Self {
+            id: id.into(),
+            title: title.into(),
+            requires_authentication: false,
+            foreground,
+            destructive: false,
+            input: false,
+            input_button_title: None,
+            input_placeholder: None,
+        }
+    }
+
+    pub fn id(&self) -> &str {
+        &self.id
+    }
+
+    pub fn title(&self) -> &str {
+        &self.title
+    }
+
+    pub fn foreground(&self) -> bool {
+        self.foreground
+    }
 }
 
 pub use android::*;

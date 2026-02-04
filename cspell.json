@@ -33,7 +33,11 @@
     "unlisten",
     "twoweeks",
     "xcconfig",
-    "buildscript"
+    "buildscript",
+    "Inspectable",
+    "inspectable",
+    "AUMID",
+    "FILETIME",
   ],
   "useGitignore": true,
   "ignorePaths": [
