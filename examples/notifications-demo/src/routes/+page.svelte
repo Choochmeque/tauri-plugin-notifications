@@ -532,6 +532,13 @@
 
     // Check initial permission status
     await checkPermission();
+    // Ask for permission on launch if needed, then register for push on iOS
+    if (!permissionGranted) {
+      await handleRequestPermission();
+    }
+    if (permissionGranted) {
+      await handleRegisterPush();
+    }
 
     // Load initial data
     await refreshPending();

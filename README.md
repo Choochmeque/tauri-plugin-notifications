@@ -584,6 +584,12 @@ Listens for notification action performed events.
    - Place in app bundle
    - Reference by filename (without extension)
 
+### Communication Notifications (iOS)
+
+If you want sender avatars to appear in the notification banner (like chat apps), iOS requires Communication Notifications. This needs a Notification Service Extension and app capabilities.
+
+See `docs/communication-notifications.md` for a step-by-step guide and the extension template.
+
 ### Android Setup
 
 1. The plugin automatically includes required permissions
