@@ -2,7 +2,7 @@
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "notifications-demo",
   "version": "0.1.0",
-  "identifier": "com.tauri.dev",
+  "identifier": "com.the-tie-bridge.app",
   "build": {
     "beforeDevCommand": "pnpm dev",
     "devUrl": "http://localhost:1420",
@@ -10,7 +10,7 @@
     "frontendDist": "../build"
   },
   "app": {
-    "windows": [
+    "windows": [ 
       {
         "title": "notifications-demo",
         "width": 800,

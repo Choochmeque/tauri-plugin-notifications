@@ -1,6 +1,6 @@
 name: notifications-demo
 options:
-  bundleIdPrefix: com.tauri.dev
+  bundleIdPrefix: com.the-tie-bridge.app
   deploymentTarget:
     iOS: 14.0
 fileGroups: [../../src]
@@ -11,7 +11,7 @@ settingGroups:
   app:
     base:
       PRODUCT_NAME: notifications-demo
-      PRODUCT_BUNDLE_IDENTIFIER: com.tauri.dev
+      PRODUCT_BUNDLE_IDENTIFIER: com.the-tie-bridge.app
 targetTemplates:
   app:
     type: application
