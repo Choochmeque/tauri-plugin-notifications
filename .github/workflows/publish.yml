@@ -87,15 +87,13 @@ jobs:
 
       # Dry run first (good practice)
       - name: cargo publish (dry run)
-        env:
-          CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
         run: cargo publish --dry-run
 
-      # Real publish
-      - name: cargo publish
+      - uses: rust-lang/crates-io-auth-action@v1
+        id: auth
+      - run: cargo publish
         env:
-          CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
-        run: cargo publish
+          CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
 
   create-release:
     name: Create GitHub Release
