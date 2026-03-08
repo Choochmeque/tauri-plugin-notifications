@@ -146,7 +146,7 @@ impl<R: Runtime> Notifications<R> {
     pub fn save_unified_push_distributor(&self, distributor: String) -> crate::Result<()> {
         #[cfg(feature = "unified-push")]
         {
-            let mut args = std::collections::HashMap::new();
+            let mut args = HashMap::new();
             args.insert("distributor", distributor);
             self.0
                 .run_mobile_plugin::<()>("saveUnifiedPushDistributor", args)
