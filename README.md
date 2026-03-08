@@ -139,6 +139,17 @@ Configure the plugin permissions in your `capabilities/default.json`:
 }
 ```
 
+If you enabled the `unified-push` feature, also add the UnifiedPush permission set:
+
+```json
+{
+  "permissions": [
+    "notifications:default",
+    "notifications:allow-unified-push"
+  ]
+}
+```
+
 Register the plugin in your Tauri app:
 
 ```rust

@@ -24,7 +24,8 @@
 
         <receiver
             android:name="app.tauri.notification.TauriUnifiedPushMessagingService"
-            android:exported="true">
+            android:exported="true"
+            android:enabled="${unifiedPushReceiverEnabled}">
             <intent-filter>
                 <action android:name="org.unifiedpush.android.connector.MESSAGE"/>
                 <action android:name="org.unifiedpush.android.connector.UNREGISTERED"/>

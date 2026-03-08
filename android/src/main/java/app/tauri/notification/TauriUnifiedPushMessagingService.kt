@@ -103,13 +103,20 @@ open class TauriUnifiedPushMessagingService : MessagingReceiver() {
       }
     }
     val notification = Notification().apply {
-      id = System.currentTimeMillis().toInt()
+      id = (System.nanoTime() % Int.MAX_VALUE).toInt()
       this.title = title ?: ""
       this.body = body
       this.isAutoCancel = true
       this.extra = extraData
     }
-    NotificationPlugin.triggerNotification(notification, "unifiedpush")
+
+    val plugin = NotificationPlugin.instance
+    if (plugin != null) {
+      plugin.getNotificationManager().schedule(notification)
+      NotificationPlugin.triggerNotification(notification, "unifiedpush")
+    } else {
+      Log.w(TAG, "NotificationPlugin not initialized, cannot show fallback notification")
+    }
   }
 
   override fun onRegistrationFailed(context: Context, reason: FailedReason, instance: String) {

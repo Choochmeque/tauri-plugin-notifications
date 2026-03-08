@@ -13,11 +13,6 @@ It allows all notification related features.
 - `allow-request-permission`
 - `allow-register-for-push-notifications`
 - `allow-unregister-for-push-notifications`
-- `allow-register-for-unified-push`
-- `allow-unregister-from-unified-push`
-- `allow-get-unified-push-distributors`
-- `allow-save-unified-push-distributor`
-- `allow-get-unified-push-distributor`
 - `allow-notify`
 - `allow-register-action-types`
 - `allow-register-listener`
@@ -717,6 +712,23 @@ Enables the unregister_from_unified_push command without any pre-configured scop
 <td>
 
 Denies the unregister_from_unified_push command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`notifications:allow-unified-push`
+
+</td>
+<td>
+
+Enables UnifiedPush notification commands.
+
+Add this permission set alongside `notifications:default`
+when the `unified-push` Cargo feature is enabled.
+
 
 </td>
 </tr>

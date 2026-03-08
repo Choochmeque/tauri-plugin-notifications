@@ -528,6 +528,7 @@ class NotificationPlugin(private val activity: Activity): Plugin(activity) {
     if (!manager.areNotificationsEnabled()) {
       if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
         if (getPermissionState(LOCAL_NOTIFICATIONS) !== PermissionState.GRANTED) {
+          pendingUnifiedPushInvoke?.reject("Superseded by a new registration request")
           pendingUnifiedPushInvoke = invoke
           requestPermissionForAlias(LOCAL_NOTIFICATIONS, invoke, "unifiedPushPermissionsCallback")
           return
@@ -547,10 +548,8 @@ class NotificationPlugin(private val activity: Activity): Plugin(activity) {
       return
     }
 
-    // Store the invoke to respond later when we get the endpoint
+    pendingUnifiedPushInvoke?.reject("Superseded by a new registration request")
     pendingUnifiedPushInvoke = invoke
-
-    // Register with UnifiedPush
     UnifiedPush.register(activity, unifiedPushInstance)
   }
 

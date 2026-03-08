@@ -19,6 +19,15 @@ import {
   requestPermission,
   registerForPushNotifications,
   unregisterForPushNotifications,
+  registerForUnifiedPush,
+  unregisterFromUnifiedPush,
+  getUnifiedPushDistributors,
+  saveUnifiedPushDistributor,
+  getUnifiedPushDistributor,
+  onUnifiedPushEndpoint,
+  onUnifiedPushMessage,
+  onUnifiedPushUnregistered,
+  onUnifiedPushError,
   registerActionTypes,
   pending,
   cancel,
@@ -505,6 +514,220 @@ describe("Notification Functions", () => {
       const result = await unregisterForPushNotifications();
 
       expect(result).toBe(mockResult);
+    });
+  });
+
+  describe("registerForUnifiedPush", () => {
+    it("should call invoke with correct plugin command", async () => {
+      const mockEndpoint = { endpoint: "https://example.com/push", instance: "default" };
+      mockInvoke.mockResolvedValue(mockEndpoint);
+
+      const result = await registerForUnifiedPush();
+
+      expect(mockInvoke).toHaveBeenCalledWith(
+        "plugin:notifications|register_for_unified_push",
+      );
+      expect(result).toEqual(mockEndpoint);
+    });
+  });
+
+  describe("unregisterFromUnifiedPush", () => {
+    it("should call invoke with correct plugin command", async () => {
+      mockInvoke.mockResolvedValue(undefined);
+
+      await unregisterFromUnifiedPush();
+
+      expect(mockInvoke).toHaveBeenCalledWith(
+        "plugin:notifications|unregister_from_unified_push",
+      );
+    });
+  });
+
+  describe("getUnifiedPushDistributors", () => {
+    it("should return the list of distributors", async () => {
+      const mockDistributors = { distributors: ["org.unifiedpush.distributor.nextpush", "io.heckel.ntfy"] };
+      mockInvoke.mockResolvedValue(mockDistributors);
+
+      const result = await getUnifiedPushDistributors();
+
+      expect(mockInvoke).toHaveBeenCalledWith(
+        "plugin:notifications|get_unified_push_distributors",
+      );
+      expect(result).toEqual(mockDistributors);
+    });
+
+    it("should handle empty distributors list", async () => {
+      mockInvoke.mockResolvedValue({ distributors: [] });
+
+      const result = await getUnifiedPushDistributors();
+
+      expect(result.distributors).toEqual([]);
+    });
+  });
+
+  describe("saveUnifiedPushDistributor", () => {
+    it("should call invoke with distributor parameter", async () => {
+      mockInvoke.mockResolvedValue(undefined);
+
+      await saveUnifiedPushDistributor("org.unifiedpush.distributor.nextpush");
+
+      expect(mockInvoke).toHaveBeenCalledWith(
+        "plugin:notifications|save_unified_push_distributor",
+        { distributor: "org.unifiedpush.distributor.nextpush" },
+      );
+    });
+  });
+
+  describe("getUnifiedPushDistributor", () => {
+    it("should return the current distributor", async () => {
+      const mockDistributor = { distributor: "org.unifiedpush.distributor.nextpush" };
+      mockInvoke.mockResolvedValue(mockDistributor);
+
+      const result = await getUnifiedPushDistributor();
+
+      expect(mockInvoke).toHaveBeenCalledWith(
+        "plugin:notifications|get_unified_push_distributor",
+      );
+      expect(result).toEqual(mockDistributor);
+    });
+
+    it("should handle empty distributor", async () => {
+      mockInvoke.mockResolvedValue({ distributor: "" });
+
+      const result = await getUnifiedPushDistributor();
+
+      expect(result.distributor).toBe("");
+    });
+  });
+
+  describe("onUnifiedPushEndpoint", () => {
+    it("should register endpoint listener", async () => {
+      const mockUnlisten = vi.fn();
+      mockAddPluginListener.mockResolvedValue(mockUnlisten);
+
+      const callback = vi.fn();
+      const unlisten = await onUnifiedPushEndpoint(callback);
+
+      expect(mockAddPluginListener).toHaveBeenCalledWith(
+        "notifications",
+        "unifiedpush-endpoint",
+        callback,
+      );
+      expect(unlisten).toBe(mockUnlisten);
+    });
+
+    it("should call callback with endpoint data", async () => {
+      let capturedCallback: ((data: any) => void) | undefined;
+      mockAddPluginListener.mockImplementation((_plugin, _event, cb) => {
+        capturedCallback = cb;
+        return Promise.resolve(vi.fn());
+      });
+
+      const callback = vi.fn();
+      await onUnifiedPushEndpoint(callback);
+
+      const endpointData = { endpoint: "https://example.com/push", instance: "default" };
+      capturedCallback?.(endpointData);
+
+      expect(callback).toHaveBeenCalledWith(endpointData);
+    });
+  });
+
+  describe("onUnifiedPushMessage", () => {
+    it("should register message listener", async () => {
+      const mockUnlisten = vi.fn();
+      mockAddPluginListener.mockResolvedValue(mockUnlisten);
+
+      const callback = vi.fn();
+      const unlisten = await onUnifiedPushMessage(callback);
+
+      expect(mockAddPluginListener).toHaveBeenCalledWith(
+        "notifications",
+        "unifiedpush-message",
+        callback,
+      );
+      expect(unlisten).toBe(mockUnlisten);
+    });
+
+    it("should call callback with message data", async () => {
+      let capturedCallback: ((data: any) => void) | undefined;
+      mockAddPluginListener.mockImplementation((_plugin, _event, cb) => {
+        capturedCallback = cb;
+        return Promise.resolve(vi.fn());
+      });
+
+      const callback = vi.fn();
+      await onUnifiedPushMessage(callback);
+
+      const messageData = { title: "Hello", body: "World", instance: "default", source: "unifiedpush" };
+      capturedCallback?.(messageData);
+
+      expect(callback).toHaveBeenCalledWith(messageData);
+    });
+  });
+
+  describe("onUnifiedPushUnregistered", () => {
+    it("should register unregistered listener", async () => {
+      const mockUnlisten = vi.fn();
+      mockAddPluginListener.mockResolvedValue(mockUnlisten);
+
+      const callback = vi.fn();
+      const unlisten = await onUnifiedPushUnregistered(callback);
+
+      expect(mockAddPluginListener).toHaveBeenCalledWith(
+        "notifications",
+        "unifiedpush-unregistered",
+        callback,
+      );
+      expect(unlisten).toBe(mockUnlisten);
+    });
+
+    it("should call callback with instance data", async () => {
+      let capturedCallback: ((data: any) => void) | undefined;
+      mockAddPluginListener.mockImplementation((_plugin, _event, cb) => {
+        capturedCallback = cb;
+        return Promise.resolve(vi.fn());
+      });
+
+      const callback = vi.fn();
+      await onUnifiedPushUnregistered(callback);
+
+      capturedCallback?.({ instance: "default" });
+
+      expect(callback).toHaveBeenCalledWith({ instance: "default" });
+    });
+  });
+
+  describe("onUnifiedPushError", () => {
+    it("should register error listener", async () => {
+      const mockUnlisten = vi.fn();
+      mockAddPluginListener.mockResolvedValue(mockUnlisten);
+
+      const callback = vi.fn();
+      const unlisten = await onUnifiedPushError(callback);
+
+      expect(mockAddPluginListener).toHaveBeenCalledWith(
+        "notifications",
+        "unifiedpush-error",
+        callback,
+      );
+      expect(unlisten).toBe(mockUnlisten);
+    });
+
+    it("should call callback with error data", async () => {
+      let capturedCallback: ((data: any) => void) | undefined;
+      mockAddPluginListener.mockImplementation((_plugin, _event, cb) => {
+        capturedCallback = cb;
+        return Promise.resolve(vi.fn());
+      });
+
+      const callback = vi.fn();
+      await onUnifiedPushError(callback);
+
+      const errorData = { message: "Registration failed", instance: "default" };
+      capturedCallback?.(errorData);
+
+      expect(callback).toHaveBeenCalledWith(errorData);
     });
   });
 
