@@ -119,9 +119,10 @@ interface Options {
   /**
    * The source of the notification. Only present in `onNotificationReceived` callbacks.
    * - `"push"` — notification received from a remote push (FCM/APNs).
+   * - `"unifiedpush"` — notification received from a UnifiedPush distributor.
    * - `"local"` — notification created locally (immediate or scheduled).
    */
-  source?: "push" | "local";
+  source?: "push" | "unifiedpush" | "local";
   /**
    * Notification visibility.
    */
@@ -476,8 +477,192 @@ async function unregisterForPushNotifications(): Promise<string> {
   return await invoke("plugin:notifications|unregister_for_push_notifications");
 }
 
+interface UnifiedPushEndpoint {
+  /** The endpoint URL where push messages should be sent. */
+  endpoint: string;
+  /** The instance identifier for this registration. */
+  instance: string;
+}
+
+/**
+ * Registers the app for UnifiedPush notifications (Android only).
+ *
+ * @example
+ * ```typescript
+ * import { registerForUnifiedPush } from '@choochmeque/tauri-plugin-notifications-api';
+ * const { endpoint, instance } = await registerForUnifiedPush();
+ * console.log('UnifiedPush endpoint:', endpoint);
+ * ```
+ *
+ * @returns A promise resolving to the UnifiedPush endpoint information.
+ */
+async function registerForUnifiedPush(): Promise<UnifiedPushEndpoint> {
+  return await invoke("plugin:notifications|register_for_unified_push");
+}
+
+/**
+ * Unregisters the app from UnifiedPush notifications (Android only).
+ *
+ * @example
+ * ```typescript
+ * import { unregisterFromUnifiedPush } from '@choochmeque/tauri-plugin-notifications-api';
+ * await unregisterFromUnifiedPush();
+ * ```
+ *
+ * @returns A promise resolving when unregistration is complete.
+ */
+async function unregisterFromUnifiedPush(): Promise<void> {
+  return await invoke("plugin:notifications|unregister_from_unified_push");
+}
+
+/**
+ * Gets the list of available UnifiedPush distributors installed on the device.
+ *
+ * @example
+ * ```typescript
+ * import { getUnifiedPushDistributors } from '@choochmeque/tauri-plugin-notifications-api';
+ * const { distributors } = await getUnifiedPushDistributors();
+ * console.log('Available distributors:', distributors);
+ * ```
+ *
+ * @returns A promise resolving to an object with a distributors array.
+ */
+async function getUnifiedPushDistributors(): Promise<{ distributors: string[] }> {
+  return await invoke("plugin:notifications|get_unified_push_distributors");
+}
+
+/**
+ * Saves the selected UnifiedPush distributor.
+ *
+ * @example
+ * ```typescript
+ * import { saveUnifiedPushDistributor } from '@choochmeque/tauri-plugin-notifications-api';
+ * await saveUnifiedPushDistributor('org.unifiedpush.distributor.nextpush');
+ * ```
+ *
+ * @param distributor - The package name of the distributor to use.
+ * @returns A promise resolving when the distributor is saved.
+ */
+async function saveUnifiedPushDistributor(distributor: string): Promise<void> {
+  return await invoke("plugin:notifications|save_unified_push_distributor", {
+    distributor,
+  });
+}
+
+/**
+ * Gets the currently selected UnifiedPush distributor.
+ *
+ * @example
+ * ```typescript
+ * import { getUnifiedPushDistributor } from '@choochmeque/tauri-plugin-notifications-api';
+ * const { distributor } = await getUnifiedPushDistributor();
+ * ```
+ *
+ * @returns A promise resolving to an object with the distributor package name.
+ */
+async function getUnifiedPushDistributor(): Promise<{ distributor: string }> {
+  return await invoke("plugin:notifications|get_unified_push_distributor");
+}
+
+/**
+ * Registers a listener for new UnifiedPush endpoint events.
+ *
+ * @example
+ * ```typescript
+ * import { onUnifiedPushEndpoint } from '@choochmeque/tauri-plugin-notifications-api';
+ * const unlisten = await onUnifiedPushEndpoint((data) => {
+ *   console.log('New UnifiedPush endpoint:', data.endpoint);
+ * });
+ * ```
+ *
+ * @param cb - Callback function to handle the endpoint event.
+ * @returns A promise resolving to a function that removes the listener.
+ */
+async function onUnifiedPushEndpoint(
+  cb: (data: UnifiedPushEndpoint) => void,
+): Promise<PluginListener> {
+  return await addPluginListener(
+    "notifications",
+    "unifiedpush-endpoint",
+    cb,
+  );
+}
+
+/**
+ * Registers a listener for UnifiedPush message events.
+ *
+ * @example
+ * ```typescript
+ * import { onUnifiedPushMessage } from '@choochmeque/tauri-plugin-notifications-api';
+ * const unlisten = await onUnifiedPushMessage((data) => {
+ *   console.log('UnifiedPush message received:', data);
+ * });
+ * ```
+ *
+ * @param cb - Callback function to handle the message event.
+ * @returns A promise resolving to a function that removes the listener.
+ */
+async function onUnifiedPushMessage(
+  cb: (data: Record<string, unknown>) => void,
+): Promise<PluginListener> {
+  return await addPluginListener(
+    "notifications",
+    "unifiedpush-message",
+    cb,
+  );
+}
+
+/**
+ * Registers a listener for UnifiedPush unregistration events.
+ *
+ * @example
+ * ```typescript
+ * import { onUnifiedPushUnregistered } from '@choochmeque/tauri-plugin-notifications-api';
+ * const unlisten = await onUnifiedPushUnregistered((data) => {
+ *   console.log('UnifiedPush unregistered for instance:', data.instance);
+ * });
+ * ```
+ *
+ * @param cb - Callback function to handle the unregistration event.
+ * @returns A promise resolving to a function that removes the listener.
+ */
+async function onUnifiedPushUnregistered(
+  cb: (data: { instance: string }) => void,
+): Promise<PluginListener> {
+  return await addPluginListener(
+    "notifications",
+    "unifiedpush-unregistered",
+    cb,
+  );
+}
+
+/**
+ * Registers a listener for UnifiedPush error events.
+ *
+ * @example
+ * ```typescript
+ * import { onUnifiedPushError } from '@choochmeque/tauri-plugin-notifications-api';
+ * const unlisten = await onUnifiedPushError((data) => {
+ *   console.error('UnifiedPush error:', data.message);
+ * });
+ * ```
+ *
+ * @param cb - Callback function to handle the error event.
+ * @returns A promise resolving to a function that removes the listener.
+ */
+async function onUnifiedPushError(
+  cb: (data: { message: string; instance?: string }) => void,
+): Promise<PluginListener> {
+  return await addPluginListener(
+    "notifications",
+    "unifiedpush-error",
+    cb,
+  );
+}
+
 /**
  * Sends a notification to the user.
+
  * @example
  * ```typescript
  * import { isPermissionGranted, requestPermission, sendNotification } from '@choochmeque/tauri-plugin-notifications-api';
@@ -751,12 +936,11 @@ async function onNotificationClicked(
     cb,
   );
 
-  // Tell native side listener is active (triggers pending if any)
+  // Notify native side so pending cold-start clicks are delivered
   await invoke("plugin:notifications|set_click_listener_active", {
     active: true,
   });
 
-  // Return wrapped listener that notifies native side on unregister
   return {
     unregister: async () => {
       await invoke("plugin:notifications|set_click_listener_active", {
@@ -777,6 +961,7 @@ export type {
   Channel,
   ScheduleInterval,
   NotificationClickedData,
+  UnifiedPushEndpoint,
 };
 
 export {
@@ -787,6 +972,15 @@ export {
   isPermissionGranted,
   registerForPushNotifications,
   unregisterForPushNotifications,
+  registerForUnifiedPush,
+  unregisterFromUnifiedPush,
+  getUnifiedPushDistributors,
+  saveUnifiedPushDistributor,
+  getUnifiedPushDistributor,
+  onUnifiedPushEndpoint,
+  onUnifiedPushMessage,
+  onUnifiedPushUnregistered,
+  onUnifiedPushError,
   registerActionTypes,
   pending,
   cancel,

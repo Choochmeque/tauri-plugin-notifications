@@ -13,6 +13,11 @@ It allows all notification related features.
 - `allow-request-permission`
 - `allow-register-for-push-notifications`
 - `allow-unregister-for-push-notifications`
+- `allow-register-for-unified-push`
+- `allow-unregister-from-unified-push`
+- `allow-get-unified-push-distributors`
+- `allow-save-unified-push-distributor`
+- `allow-get-unified-push-distributor`
 - `allow-notify`
 - `allow-register-action-types`
 - `allow-register-listener`
@@ -251,6 +256,58 @@ Denies the get_pending command without any pre-configured scope.
 <tr>
 <td>
 
+`notifications:allow-get-unified-push-distributor`
+
+</td>
+<td>
+
+Enables the get_unified_push_distributor command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`notifications:deny-get-unified-push-distributor`
+
+</td>
+<td>
+
+Denies the get_unified_push_distributor command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`notifications:allow-get-unified-push-distributors`
+
+</td>
+<td>
+
+Enables the get_unified_push_distributors command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`notifications:deny-get-unified-push-distributors`
+
+</td>
+<td>
+
+Denies the get_unified_push_distributors command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
 `notifications:allow-is-permission-granted`
 
 </td>
@@ -407,6 +464,32 @@ Denies the register_for_push_notifications command without any pre-configured sc
 <tr>
 <td>
 
+`notifications:allow-register-for-unified-push`
+
+</td>
+<td>
+
+Enables the register_for_unified_push command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`notifications:deny-register-for-unified-push`
+
+</td>
+<td>
+
+Denies the register_for_unified_push command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
 `notifications:allow-register-listener`
 
 </td>
@@ -511,6 +594,32 @@ Denies the request_permission command without any pre-configured scope.
 <tr>
 <td>
 
+`notifications:allow-save-unified-push-distributor`
+
+</td>
+<td>
+
+Enables the save_unified_push_distributor command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`notifications:deny-save-unified-push-distributor`
+
+</td>
+<td>
+
+Denies the save_unified_push_distributor command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
 `notifications:allow-set-click-listener-active`
 
 </td>
@@ -582,6 +691,32 @@ Enables the unregister_for_push_notifications command without any pre-configured
 <td>
 
 Denies the unregister_for_push_notifications command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`notifications:allow-unregister-from-unified-push`
+
+</td>
+<td>
+
+Enables the unregister_from_unified_push command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`notifications:deny-unregister-from-unified-push`
+
+</td>
+<td>
+
+Denies the unregister_from_unified_push command without any pre-configured scope.
 
 </td>
 </tr>

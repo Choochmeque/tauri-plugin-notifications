@@ -18,6 +18,28 @@ pub struct PushNotificationResponse {
     pub device_token: String,
 }
 
+#[cfg(feature = "unified-push")]
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UnifiedPushEndpointResponse {
+    pub endpoint: String,
+    pub instance: String,
+}
+
+#[cfg(feature = "unified-push")]
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UnifiedPushDistributorsResponse {
+    pub distributors: Vec<String>,
+}
+
+#[cfg(feature = "unified-push")]
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UnifiedPushDistributorResponse {
+    pub distributor: String,
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Attachment {

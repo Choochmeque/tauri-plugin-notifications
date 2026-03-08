@@ -20,6 +20,7 @@ import app.tauri.plugin.JSArray
 import app.tauri.plugin.JSObject
 import app.tauri.plugin.Plugin
 import com.google.firebase.messaging.FirebaseMessaging
+import org.unifiedpush.android.connector.UnifiedPush
 
 const val LOCAL_NOTIFICATIONS = "permissionState"
 
@@ -74,6 +75,11 @@ class RemoveActiveArgs {
   var notifications: List<ActiveNotification> = listOf()
 }
 
+@InvokeArg
+class SaveUnifiedPushDistributorArgs {
+  var distributor: String? = null
+}
+
 @TauriPlugin(
   permissions = [
     Permission(strings = [Manifest.permission.POST_NOTIFICATIONS], alias = "permissionState")
@@ -89,7 +95,10 @@ class NotificationPlugin(private val activity: Activity): Plugin(activity) {
   private var pendingTokenInvoke: Invoke? = null
   private var cachedToken: String? = null
 
-  // Click listener tracking for cold-start support
+  private var pendingUnifiedPushInvoke: Invoke? = null
+  private var cachedUnifiedPushEndpoint: String? = null
+  private var unifiedPushInstance: String = "default"
+
   private var hasClickedListener = false
   private var pendingNotificationClick: JSObject? = null
 
@@ -348,6 +357,8 @@ class NotificationPlugin(private val activity: Activity): Plugin(activity) {
     } else {
       if (getPermissionState(LOCAL_NOTIFICATIONS) !== PermissionState.GRANTED) {
         requestPermissionForAlias(LOCAL_NOTIFICATIONS, invoke, "permissionsCallback")
+      } else {
+        permissionState(invoke)
       }
     }
   }
@@ -451,7 +462,6 @@ class NotificationPlugin(private val activity: Activity): Plugin(activity) {
     if (!BuildConfig.ENABLE_PUSH_NOTIFICATIONS) return
 
     cachedToken = token
-    // Trigger push-token event to notify the frontend about the token
     val data = JSObject()
     data.put("token", token)
     trigger("push-token", data)
@@ -504,6 +514,188 @@ class NotificationPlugin(private val activity: Activity): Plugin(activity) {
     } else {
       "denied"
     }
+  }
+
+
+  @Command
+  fun registerForUnifiedPush(invoke: Invoke) {
+    if (!BuildConfig.ENABLE_UNIFIED_PUSH) {
+      invoke.reject("UnifiedPush is disabled in this build")
+      return
+    }
+
+    // First check if notifications are enabled
+    if (!manager.areNotificationsEnabled()) {
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        if (getPermissionState(LOCAL_NOTIFICATIONS) !== PermissionState.GRANTED) {
+          pendingUnifiedPushInvoke = invoke
+          requestPermissionForAlias(LOCAL_NOTIFICATIONS, invoke, "unifiedPushPermissionsCallback")
+          return
+        }
+      } else {
+        invoke.reject("Notification permissions not granted")
+        return
+      }
+    }
+
+    // If we already have a cached endpoint, return it immediately
+    cachedUnifiedPushEndpoint?.let {
+      val result = JSObject()
+      result.put("endpoint", it)
+      result.put("instance", unifiedPushInstance)
+      invoke.resolve(result)
+      return
+    }
+
+    // Store the invoke to respond later when we get the endpoint
+    pendingUnifiedPushInvoke = invoke
+
+    // Register with UnifiedPush
+    UnifiedPush.registerApp(activity, unifiedPushInstance)
+  }
+
+  @Command
+  fun unregisterFromUnifiedPush(invoke: Invoke) {
+    if (!BuildConfig.ENABLE_UNIFIED_PUSH) {
+      invoke.reject("UnifiedPush is disabled in this build")
+      return
+    }
+
+    UnifiedPush.unregisterApp(activity, unifiedPushInstance)
+    cachedUnifiedPushEndpoint = null
+    invoke.resolve()
+  }
+
+  @Command
+  fun getUnifiedPushDistributors(invoke: Invoke) {
+    if (!BuildConfig.ENABLE_UNIFIED_PUSH) {
+      invoke.reject("UnifiedPush is disabled in this build")
+      return
+    }
+
+    val distributors = UnifiedPush.getDistributors(activity)
+    val result = JSObject()
+    val distributorsArray = JSArray()
+    distributors.forEach { distributorsArray.put(it) }
+    result.put("distributors", distributorsArray)
+    invoke.resolve(result)
+  }
+
+  @Command
+  fun saveUnifiedPushDistributor(invoke: Invoke) {
+    if (!BuildConfig.ENABLE_UNIFIED_PUSH) {
+      invoke.reject("UnifiedPush is disabled in this build")
+      return
+    }
+
+    val args = invoke.parseArgs(SaveUnifiedPushDistributorArgs::class.java)
+    val distributor = args.distributor
+    if (distributor == null) {
+      invoke.reject("Distributor parameter is required")
+      return
+    }
+
+    UnifiedPush.saveDistributor(activity, distributor)
+    invoke.resolve()
+  }
+
+  @Command
+  fun getUnifiedPushDistributor(invoke: Invoke) {
+    if (!BuildConfig.ENABLE_UNIFIED_PUSH) {
+      invoke.reject("UnifiedPush is disabled in this build")
+      return
+    }
+
+    val distributor = UnifiedPush.getDistributor(activity)
+    val result = JSObject()
+    result.put("distributor", distributor)
+    invoke.resolve(result)
+  }
+
+  @PermissionCallback
+  private fun unifiedPushPermissionsCallback(invoke: Invoke) {
+    if (!manager.areNotificationsEnabled()) {
+      invoke.reject("Notification permissions denied")
+      pendingUnifiedPushInvoke = null
+      return
+    }
+
+    UnifiedPush.registerApp(activity, unifiedPushInstance)
+  }
+
+  fun handleNewUnifiedPushEndpoint(endpoint: String, instance: String) {
+    if (!BuildConfig.ENABLE_UNIFIED_PUSH) return
+
+    cachedUnifiedPushEndpoint = endpoint
+    unifiedPushInstance = instance
+
+    val result = JSObject()
+    result.put("endpoint", endpoint)
+    result.put("instance", instance)
+
+    pendingUnifiedPushInvoke?.resolve(result)
+    pendingUnifiedPushInvoke = null
+
+    val data = JSObject()
+    data.put("endpoint", endpoint)
+    data.put("instance", instance)
+    trigger("unifiedpush-endpoint", data)
+  }
+
+  // Called by TauriUnifiedPushMessagingService when unregistered
+  fun handleUnifiedPushUnregistered(instance: String) {
+    if (!BuildConfig.ENABLE_UNIFIED_PUSH) return
+
+    cachedUnifiedPushEndpoint = null
+
+    val data = JSObject()
+    data.put("instance", instance)
+    trigger("unifiedpush-unregistered", data)
+  }
+
+  // Called by TauriUnifiedPushMessagingService when a push message is received
+  fun triggerUnifiedPushMessage(pushData: Map<String, Any>) {
+    if (!BuildConfig.ENABLE_UNIFIED_PUSH) return
+
+    val data = JSObject()
+    for ((key, value) in pushData) {
+      when (value) {
+        is String -> data.put(key, value)
+        is Int -> data.put(key, value)
+        is Long -> data.put(key, value)
+        is Double -> data.put(key, value)
+        is Boolean -> data.put(key, value)
+        is Map<*, *> -> {
+          val nestedObj = JSObject()
+          @Suppress("UNCHECKED_CAST")
+          val map = value as Map<String, Any>
+          for ((k, v) in map) {
+            nestedObj.put(k, v.toString())
+          }
+          data.put(key, nestedObj)
+        }
+        else -> data.put(key, value.toString())
+      }
+    }
+    trigger("unifiedpush-message", data)
+  }
+
+  // Called by TauriUnifiedPushMessagingService when registration fails
+  fun handleUnifiedPushRegistrationFailed(instance: String) {
+    if (!BuildConfig.ENABLE_UNIFIED_PUSH) return
+
+    val errorMessage = "UnifiedPush registration failed for instance: $instance"
+    val errorData = JSObject()
+    errorData.put("message", errorMessage)
+    errorData.put("instance", instance)
+    trigger("unifiedpush-error", errorData)
+
+    pendingUnifiedPushInvoke?.reject(errorMessage)
+    pendingUnifiedPushInvoke = null
+  }
+
+  fun getNotificationManager(): TauriNotificationManager {
+    return manager
   }
 
   @Command

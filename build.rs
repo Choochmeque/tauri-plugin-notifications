@@ -9,6 +9,11 @@ const COMMANDS: &[&str] = &[
     "is_permission_granted",
     "register_for_push_notifications",
     "unregister_for_push_notifications",
+    "register_for_unified_push",
+    "unregister_from_unified_push",
+    "get_unified_push_distributors",
+    "save_unified_push_distributor",
+    "get_unified_push_distributor",
     "register_action_types",
     "cancel",
     "cancel_all",
@@ -26,21 +31,21 @@ const COMMANDS: &[&str] = &[
 ];
 
 fn main() {
-    // Check if push-notifications feature is enabled
     let enable_push = cfg!(feature = "push-notifications");
+    let enable_unified_push = cfg!(feature = "unified-push");
 
-    // Generate build.properties file for Android
     if std::env::var("TARGET")
         .unwrap_or_default()
         .contains("android")
     {
-        let properties_content = format!("enablePushNotifications={}", enable_push);
+        let properties_content = format!(
+            "enablePushNotifications={}\nenableUnifiedPush={}",
+            enable_push, enable_unified_push
+        );
         std::fs::write("android/build.properties", properties_content)
             .expect("Failed to write build.properties");
     }
 
-    // Generate marker file for iOS/macOS Swift build
-    // Package.swift reads this file to conditionally enable ENABLE_PUSH_NOTIFICATIONS
     let ios_marker_path = std::path::Path::new("ios/.push-notifications-enabled");
     let macos_marker_path = std::path::Path::new("macos/.push-notifications-enabled");
     if enable_push {
