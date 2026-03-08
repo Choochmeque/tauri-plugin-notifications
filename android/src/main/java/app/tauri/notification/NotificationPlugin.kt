@@ -551,7 +551,7 @@ class NotificationPlugin(private val activity: Activity): Plugin(activity) {
     pendingUnifiedPushInvoke = invoke
 
     // Register with UnifiedPush
-    UnifiedPush.registerApp(activity, unifiedPushInstance)
+    UnifiedPush.register(activity, unifiedPushInstance)
   }
 
   @Command
@@ -561,7 +561,7 @@ class NotificationPlugin(private val activity: Activity): Plugin(activity) {
       return
     }
 
-    UnifiedPush.unregisterApp(activity, unifiedPushInstance)
+    UnifiedPush.unregister(activity, unifiedPushInstance)
     cachedUnifiedPushEndpoint = null
     invoke.resolve()
   }
@@ -606,7 +606,7 @@ class NotificationPlugin(private val activity: Activity): Plugin(activity) {
       return
     }
 
-    val distributor = UnifiedPush.getDistributor(activity)
+    val distributor = UnifiedPush.getSavedDistributor(activity) ?: ""
     val result = JSObject()
     result.put("distributor", distributor)
     invoke.resolve(result)
@@ -620,7 +620,7 @@ class NotificationPlugin(private val activity: Activity): Plugin(activity) {
       return
     }
 
-    UnifiedPush.registerApp(activity, unifiedPushInstance)
+    UnifiedPush.register(activity, unifiedPushInstance)
   }
 
   fun handleNewUnifiedPushEndpoint(endpoint: String, instance: String) {

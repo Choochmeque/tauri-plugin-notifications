@@ -5,7 +5,10 @@ import android.util.Log
 import app.tauri.plugin.JSObject
 import org.json.JSONArray
 import org.json.JSONObject
+import org.unifiedpush.android.connector.FailedReason
 import org.unifiedpush.android.connector.MessagingReceiver
+import org.unifiedpush.android.connector.data.PushEndpoint
+import org.unifiedpush.android.connector.data.PushMessage
 import java.util.concurrent.Executors
 
 /**
@@ -32,9 +35,9 @@ open class TauriUnifiedPushMessagingService : MessagingReceiver() {
     }
   }
 
-  override fun onNewEndpoint(context: Context, endpoint: String, instance: String) {
-    Log.d(TAG, "New endpoint registered: $endpoint")
-    NotificationPlugin.instance?.handleNewUnifiedPushEndpoint(endpoint, instance)
+  override fun onNewEndpoint(context: Context, endpoint: PushEndpoint, instance: String) {
+    Log.d(TAG, "New endpoint registered: ${endpoint.url}")
+    NotificationPlugin.instance?.handleNewUnifiedPushEndpoint(endpoint.url, instance)
   }
 
   override fun onUnregistered(context: Context, instance: String) {
@@ -42,11 +45,11 @@ open class TauriUnifiedPushMessagingService : MessagingReceiver() {
     NotificationPlugin.instance?.handleUnifiedPushUnregistered(instance)
   }
 
-  override fun onMessage(context: Context, message: ByteArray, instance: String) {
+  override fun onMessage(context: Context, message: PushMessage, instance: String) {
     Log.d(TAG, "Message received for instance: $instance")
 
     try {
-      val messageString = message.toString(Charsets.UTF_8)
+      val messageString = message.content.toString(Charsets.UTF_8)
 
       val pushData = mutableMapOf<String, Any>()
       try {
@@ -68,7 +71,7 @@ open class TauriUnifiedPushMessagingService : MessagingReceiver() {
       if (handler != null) {
         executor.execute {
           try {
-            val handled = handler.onMessage(context, message, instance)
+            val handled = handler.onMessage(context, message.content, instance)
             if (!handled) showFallbackNotification(pushData)
           } catch (e: Exception) {
             Log.e(TAG, "Message handler error: ${e.message}", e)
@@ -109,8 +112,8 @@ open class TauriUnifiedPushMessagingService : MessagingReceiver() {
     NotificationPlugin.triggerNotification(notification, "unifiedpush")
   }
 
-  override fun onRegistrationFailed(context: Context, instance: String) {
-    Log.e(TAG, "Registration failed for instance: $instance")
+  override fun onRegistrationFailed(context: Context, reason: FailedReason, instance: String) {
+    Log.e(TAG, "Registration failed for instance: $instance (reason: $reason)")
     NotificationPlugin.instance?.handleUnifiedPushRegistrationFailed(instance)
   }
 
