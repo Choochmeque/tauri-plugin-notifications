@@ -121,9 +121,14 @@ open class TauriUnifiedPushMessagingService : MessagingReceiver() {
 
   override fun onRegistrationFailed(context: Context, reason: FailedReason, instance: String) {
     Log.e(TAG, "Registration failed for instance: $instance (reason: $reason)")
-    NotificationPlugin.instance?.handleUnifiedPushRegistrationFailed(instance)
+    NotificationPlugin.instance?.handleUnifiedPushRegistrationFailed(instance, reason.toString())
   }
 
+  override fun onRegistrationRefused(context: Context, instance: String) {
+    Log.e(TAG, "Registration refused for instance: $instance")
+    // Treat refused registrations as failures for the JS layer.
+    NotificationPlugin.instance?.handleUnifiedPushRegistrationFailed(instance)
+  }
   private fun jsonValueToNative(value: Any): Any {
     return when (value) {
       is JSONObject -> {
