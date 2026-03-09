@@ -95,9 +95,15 @@ class NotificationPlugin(private val activity: Activity): Plugin(activity) {
   private var pendingTokenInvoke: Invoke? = null
   private var cachedToken: String? = null
 
+  @Volatile
   private var pendingUnifiedPushInvoke: Invoke? = null
+  @Volatile
   private var cachedUnifiedPushEndpoint: String? = null
+  @Volatile
   private var unifiedPushInstance: String = "default"
+
+  // Lock object for synchronizing compound read-check-write on UnifiedPush fields
+  private val unifiedPushLock = Any()
 
   private var hasClickedListener = false
   private var pendingNotificationClick: JSObject? = null
@@ -473,23 +479,7 @@ class NotificationPlugin(private val activity: Activity): Plugin(activity) {
 
     val data = JSObject()
     for ((key, value) in pushData) {
-      when (value) {
-        is String -> data.put(key, value)
-        is Int -> data.put(key, value)
-        is Long -> data.put(key, value)
-        is Double -> data.put(key, value)
-        is Boolean -> data.put(key, value)
-        is Map<*, *> -> {
-          val nestedObj = JSObject()
-          @Suppress("UNCHECKED_CAST")
-          val map = value as Map<String, Any>
-          for ((k, v) in map) {
-            nestedObj.put(k, v.toString())
-          }
-          data.put(key, nestedObj)
-        }
-        else -> data.put(key, value.toString())
-      }
+      putValueToJSObject(data, key, value)
     }
     trigger("push-message", data)
   }
@@ -528,8 +518,10 @@ class NotificationPlugin(private val activity: Activity): Plugin(activity) {
     if (!manager.areNotificationsEnabled()) {
       if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
         if (getPermissionState(LOCAL_NOTIFICATIONS) !== PermissionState.GRANTED) {
-          pendingUnifiedPushInvoke?.reject("Superseded by a new registration request")
-          pendingUnifiedPushInvoke = invoke
+          synchronized(unifiedPushLock) {
+            pendingUnifiedPushInvoke?.reject("Superseded by a new registration request")
+            pendingUnifiedPushInvoke = invoke
+          }
           requestPermissionForAlias(LOCAL_NOTIFICATIONS, invoke, "unifiedPushPermissionsCallback")
           return
         }
@@ -539,17 +531,19 @@ class NotificationPlugin(private val activity: Activity): Plugin(activity) {
       }
     }
 
-    // If we already have a cached endpoint, return it immediately
-    cachedUnifiedPushEndpoint?.let {
-      val result = JSObject()
-      result.put("endpoint", it)
-      result.put("instance", unifiedPushInstance)
-      invoke.resolve(result)
-      return
-    }
+    synchronized(unifiedPushLock) {
+      // If we already have a cached endpoint, return it immediately
+      cachedUnifiedPushEndpoint?.let {
+        val result = JSObject()
+        result.put("endpoint", it)
+        result.put("instance", unifiedPushInstance)
+        invoke.resolve(result)
+        return
+      }
 
-    pendingUnifiedPushInvoke?.reject("Superseded by a new registration request")
-    pendingUnifiedPushInvoke = invoke
+      pendingUnifiedPushInvoke?.reject("Superseded by a new registration request")
+      pendingUnifiedPushInvoke = invoke
+    }
     UnifiedPush.register(activity, unifiedPushInstance)
   }
 
@@ -560,12 +554,14 @@ class NotificationPlugin(private val activity: Activity): Plugin(activity) {
       return
     }
 
-    // Reject any pending registration invoke to prevent the JS caller from hanging
-    pendingUnifiedPushInvoke?.reject("Unregistration requested while registration was in progress")
-    pendingUnifiedPushInvoke = null
+    synchronized(unifiedPushLock) {
+      // Reject any pending registration invoke to prevent the JS caller from hanging
+      pendingUnifiedPushInvoke?.reject("Unregistration requested while registration was in progress")
+      pendingUnifiedPushInvoke = null
+      cachedUnifiedPushEndpoint = null
+    }
 
     UnifiedPush.unregister(activity, unifiedPushInstance)
-    cachedUnifiedPushEndpoint = null
     invoke.resolve()
   }
 
@@ -619,8 +615,10 @@ class NotificationPlugin(private val activity: Activity): Plugin(activity) {
   private fun unifiedPushPermissionsCallback(invoke: Invoke) {
     if (!manager.areNotificationsEnabled()) {
       invoke.reject("Notification permissions denied")
-      if (pendingUnifiedPushInvoke === invoke) {
-        pendingUnifiedPushInvoke = null
+      synchronized(unifiedPushLock) {
+        if (pendingUnifiedPushInvoke === invoke) {
+          pendingUnifiedPushInvoke = null
+        }
       }
       return
     }
@@ -631,15 +629,19 @@ class NotificationPlugin(private val activity: Activity): Plugin(activity) {
   fun handleNewUnifiedPushEndpoint(endpoint: String, instance: String) {
     if (!BuildConfig.ENABLE_UNIFIED_PUSH) return
 
-    cachedUnifiedPushEndpoint = endpoint
-    unifiedPushInstance = instance
+    val pendingInvoke: Invoke?
+    synchronized(unifiedPushLock) {
+      cachedUnifiedPushEndpoint = endpoint
+      unifiedPushInstance = instance
+      pendingInvoke = pendingUnifiedPushInvoke
+      pendingUnifiedPushInvoke = null
+    }
 
     val result = JSObject()
     result.put("endpoint", endpoint)
     result.put("instance", instance)
 
-    pendingUnifiedPushInvoke?.resolve(result)
-    pendingUnifiedPushInvoke = null
+    pendingInvoke?.resolve(result)
 
     val data = JSObject()
     data.put("endpoint", endpoint)
@@ -651,7 +653,9 @@ class NotificationPlugin(private val activity: Activity): Plugin(activity) {
   fun handleUnifiedPushUnregistered(instance: String) {
     if (!BuildConfig.ENABLE_UNIFIED_PUSH) return
 
-    cachedUnifiedPushEndpoint = null
+    synchronized(unifiedPushLock) {
+      cachedUnifiedPushEndpoint = null
+    }
 
     val data = JSObject()
     data.put("instance", instance)
@@ -664,23 +668,7 @@ class NotificationPlugin(private val activity: Activity): Plugin(activity) {
 
     val data = JSObject()
     for ((key, value) in pushData) {
-      when (value) {
-        is String -> data.put(key, value)
-        is Int -> data.put(key, value)
-        is Long -> data.put(key, value)
-        is Double -> data.put(key, value)
-        is Boolean -> data.put(key, value)
-        is Map<*, *> -> {
-          val nestedObj = JSObject()
-          @Suppress("UNCHECKED_CAST")
-          val map = value as Map<String, Any>
-          for ((k, v) in map) {
-            nestedObj.put(k, v.toString())
-          }
-          data.put(key, nestedObj)
-        }
-        else -> data.put(key, value.toString())
-      }
+      putValueToJSObject(data, key, value)
     }
     trigger("unifiedpush-message", data)
   }
@@ -699,8 +687,70 @@ class NotificationPlugin(private val activity: Activity): Plugin(activity) {
     errorData.put("instance", instance)
     trigger("unifiedpush-error", errorData)
 
-    pendingUnifiedPushInvoke?.reject(errorMessage)
-    pendingUnifiedPushInvoke = null
+    val pendingInvoke: Invoke?
+    synchronized(unifiedPushLock) {
+      pendingInvoke = pendingUnifiedPushInvoke
+      pendingUnifiedPushInvoke = null
+    }
+    pendingInvoke?.reject(errorMessage)
+  }
+
+  /**
+   * Recursively converts a native value (from JSON parsing) into the appropriate
+   * JSObject/JSArray type and puts it into the target [JSObject] under the given [key].
+   * Handles String, Int, Long, Double, Boolean, Map, and List types.
+   */
+  private fun putValueToJSObject(target: JSObject, key: String, value: Any) {
+    when (value) {
+      is String -> target.put(key, value)
+      is Int -> target.put(key, value)
+      is Long -> target.put(key, value)
+      is Double -> target.put(key, value)
+      is Boolean -> target.put(key, value)
+      is Map<*, *> -> {
+        val nestedObj = JSObject()
+        @Suppress("UNCHECKED_CAST")
+        val map = value as Map<String, Any>
+        for ((k, v) in map) {
+          putValueToJSObject(nestedObj, k, v)
+        }
+        target.put(key, nestedObj)
+      }
+      is List<*> -> {
+        target.put(key, convertListToJSArray(value))
+      }
+      else -> target.put(key, value.toString())
+    }
+  }
+
+  /**
+   * Recursively converts a [List] (from JSON array parsing) into a [JSArray],
+   * properly handling nested maps, lists, and primitive types.
+   */
+  private fun convertListToJSArray(list: List<*>): JSArray {
+    val arr = JSArray()
+    for (item in list) {
+      when (item) {
+        is String -> arr.put(item)
+        is Int -> arr.put(item)
+        is Long -> arr.put(item)
+        is Double -> arr.put(item)
+        is Boolean -> arr.put(item)
+        is Map<*, *> -> {
+          val nestedObj = JSObject()
+          @Suppress("UNCHECKED_CAST")
+          val map = item as Map<String, Any>
+          for ((k, v) in map) {
+            putValueToJSObject(nestedObj, k, v)
+          }
+          arr.put(nestedObj)
+        }
+        is List<*> -> arr.put(convertListToJSArray(item))
+        null -> arr.put(org.json.JSONObject.NULL)
+        else -> arr.put(item.toString())
+      }
+    }
+    return arr
   }
 
   fun getNotificationManager(): TauriNotificationManager {

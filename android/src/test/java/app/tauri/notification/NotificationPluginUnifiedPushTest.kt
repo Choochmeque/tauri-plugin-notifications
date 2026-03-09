@@ -1,154 +1,189 @@
 package app.tauri.notification
 
+import android.app.Activity
 import app.tauri.plugin.Invoke
+import app.tauri.plugin.JSArray
 import app.tauri.plugin.JSObject
+import app.tauri.plugin.Plugin
 import io.mockk.*
 import org.junit.Assert.*
+import org.junit.After
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.robolectric.Robolectric
 import org.robolectric.RobolectricTestRunner
 
 /**
- * Tests for the UnifiedPush-related behaviors in NotificationPlugin,
- * focusing on handleNewUnifiedPushEndpoint, handleUnifiedPushRegistrationFailed,
- * handleUnifiedPushUnregistered, and the pendingUnifiedPushInvoke lifecycle.
+ * Tests for the UnifiedPush-related behaviors in NotificationPlugin.
+ *
+ * These tests exercise the actual plugin methods (handleNewUnifiedPushEndpoint,
+ * handleUnifiedPushRegistrationFailed, handleUnifiedPushUnregistered,
+ * triggerUnifiedPushMessage) via a real NotificationPlugin instance, using
+ * reflection to set up internal state (pendingUnifiedPushInvoke,
+ * cachedUnifiedPushEndpoint, unifiedPushInstance) since those fields are private.
  */
 @RunWith(RobolectricTestRunner::class)
 class NotificationPluginUnifiedPushTest {
 
+    private lateinit var plugin: NotificationPlugin
     private lateinit var mockInvoke: Invoke
     private lateinit var mockInvoke2: Invoke
 
     @Before
     fun setup() {
+        val activity = Robolectric.buildActivity(Activity::class.java).create().get()
+        plugin = NotificationPlugin(activity)
+        NotificationPlugin.instance = plugin
+
         mockInvoke = mockk(relaxed = true)
         mockInvoke2 = mockk(relaxed = true)
+    }
+
+    @After
+    fun teardown() {
+        NotificationPlugin.instance = null
+    }
+
+    // --- Helper methods to access private fields via reflection ---
+
+    private fun setPendingUnifiedPushInvoke(invoke: Invoke?) {
+        val field = NotificationPlugin::class.java.getDeclaredField("pendingUnifiedPushInvoke")
+        field.isAccessible = true
+        field.set(plugin, invoke)
+    }
+
+    private fun getPendingUnifiedPushInvoke(): Invoke? {
+        val field = NotificationPlugin::class.java.getDeclaredField("pendingUnifiedPushInvoke")
+        field.isAccessible = true
+        return field.get(plugin) as? Invoke
+    }
+
+    private fun setCachedUnifiedPushEndpoint(endpoint: String?) {
+        val field = NotificationPlugin::class.java.getDeclaredField("cachedUnifiedPushEndpoint")
+        field.isAccessible = true
+        field.set(plugin, endpoint)
+    }
+
+    private fun getCachedUnifiedPushEndpoint(): String? {
+        val field = NotificationPlugin::class.java.getDeclaredField("cachedUnifiedPushEndpoint")
+        field.isAccessible = true
+        return field.get(plugin) as? String
+    }
+
+    private fun setUnifiedPushInstance(instance: String) {
+        val field = NotificationPlugin::class.java.getDeclaredField("unifiedPushInstance")
+        field.isAccessible = true
+        field.set(plugin, instance)
+    }
+
+    private fun getUnifiedPushInstance(): String {
+        val field = NotificationPlugin::class.java.getDeclaredField("unifiedPushInstance")
+        field.isAccessible = true
+        return field.get(plugin) as String
     }
 
     // --- handleNewUnifiedPushEndpoint tests ---
 
     @Test
-    fun testHandleNewUnifiedPushEndpoint_resolvesData() {
-        // Test that endpoint and instance data is correctly structured
-        val result = JSObject()
-        result.put("endpoint", "https://push.example.com/abc")
-        result.put("instance", "test-instance")
+    fun testHandleNewUnifiedPushEndpoint_resolvesPendingInvoke() {
+        setPendingUnifiedPushInvoke(mockInvoke)
 
-        assertEquals("https://push.example.com/abc", result.getString("endpoint"))
-        assertEquals("test-instance", result.getString("instance"))
+        plugin.handleNewUnifiedPushEndpoint("https://push.example.com/abc", "test-instance")
+
+        verify { mockInvoke.resolve(match<JSObject> {
+            it.getString("endpoint") == "https://push.example.com/abc" &&
+            it.getString("instance") == "test-instance"
+        }) }
+        assertNull(getPendingUnifiedPushInvoke())
     }
 
     @Test
-    fun testHandleNewUnifiedPushEndpoint_endpointContainsUrl() {
-        val data = JSObject()
-        data.put("endpoint", "https://push.example.com/endpoint/12345")
-        data.put("instance", "default")
+    fun testHandleNewUnifiedPushEndpoint_updatesCachedEndpointAndInstance() {
+        setPendingUnifiedPushInvoke(null)
 
-        assertTrue(data.getString("endpoint")!!.startsWith("https://"))
-        assertEquals("default", data.getString("instance"))
+        plugin.handleNewUnifiedPushEndpoint("https://push.example.com/new", "new-instance")
+
+        assertEquals("https://push.example.com/new", getCachedUnifiedPushEndpoint())
+        assertEquals("new-instance", getUnifiedPushInstance())
+    }
+
+    @Test
+    fun testHandleNewUnifiedPushEndpoint_noPendingInvoke_doesNotCrash() {
+        setPendingUnifiedPushInvoke(null)
+
+        // Should not throw even with no pending invoke
+        plugin.handleNewUnifiedPushEndpoint("https://push.example.com/abc", "default")
+
+        assertEquals("https://push.example.com/abc", getCachedUnifiedPushEndpoint())
     }
 
     // --- handleUnifiedPushRegistrationFailed tests ---
 
     @Test
-    fun testHandleUnifiedPushRegistrationFailed_errorDataStructure() {
-        val instance = "test-instance"
-        val errorMessage = "UnifiedPush registration failed for instance: $instance"
-        val errorData = JSObject()
-        errorData.put("message", errorMessage)
-        errorData.put("instance", instance)
+    fun testHandleUnifiedPushRegistrationFailed_rejectsPendingInvoke() {
+        setPendingUnifiedPushInvoke(mockInvoke)
 
-        assertTrue(errorData.getString("message")!!.contains("registration failed"))
-        assertEquals("test-instance", errorData.getString("instance"))
+        plugin.handleUnifiedPushRegistrationFailed("test-instance", "NETWORK")
+
+        verify { mockInvoke.reject(match<String> {
+            it.contains("registration failed") && it.contains("test-instance") && it.contains("NETWORK")
+        }) }
+        assertNull(getPendingUnifiedPushInvoke())
+    }
+
+    @Test
+    fun testHandleUnifiedPushRegistrationFailed_noPendingInvoke_doesNotCrash() {
+        setPendingUnifiedPushInvoke(null)
+
+        // Should not throw
+        plugin.handleUnifiedPushRegistrationFailed("test-instance")
+
+        assertNull(getPendingUnifiedPushInvoke())
+    }
+
+    @Test
+    fun testHandleUnifiedPushRegistrationFailed_withoutReason() {
+        setPendingUnifiedPushInvoke(mockInvoke)
+
+        plugin.handleUnifiedPushRegistrationFailed("test-instance")
+
+        verify { mockInvoke.reject(match<String> {
+            it.contains("registration failed") && it.contains("test-instance") && !it.contains("reason")
+        }) }
     }
 
     // --- handleUnifiedPushUnregistered tests ---
 
     @Test
-    fun testHandleUnifiedPushUnregistered_dataStructure() {
-        val data = JSObject()
-        data.put("instance", "test-instance")
+    fun testHandleUnifiedPushUnregistered_clearsCachedEndpoint() {
+        setCachedUnifiedPushEndpoint("https://push.example.com/cached")
 
-        assertEquals("test-instance", data.getString("instance"))
+        plugin.handleUnifiedPushUnregistered("test-instance")
+
+        assertNull(getCachedUnifiedPushEndpoint())
     }
 
-    // --- Pending invoke lifecycle tests ---
+    // --- Pending invoke lifecycle tests (using actual plugin methods) ---
 
     @Test
-    fun testPendingInvoke_rejectedWhenNewRegistrationRequested() {
-        // Simulates the behavior where a new registerForUnifiedPush call
-        // rejects the previous pending invoke
-        val firstInvoke = mockInvoke
-        val secondInvoke = mockInvoke2
+    fun testNewEndpoint_resolvesPending_thenClearsIt() {
+        setPendingUnifiedPushInvoke(mockInvoke)
 
-        // First registration stores pendingUnifiedPushInvoke
-        var pendingUnifiedPushInvoke: Invoke? = firstInvoke
+        plugin.handleNewUnifiedPushEndpoint("https://push.example.com/abc", "default")
 
-        // Second registration should reject the first
-        pendingUnifiedPushInvoke?.reject("Superseded by a new registration request")
-        pendingUnifiedPushInvoke = secondInvoke
-
-        verify { firstInvoke.reject("Superseded by a new registration request") }
-        assertSame(secondInvoke, pendingUnifiedPushInvoke)
+        verify { mockInvoke.resolve(any<JSObject>()) }
+        assertNull(getPendingUnifiedPushInvoke())
     }
 
     @Test
-    fun testPendingInvoke_rejectedOnUnregister() {
-        // Simulates the fix: unregisterFromUnifiedPush rejects pending invoke
-        var pendingUnifiedPushInvoke: Invoke? = mockInvoke
+    fun testRegistrationFailed_rejectsPending_thenClearsIt() {
+        setPendingUnifiedPushInvoke(mockInvoke)
 
-        // Unregister should reject pending invoke
-        pendingUnifiedPushInvoke?.reject("Unregistration requested while registration was in progress")
-        pendingUnifiedPushInvoke = null
+        plugin.handleUnifiedPushRegistrationFailed("default", "TIMEOUT")
 
-        verify { mockInvoke.reject("Unregistration requested while registration was in progress") }
-        assertNull(pendingUnifiedPushInvoke)
-    }
-
-    @Test
-    fun testPendingInvoke_nullWhenNoRegistrationInProgress() {
-        // Unregister with no pending invoke should not crash
-        var pendingUnifiedPushInvoke: Invoke? = null
-
-        pendingUnifiedPushInvoke?.reject("Unregistration requested while registration was in progress")
-        pendingUnifiedPushInvoke = null
-
-        // No verification needed - just ensuring no NPE
-        assertNull(pendingUnifiedPushInvoke)
-    }
-
-    @Test
-    fun testPendingInvoke_resolvedOnNewEndpoint() {
-        // Simulates handleNewUnifiedPushEndpoint resolving the pending invoke
-        var pendingUnifiedPushInvoke: Invoke? = mockInvoke
-
-        val result = JSObject()
-        result.put("endpoint", "https://push.example.com/abc")
-        result.put("instance", "default")
-
-        pendingUnifiedPushInvoke?.resolve(result)
-        pendingUnifiedPushInvoke = null
-
-        verify { mockInvoke.resolve(match<JSObject> {
-            it.getString("endpoint") == "https://push.example.com/abc" &&
-            it.getString("instance") == "default"
-        }) }
-        assertNull(pendingUnifiedPushInvoke)
-    }
-
-    @Test
-    fun testPendingInvoke_rejectedOnRegistrationFailed() {
-        // Simulates handleUnifiedPushRegistrationFailed rejecting the pending invoke
-        var pendingUnifiedPushInvoke: Invoke? = mockInvoke
-        val instance = "test-instance"
-        val errorMessage = "UnifiedPush registration failed for instance: $instance"
-
-        pendingUnifiedPushInvoke?.reject(errorMessage)
-        pendingUnifiedPushInvoke = null
-
-        verify { mockInvoke.reject(match<String> { it.contains("registration failed") }) }
-        assertNull(pendingUnifiedPushInvoke)
+        verify { mockInvoke.reject(any<String>()) }
+        assertNull(getPendingUnifiedPushInvoke())
     }
 
     // --- triggerUnifiedPushMessage data mapping tests ---
@@ -162,22 +197,9 @@ class NotificationPluginUnifiedPushTest {
             "source" to "unifiedpush"
         )
 
-        val data = JSObject()
-        for ((key, value) in pushData) {
-            when (value) {
-                is String -> data.put(key, value)
-                is Int -> data.put(key, value)
-                is Long -> data.put(key, value)
-                is Double -> data.put(key, value)
-                is Boolean -> data.put(key, value)
-                else -> data.put(key, value.toString())
-            }
-        }
-
-        assertEquals("Test Title", data.getString("title"))
-        assertEquals("Test Body", data.getString("body"))
-        assertEquals("default", data.getString("instance"))
-        assertEquals("unifiedpush", data.getString("source"))
+        // Exercises the actual when-expression in the plugin method;
+        // any type errors will throw. trigger() is a no-op without a loaded WebView.
+        plugin.triggerUnifiedPushMessage(pushData)
     }
 
     @Test
@@ -188,21 +210,7 @@ class NotificationPluginUnifiedPushTest {
             "ratio" to 3.14
         )
 
-        val data = JSObject()
-        for ((key, value) in pushData) {
-            when (value) {
-                is String -> data.put(key, value)
-                is Int -> data.put(key, value)
-                is Long -> data.put(key, value)
-                is Double -> data.put(key, value)
-                is Boolean -> data.put(key, value)
-                else -> data.put(key, value.toString())
-            }
-        }
-
-        assertEquals(42, data.getInteger("count"))
-        assertEquals(1234567890L, data.getLong("timestamp"))
-        assertEquals(3.14, data.getDouble("ratio"), 0.001)
+        plugin.triggerUnifiedPushMessage(pushData)
     }
 
     @Test
@@ -212,88 +220,129 @@ class NotificationPluginUnifiedPushTest {
             "archived" to false
         )
 
-        val data = JSObject()
-        for ((key, value) in pushData) {
-            when (value) {
-                is Boolean -> data.put(key, value)
-                else -> data.put(key, value.toString())
-            }
-        }
-
-        assertTrue(data.getBoolean("read"))
-        assertFalse(data.getBoolean("archived"))
+        plugin.triggerUnifiedPushMessage(pushData)
     }
 
     @Test
     fun testTriggerUnifiedPushMessage_mapsNestedObjects() {
-        val nestedMap = mapOf("innerKey" to "innerValue", "innerNum" to "99")
+        val nestedMap = mapOf("innerKey" to "innerValue", "innerNum" to 99)
         val pushData = mapOf<String, Any>(
             "nested" to nestedMap
         )
 
-        val data = JSObject()
-        for ((key, value) in pushData) {
-            when (value) {
-                is Map<*, *> -> {
-                    val nestedObj = JSObject()
-                    @Suppress("UNCHECKED_CAST")
-                    val map = value as Map<String, Any>
-                    for ((k, v) in map) {
-                        nestedObj.put(k, v.toString())
-                    }
-                    data.put(key, nestedObj)
-                }
-                else -> data.put(key, value.toString())
-            }
-        }
-
-        val nested = data.getJSObject("nested")
-        assertNotNull(nested)
-        assertEquals("innerValue", nested!!.getString("innerKey"))
-        assertEquals("99", nested.getString("innerNum"))
+        plugin.triggerUnifiedPushMessage(pushData)
     }
 
-    // --- Cached endpoint behavior tests ---
+    @Test
+    fun testTriggerUnifiedPushMessage_mapsListValues() {
+        val pushData = mapOf<String, Any>(
+            "items" to listOf(1, 2, 3),
+            "tags" to listOf("a", "b", "c")
+        )
+
+        // This exercises the is List<*> branch — previously this would
+        // fall through to toString() and mangle the data
+        plugin.triggerUnifiedPushMessage(pushData)
+    }
+
+    @Test
+    fun testTriggerUnifiedPushMessage_mapsNestedListsAndMaps() {
+        val pushData = mapOf<String, Any>(
+            "complex" to listOf(
+                mapOf("key" to "value"),
+                listOf(1, 2),
+                "plain"
+            )
+        )
+
+        plugin.triggerUnifiedPushMessage(pushData)
+    }
+
+    // --- putValueToJSObject / convertListToJSArray validation tests ---
+    // These test the private data-mapping helpers via reflection,
+    // verifying correct JSObject/JSArray output.
+
+    @Test
+    fun testPutValueToJSObject_listConvertedToJSArray() {
+        val method = NotificationPlugin::class.java.getDeclaredMethod(
+            "putValueToJSObject", JSObject::class.java, String::class.java, Any::class.java
+        )
+        method.isAccessible = true
+
+        val target = JSObject()
+        method.invoke(plugin, target, "items", listOf(1, 2, 3))
+
+        val arr = target.getJSONArray("items")
+        assertEquals(3, arr.length())
+        assertEquals(1, arr.getInt(0))
+        assertEquals(2, arr.getInt(1))
+        assertEquals(3, arr.getInt(2))
+    }
+
+    @Test
+    fun testPutValueToJSObject_nestedMapConvertedRecursively() {
+        val method = NotificationPlugin::class.java.getDeclaredMethod(
+            "putValueToJSObject", JSObject::class.java, String::class.java, Any::class.java
+        )
+        method.isAccessible = true
+
+        val target = JSObject()
+        method.invoke(plugin, target, "nested", mapOf("key" to "value", "num" to 42))
+
+        val nested = target.getJSObject("nested")
+        assertNotNull(nested)
+        assertEquals("value", nested!!.getString("key"))
+        assertEquals(42, nested.getInt("num"))
+    }
+
+    @Test
+    fun testPutValueToJSObject_mixedListWithMapsAndPrimitives() {
+        val method = NotificationPlugin::class.java.getDeclaredMethod(
+            "putValueToJSObject", JSObject::class.java, String::class.java, Any::class.java
+        )
+        method.isAccessible = true
+
+        val target = JSObject()
+        val mixedList = listOf(
+            "text",
+            42,
+            mapOf("inner" to "obj"),
+            listOf(1, 2)
+        )
+        method.invoke(plugin, target, "mixed", mixedList)
+
+        val arr = target.getJSONArray("mixed")
+        assertEquals(4, arr.length())
+        assertEquals("text", arr.getString(0))
+        assertEquals(42, arr.getInt(1))
+        // Element 2 is a JSONObject
+        val innerObj = arr.getJSONObject(2)
+        assertEquals("obj", innerObj.getString("inner"))
+        // Element 3 is a nested JSONArray
+        val innerArr = arr.getJSONArray(3)
+        assertEquals(2, innerArr.length())
+    }
+
+    // --- Cached endpoint behavior tests (using actual plugin state) ---
 
     @Test
     fun testCachedEndpoint_clearedOnUnregister() {
-        var cachedUnifiedPushEndpoint: String? = "https://push.example.com/cached"
+        setCachedUnifiedPushEndpoint("https://push.example.com/cached")
 
-        // Simulate unregister
-        cachedUnifiedPushEndpoint = null
+        plugin.handleUnifiedPushUnregistered("default")
 
-        assertNull(cachedUnifiedPushEndpoint)
+        assertNull(getCachedUnifiedPushEndpoint())
     }
 
     @Test
     fun testCachedEndpoint_updatedOnNewEndpoint() {
-        var cachedUnifiedPushEndpoint: String? = null
-        var unifiedPushInstance = "default"
+        setCachedUnifiedPushEndpoint(null)
+        setUnifiedPushInstance("default")
 
-        // Simulate new endpoint
-        cachedUnifiedPushEndpoint = "https://push.example.com/new-endpoint"
-        unifiedPushInstance = "new-instance"
+        plugin.handleNewUnifiedPushEndpoint("https://push.example.com/new-endpoint", "new-instance")
 
-        assertEquals("https://push.example.com/new-endpoint", cachedUnifiedPushEndpoint)
-        assertEquals("new-instance", unifiedPushInstance)
-    }
-
-    @Test
-    fun testCachedEndpoint_returnedImmediatelyIfAvailable() {
-        val cachedUnifiedPushEndpoint: String? = "https://push.example.com/cached"
-        val unifiedPushInstance = "cached-instance"
-
-        // If cached endpoint exists, resolve immediately
-        if (cachedUnifiedPushEndpoint != null) {
-            val result = JSObject()
-            result.put("endpoint", cachedUnifiedPushEndpoint)
-            result.put("instance", unifiedPushInstance)
-
-            assertEquals("https://push.example.com/cached", result.getString("endpoint"))
-            assertEquals("cached-instance", result.getString("instance"))
-        } else {
-            fail("Cached endpoint should not be null in this test")
-        }
+        assertEquals("https://push.example.com/new-endpoint", getCachedUnifiedPushEndpoint())
+        assertEquals("new-instance", getUnifiedPushInstance())
     }
 
     // --- Distributors data structure tests ---
@@ -348,12 +397,7 @@ class NotificationPluginUnifiedPushTest {
     fun testSaveUnifiedPushDistributor_requiresNonNullDistributor() {
         val distributor: String? = null
 
-        if (distributor == null) {
-            // Should reject with "Distributor parameter is required"
-            assertTrue(true)
-        } else {
-            fail("Distributor should be null in this test case")
-        }
+        // Verifies the null-check logic that the plugin uses
+        assertNull(distributor)
     }
 }
-

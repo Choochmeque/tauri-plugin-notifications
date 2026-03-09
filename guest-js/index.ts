@@ -652,7 +652,7 @@ async function onUnifiedPushError(
 
 /**
  * Sends a notification to the user.
-
+ *
  * @example
  * ```typescript
  * import { isPermissionGranted, requestPermission, sendNotification } from '@choochmeque/tauri-plugin-notifications-api';

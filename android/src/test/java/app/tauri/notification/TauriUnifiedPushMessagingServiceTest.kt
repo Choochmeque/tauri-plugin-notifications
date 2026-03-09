@@ -12,6 +12,7 @@ import org.robolectric.RobolectricTestRunner
 import org.unifiedpush.android.connector.FailedReason
 import org.unifiedpush.android.connector.data.PushEndpoint
 import org.unifiedpush.android.connector.data.PushMessage
+import java.util.concurrent.Executor
 
 @RunWith(RobolectricTestRunner::class)
 class TauriUnifiedPushMessagingServiceTest {
@@ -29,6 +30,9 @@ class TauriUnifiedPushMessagingServiceTest {
 
         // Clear any custom message handler between tests
         TauriUnifiedPushMessagingService.setMessageHandler(null)
+
+        // Use a synchronous executor so handler tests don't need Thread.sleep
+        TauriUnifiedPushMessagingService.setExecutorForTesting(Executor { it.run() })
     }
 
     // --- onMessage JSON parsing tests ---
@@ -220,8 +224,6 @@ class TauriUnifiedPushMessagingServiceTest {
 
         service.onMessage(mockContext, message, "default")
 
-        // Wait for executor to finish
-        Thread.sleep(200)
 
         verify { handler.onMessage(mockContext, any(), "default") }
         // Fallback should NOT be called since handler returned true
@@ -245,8 +247,6 @@ class TauriUnifiedPushMessagingServiceTest {
 
         service.onMessage(mockContext, message, "default")
 
-        // Wait for executor to finish
-        Thread.sleep(200)
 
         verify { handler.onMessage(mockContext, any(), "default") }
         // Fallback SHOULD be called since handler returned false
@@ -272,8 +272,6 @@ class TauriUnifiedPushMessagingServiceTest {
 
         service.onMessage(mockContext, message, "default")
 
-        // Wait for executor to finish
-        Thread.sleep(200)
 
         // Fallback SHOULD be called since handler threw exception
         verify { mockManager.schedule(match<Notification> {

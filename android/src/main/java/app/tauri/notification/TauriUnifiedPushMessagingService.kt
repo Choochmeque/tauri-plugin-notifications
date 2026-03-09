@@ -2,6 +2,7 @@ package app.tauri.notification
 
 import android.content.Context
 import android.util.Log
+import app.tauri.plugin.JSArray
 import app.tauri.plugin.JSObject
 import org.json.JSONArray
 import org.json.JSONObject
@@ -9,6 +10,7 @@ import org.unifiedpush.android.connector.FailedReason
 import org.unifiedpush.android.connector.MessagingReceiver
 import org.unifiedpush.android.connector.data.PushEndpoint
 import org.unifiedpush.android.connector.data.PushMessage
+import java.util.concurrent.Executor
 import java.util.concurrent.Executors
 
 /**
@@ -19,7 +21,7 @@ open class TauriUnifiedPushMessagingService : MessagingReceiver() {
 
   companion object {
     private const val TAG = "TauriUnifiedPush"
-    private val executor = Executors.newSingleThreadExecutor()
+    private var executor: Executor = Executors.newSingleThreadExecutor()
 
     @Volatile
     private var messageHandler: UnifiedPushMessageHandler? = null
@@ -32,6 +34,16 @@ open class TauriUnifiedPushMessagingService : MessagingReceiver() {
     @JvmStatic
     fun setMessageHandler(handler: UnifiedPushMessageHandler?) {
       messageHandler = handler
+    }
+
+    /**
+     * Replace the executor used for running custom message handlers.
+     * Intended for testing only — pass a direct/synchronous executor to avoid
+     * flaky `Thread.sleep()` calls in tests.
+     */
+    @JvmStatic
+    fun setExecutorForTesting(testExecutor: Executor) {
+      executor = testExecutor
     }
   }
 
@@ -93,14 +105,7 @@ open class TauriUnifiedPushMessagingService : MessagingReceiver() {
 
     val extraData = JSObject()
     for ((key, value) in pushData) {
-      when (value) {
-        is String -> extraData.put(key, value)
-        is Int -> extraData.put(key, value)
-        is Long -> extraData.put(key, value)
-        is Double -> extraData.put(key, value)
-        is Boolean -> extraData.put(key, value)
-        else -> extraData.put(key, value.toString())
-      }
+      putValueToJSObject(extraData, key, value)
     }
     val notification = Notification().apply {
       id = (System.nanoTime() % Int.MAX_VALUE).toInt()
@@ -142,5 +147,54 @@ open class TauriUnifiedPushMessagingService : MessagingReceiver() {
       }
       else -> value
     }
+  }
+
+  private fun putValueToJSObject(target: JSObject, key: String, value: Any) {
+    when (value) {
+      is String -> target.put(key, value)
+      is Int -> target.put(key, value)
+      is Long -> target.put(key, value)
+      is Double -> target.put(key, value)
+      is Boolean -> target.put(key, value)
+      is Map<*, *> -> {
+        val nestedObj = JSObject()
+        @Suppress("UNCHECKED_CAST")
+        val map = value as Map<String, Any>
+        for ((k, v) in map) {
+          putValueToJSObject(nestedObj, k, v)
+        }
+        target.put(key, nestedObj)
+      }
+      is List<*> -> {
+        target.put(key, convertListToJSArray(value))
+      }
+      else -> target.put(key, value.toString())
+    }
+  }
+
+  private fun convertListToJSArray(list: List<*>): JSArray {
+    val arr = JSArray()
+    for (item in list) {
+      when (item) {
+        is String -> arr.put(item)
+        is Int -> arr.put(item)
+        is Long -> arr.put(item)
+        is Double -> arr.put(item)
+        is Boolean -> arr.put(item)
+        is Map<*, *> -> {
+          val nestedObj = JSObject()
+          @Suppress("UNCHECKED_CAST")
+          val map = item as Map<String, Any>
+          for ((k, v) in map) {
+            putValueToJSObject(nestedObj, k, v)
+          }
+          arr.put(nestedObj)
+        }
+        is List<*> -> arr.put(convertListToJSArray(item))
+        null -> arr.put(org.json.JSONObject.NULL)
+        else -> arr.put(item.toString())
+      }
+    }
+    return arr
   }
 }
