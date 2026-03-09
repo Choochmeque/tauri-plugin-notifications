@@ -395,9 +395,15 @@ class NotificationPluginUnifiedPushTest {
 
     @Test
     fun testSaveUnifiedPushDistributor_requiresNonNullDistributor() {
-        val distributor: String? = null
+        // Build a mock Invoke that returns a SaveUnifiedPushDistributorArgs with null distributor
+        val args = SaveUnifiedPushDistributorArgs()
+        // distributor defaults to null
 
-        // Verifies the null-check logic that the plugin uses
-        assertNull(distributor)
+        val invoke = mockk<Invoke>(relaxed = true)
+        every { invoke.parseArgs(SaveUnifiedPushDistributorArgs::class.java) } returns args
+
+        plugin.saveUnifiedPushDistributor(invoke)
+
+        verify { invoke.reject("Distributor parameter is required") }
     }
 }

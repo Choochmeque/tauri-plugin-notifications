@@ -101,7 +101,7 @@ impl<R: Runtime> Notifications<R> {
                 .map(|r| serde_json::json!({ "endpoint": r.endpoint, "instance": r.instance }))
                 .map_err(Into::into)
         }
-        #[cfg(all(feature = "unified-push", target_os = "ios"))]
+        #[cfg(all(feature = "unified-push", not(target_os = "android")))]
         {
             Err(crate::Error::Io(std::io::Error::other(
                 "UnifiedPush is only supported on Android",
@@ -122,7 +122,7 @@ impl<R: Runtime> Notifications<R> {
                 .run_mobile_plugin::<()>("unregisterFromUnifiedPush", ())
                 .map_err(Into::into)
         }
-        #[cfg(all(feature = "unified-push", target_os = "ios"))]
+        #[cfg(all(feature = "unified-push", not(target_os = "android")))]
         {
             Err(crate::Error::Io(std::io::Error::other(
                 "UnifiedPush is only supported on Android",
@@ -147,7 +147,7 @@ impl<R: Runtime> Notifications<R> {
                 .map(|r| serde_json::json!({ "distributors": r.distributors }))
                 .map_err(Into::into)
         }
-        #[cfg(all(feature = "unified-push", target_os = "ios"))]
+        #[cfg(all(feature = "unified-push", not(target_os = "android")))]
         {
             Err(crate::Error::Io(std::io::Error::other(
                 "UnifiedPush is only supported on Android",
@@ -170,7 +170,7 @@ impl<R: Runtime> Notifications<R> {
                 .run_mobile_plugin::<()>("saveUnifiedPushDistributor", args)
                 .map_err(Into::into)
         }
-        #[cfg(all(feature = "unified-push", target_os = "ios"))]
+        #[cfg(all(feature = "unified-push", not(target_os = "android")))]
         {
             let _ = distributor;
             Err(crate::Error::Io(std::io::Error::other(
@@ -197,7 +197,7 @@ impl<R: Runtime> Notifications<R> {
                 .map(|r| serde_json::json!({ "distributor": r.distributor }))
                 .map_err(Into::into)
         }
-        #[cfg(all(feature = "unified-push", target_os = "ios"))]
+        #[cfg(all(feature = "unified-push", not(target_os = "android")))]
         {
             Err(crate::Error::Io(std::io::Error::other(
                 "UnifiedPush is only supported on Android",

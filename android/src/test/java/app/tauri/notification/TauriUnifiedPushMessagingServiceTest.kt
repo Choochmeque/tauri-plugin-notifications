@@ -167,7 +167,7 @@ class TauriUnifiedPushMessagingServiceTest {
         // Verify that schedule was called on the manager (fallback notification)
         verify { mockManager.schedule(match<Notification> {
             it.title == "Fallback Title" && it.body == "Fallback Body"
-        }) }
+        }, "unifiedpush") }
     }
 
     @Test
@@ -184,7 +184,7 @@ class TauriUnifiedPushMessagingServiceTest {
         service.onMessage(mockContext, message, "default")
 
         // Verify that schedule was NOT called (no title or body)
-        verify(exactly = 0) { mockManager.schedule(any<Notification>()) }
+        verify(exactly = 0) { mockManager.schedule(any<Notification>(), any()) }
     }
 
     @Test
@@ -202,7 +202,7 @@ class TauriUnifiedPushMessagingServiceTest {
 
         verify { mockManager.schedule(match<Notification> {
             it.title == "" && it.body == "Body Only"
-        }) }
+        }, "unifiedpush") }
     }
 
     // --- Custom message handler tests ---
@@ -227,7 +227,7 @@ class TauriUnifiedPushMessagingServiceTest {
 
         verify { handler.onMessage(mockContext, any(), "default") }
         // Fallback should NOT be called since handler returned true
-        verify(exactly = 0) { mockManager.schedule(any<Notification>()) }
+        verify(exactly = 0) { mockManager.schedule(any<Notification>(), any()) }
     }
 
     @Test
@@ -252,7 +252,7 @@ class TauriUnifiedPushMessagingServiceTest {
         // Fallback SHOULD be called since handler returned false
         verify { mockManager.schedule(match<Notification> {
             it.title == "Not Handled" && it.body == "Show Fallback"
-        }) }
+        }, "unifiedpush") }
     }
 
     @Test
@@ -276,7 +276,7 @@ class TauriUnifiedPushMessagingServiceTest {
         // Fallback SHOULD be called since handler threw exception
         verify { mockManager.schedule(match<Notification> {
             it.title == "Error" && it.body == "Fallback on error"
-        }) }
+        }, "unifiedpush") }
     }
 
     // --- onNewEndpoint tests ---
@@ -332,7 +332,7 @@ class TauriUnifiedPushMessagingServiceTest {
         // handler should not be called
         verify(exactly = 0) { handler.onMessage(any(), any(), any()) }
         // fallback should be shown
-        verify { mockManager.schedule(any<Notification>()) }
+        verify { mockManager.schedule(any<Notification>(), eq("unifiedpush")) }
     }
 
     // --- Plugin not initialized tests ---

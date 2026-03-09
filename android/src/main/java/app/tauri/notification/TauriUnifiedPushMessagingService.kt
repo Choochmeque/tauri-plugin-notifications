@@ -2,6 +2,7 @@ package app.tauri.notification
 
 import android.content.Context
 import android.util.Log
+import androidx.annotation.VisibleForTesting
 import app.tauri.plugin.JSArray
 import app.tauri.plugin.JSObject
 import org.json.JSONArray
@@ -41,8 +42,9 @@ open class TauriUnifiedPushMessagingService : MessagingReceiver() {
      * Intended for testing only — pass a direct/synchronous executor to avoid
      * flaky `Thread.sleep()` calls in tests.
      */
+    @VisibleForTesting
     @JvmStatic
-    fun setExecutorForTesting(testExecutor: Executor) {
+    internal fun setExecutorForTesting(testExecutor: Executor) {
       executor = testExecutor
     }
   }
@@ -117,8 +119,7 @@ open class TauriUnifiedPushMessagingService : MessagingReceiver() {
 
     val plugin = NotificationPlugin.instance
     if (plugin != null) {
-      plugin.getNotificationManager().schedule(notification)
-      NotificationPlugin.triggerNotification(notification, "unifiedpush")
+      plugin.getNotificationManager().schedule(notification, "unifiedpush")
     } else {
       Log.w(TAG, "NotificationPlugin not initialized, cannot show fallback notification")
     }

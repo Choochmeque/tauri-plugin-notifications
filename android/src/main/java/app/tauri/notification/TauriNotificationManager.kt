@@ -113,17 +113,17 @@ class TauriNotificationManager(
     }
   }
 
-  private fun trigger(notificationManager: NotificationManagerCompat, notification: Notification): Int {
+  private fun trigger(notificationManager: NotificationManagerCompat, notification: Notification, source: String = "local"): Int {
     dismissVisibleNotification(notification.id)
     cancelTimerForNotification(notification.id)
-    buildNotification(notificationManager, notification)
+    buildNotification(notificationManager, notification, source)
 
     return notification.id
   }
 
-  fun schedule(notification: Notification): Int {
+  fun schedule(notification: Notification, source: String = "local"): Int {
     val notificationManager = NotificationManagerCompat.from(context)
-    return trigger(notificationManager, notification)
+    return trigger(notificationManager, notification, source)
   }
 
   fun schedule(notifications: List<Notification>): List<Int> {
@@ -147,6 +147,7 @@ class TauriNotificationManager(
   private fun buildNotification(
     notificationManager: NotificationManagerCompat,
     notification: Notification,
+    source: String = "local",
   ) {
     val channelId = notification.channelId ?: DEFAULT_NOTIFICATION_CHANNEL_ID
     val mBuilder = NotificationCompat.Builder(
@@ -215,7 +216,7 @@ class TauriNotificationManager(
     } else {
       notificationManager.notify(notification.id, buildNotification)
       try {
-        NotificationPlugin.triggerNotification(notification)
+        NotificationPlugin.triggerNotification(notification, source)
       } catch (e: JSONException) {
         Logger.error(Logger.tags(TAG), "Failed to trigger notification event: ${e.message}", e)
       }
