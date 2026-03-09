@@ -78,11 +78,8 @@ dependencies {
     implementation(platform("com.google.firebase:firebase-bom:34.7.0"))
     implementation("com.google.firebase:firebase-messaging-ktx:24.1.2")
 
-    if (buildProperties.getProperty("enableUnifiedPush", "false").toBoolean()) {
-        implementation("org.unifiedpush.android:connector:3.3.2")
-    }
+    implementation("org.unifiedpush.android:connector:3.3.2")
 
-    testImplementation("org.unifiedpush.android:connector:3.3.2")
     testImplementation("junit:junit:4.13.2")
     testImplementation("io.mockk:mockk-android:1.14.9")
     testImplementation("io.mockk:mockk-agent:1.14.9")
