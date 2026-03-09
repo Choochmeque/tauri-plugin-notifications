@@ -560,6 +560,10 @@ class NotificationPlugin(private val activity: Activity): Plugin(activity) {
       return
     }
 
+    // Reject any pending registration invoke to prevent the JS caller from hanging
+    pendingUnifiedPushInvoke?.reject("Unregistration requested while registration was in progress")
+    pendingUnifiedPushInvoke = null
+
     UnifiedPush.unregister(activity, unifiedPushInstance)
     cachedUnifiedPushEndpoint = null
     invoke.resolve()

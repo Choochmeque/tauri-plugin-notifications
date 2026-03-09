@@ -448,9 +448,6 @@ class TauriNotificationManager(
       resId = context.resources.getIdentifier("ic_notification", "drawable", context.packageName)
     }
     if (resId == AssetUtils.RESOURCE_ID_ZERO_VALUE) {
-      resId = context.applicationInfo.icon
-    }
-    if (resId == AssetUtils.RESOURCE_ID_ZERO_VALUE) {
       resId = android.R.drawable.ic_dialog_info
     }
     defaultSmallIconID = resId

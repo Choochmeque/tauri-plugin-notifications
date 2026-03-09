@@ -90,7 +90,7 @@ impl<R: Runtime> Notifications<R> {
     }
 
     pub async fn register_for_unified_push(&self) -> crate::Result<serde_json::Value> {
-        #[cfg(feature = "unified-push")]
+        #[cfg(all(feature = "unified-push", target_os = "android"))]
         {
             self.0
                 .run_mobile_plugin_async::<crate::UnifiedPushEndpointResponse>(
@@ -101,6 +101,12 @@ impl<R: Runtime> Notifications<R> {
                 .map(|r| serde_json::json!({ "endpoint": r.endpoint, "instance": r.instance }))
                 .map_err(Into::into)
         }
+        #[cfg(all(feature = "unified-push", target_os = "ios"))]
+        {
+            Err(crate::Error::Io(std::io::Error::other(
+                "UnifiedPush is only supported on Android",
+            )))
+        }
         #[cfg(not(feature = "unified-push"))]
         {
             Err(crate::Error::Io(std::io::Error::other(
@@ -110,11 +116,17 @@ impl<R: Runtime> Notifications<R> {
     }
 
     pub fn unregister_from_unified_push(&self) -> crate::Result<()> {
-        #[cfg(feature = "unified-push")]
+        #[cfg(all(feature = "unified-push", target_os = "android"))]
         {
             self.0
                 .run_mobile_plugin::<()>("unregisterFromUnifiedPush", ())
                 .map_err(Into::into)
+        }
+        #[cfg(all(feature = "unified-push", target_os = "ios"))]
+        {
+            Err(crate::Error::Io(std::io::Error::other(
+                "UnifiedPush is only supported on Android",
+            )))
         }
         #[cfg(not(feature = "unified-push"))]
         {
@@ -125,7 +137,7 @@ impl<R: Runtime> Notifications<R> {
     }
 
     pub fn get_unified_push_distributors(&self) -> crate::Result<serde_json::Value> {
-        #[cfg(feature = "unified-push")]
+        #[cfg(all(feature = "unified-push", target_os = "android"))]
         {
             self.0
                 .run_mobile_plugin::<crate::UnifiedPushDistributorsResponse>(
@@ -134,6 +146,12 @@ impl<R: Runtime> Notifications<R> {
                 )
                 .map(|r| serde_json::json!({ "distributors": r.distributors }))
                 .map_err(Into::into)
+        }
+        #[cfg(all(feature = "unified-push", target_os = "ios"))]
+        {
+            Err(crate::Error::Io(std::io::Error::other(
+                "UnifiedPush is only supported on Android",
+            )))
         }
         #[cfg(not(feature = "unified-push"))]
         {
@@ -144,13 +162,20 @@ impl<R: Runtime> Notifications<R> {
     }
 
     pub fn save_unified_push_distributor(&self, distributor: String) -> crate::Result<()> {
-        #[cfg(feature = "unified-push")]
+        #[cfg(all(feature = "unified-push", target_os = "android"))]
         {
             let mut args = std::collections::HashMap::new();
             args.insert("distributor", distributor);
             self.0
                 .run_mobile_plugin::<()>("saveUnifiedPushDistributor", args)
                 .map_err(Into::into)
+        }
+        #[cfg(all(feature = "unified-push", target_os = "ios"))]
+        {
+            let _ = distributor;
+            Err(crate::Error::Io(std::io::Error::other(
+                "UnifiedPush is only supported on Android",
+            )))
         }
         #[cfg(not(feature = "unified-push"))]
         {
@@ -162,7 +187,7 @@ impl<R: Runtime> Notifications<R> {
     }
 
     pub fn get_unified_push_distributor(&self) -> crate::Result<serde_json::Value> {
-        #[cfg(feature = "unified-push")]
+        #[cfg(all(feature = "unified-push", target_os = "android"))]
         {
             self.0
                 .run_mobile_plugin::<crate::UnifiedPushDistributorResponse>(
@@ -171,6 +196,12 @@ impl<R: Runtime> Notifications<R> {
                 )
                 .map(|r| serde_json::json!({ "distributor": r.distributor }))
                 .map_err(Into::into)
+        }
+        #[cfg(all(feature = "unified-push", target_os = "ios"))]
+        {
+            Err(crate::Error::Io(std::io::Error::other(
+                "UnifiedPush is only supported on Android",
+            )))
         }
         #[cfg(not(feature = "unified-push"))]
         {
