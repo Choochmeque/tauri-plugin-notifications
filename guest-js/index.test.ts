@@ -519,7 +519,10 @@ describe("Notification Functions", () => {
 
   describe("registerForUnifiedPush", () => {
     it("should call invoke with correct plugin command", async () => {
-      const mockEndpoint = { endpoint: "https://example.com/push", instance: "default" };
+      const mockEndpoint = {
+        endpoint: "https://example.com/push",
+        instance: "default",
+      };
       mockInvoke.mockResolvedValue(mockEndpoint);
 
       const result = await registerForUnifiedPush();
@@ -545,7 +548,12 @@ describe("Notification Functions", () => {
 
   describe("getUnifiedPushDistributors", () => {
     it("should return the list of distributors", async () => {
-      const mockDistributors = { distributors: ["org.unifiedpush.distributor.nextpush", "io.heckel.ntfy"] };
+      const mockDistributors = {
+        distributors: [
+          "org.unifiedpush.distributor.nextpush",
+          "io.heckel.ntfy",
+        ],
+      };
       mockInvoke.mockResolvedValue(mockDistributors);
 
       const result = await getUnifiedPushDistributors();
@@ -580,7 +588,9 @@ describe("Notification Functions", () => {
 
   describe("getUnifiedPushDistributor", () => {
     it("should return the current distributor", async () => {
-      const mockDistributor = { distributor: "org.unifiedpush.distributor.nextpush" };
+      const mockDistributor = {
+        distributor: "org.unifiedpush.distributor.nextpush",
+      };
       mockInvoke.mockResolvedValue(mockDistributor);
 
       const result = await getUnifiedPushDistributor();
@@ -626,7 +636,10 @@ describe("Notification Functions", () => {
       const callback = vi.fn();
       await onUnifiedPushEndpoint(callback);
 
-      const endpointData = { endpoint: "https://example.com/push", instance: "default" };
+      const endpointData = {
+        endpoint: "https://example.com/push",
+        instance: "default",
+      };
       capturedCallback?.(endpointData);
 
       expect(callback).toHaveBeenCalledWith(endpointData);
@@ -659,7 +672,12 @@ describe("Notification Functions", () => {
       const callback = vi.fn();
       await onUnifiedPushMessage(callback);
 
-      const messageData = { title: "Hello", body: "World", instance: "default", source: "unifiedpush" };
+      const messageData = {
+        title: "Hello",
+        body: "World",
+        instance: "default",
+        source: "unifiedpush",
+      };
       capturedCallback?.(messageData);
 
       expect(callback).toHaveBeenCalledWith(messageData);

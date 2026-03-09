@@ -527,7 +527,9 @@ async function unregisterFromUnifiedPush(): Promise<void> {
  *
  * @returns A promise resolving to an object with a distributors array.
  */
-async function getUnifiedPushDistributors(): Promise<{ distributors: string[] }> {
+async function getUnifiedPushDistributors(): Promise<{
+  distributors: string[];
+}> {
   return await invoke("plugin:notifications|get_unified_push_distributors");
 }
 
@@ -581,11 +583,7 @@ async function getUnifiedPushDistributor(): Promise<{ distributor: string }> {
 async function onUnifiedPushEndpoint(
   cb: (data: UnifiedPushEndpoint) => void,
 ): Promise<PluginListener> {
-  return await addPluginListener(
-    "notifications",
-    "unifiedpush-endpoint",
-    cb,
-  );
+  return await addPluginListener("notifications", "unifiedpush-endpoint", cb);
 }
 
 /**
@@ -605,11 +603,7 @@ async function onUnifiedPushEndpoint(
 async function onUnifiedPushMessage(
   cb: (data: Record<string, unknown>) => void,
 ): Promise<PluginListener> {
-  return await addPluginListener(
-    "notifications",
-    "unifiedpush-message",
-    cb,
-  );
+  return await addPluginListener("notifications", "unifiedpush-message", cb);
 }
 
 /**
@@ -653,11 +647,7 @@ async function onUnifiedPushUnregistered(
 async function onUnifiedPushError(
   cb: (data: { message: string; instance?: string }) => void,
 ): Promise<PluginListener> {
-  return await addPluginListener(
-    "notifications",
-    "unifiedpush-error",
-    cb,
-  );
+  return await addPluginListener("notifications", "unifiedpush-error", cb);
 }
 
 /**
