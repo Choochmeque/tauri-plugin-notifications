@@ -299,7 +299,7 @@ class TauriUnifiedPushMessagingServiceTest {
     fun testOnRegistrationFailed_forwardsToPlugin() {
         service.onRegistrationFailed(mockContext, FailedReason.NETWORK, "test-instance")
 
-        verify { mockPlugin.handleUnifiedPushRegistrationFailed("test-instance") }
+        verify { mockPlugin.handleUnifiedPushRegistrationFailed("test-instance", FailedReason.NETWORK.toString()) }
     }
 
     // --- onUnregistered tests ---

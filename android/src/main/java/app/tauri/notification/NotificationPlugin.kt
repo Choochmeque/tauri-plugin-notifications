@@ -686,10 +686,14 @@ class NotificationPlugin(private val activity: Activity): Plugin(activity) {
   }
 
   // Called by TauriUnifiedPushMessagingService when registration fails
-  fun handleUnifiedPushRegistrationFailed(instance: String) {
+  fun handleUnifiedPushRegistrationFailed(instance: String, reason: String? = null) {
     if (!BuildConfig.ENABLE_UNIFIED_PUSH) return
 
-    val errorMessage = "UnifiedPush registration failed for instance: $instance"
+    val errorMessage = if (reason != null) {
+      "UnifiedPush registration failed for instance: $instance (reason: $reason)"
+    } else {
+      "UnifiedPush registration failed for instance: $instance"
+    }
     val errorData = JSObject()
     errorData.put("message", errorMessage)
     errorData.put("instance", instance)
