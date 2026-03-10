@@ -50,6 +50,7 @@ class TauriNotificationManager(
 ) {
   private var defaultSoundID: Int = AssetUtils.RESOURCE_ID_ZERO_VALUE
   private var defaultSmallIconID: Int = AssetUtils.RESOURCE_ID_ZERO_VALUE
+  private val avatarExecutor: java.util.concurrent.ExecutorService = java.util.concurrent.Executors.newCachedThreadPool()
 
   fun handleNotificationActionPerformed(
     data: Intent,
@@ -88,9 +89,6 @@ class TauriNotificationManager(
     return dataJson
   }
 
-  /**
-   * Create notification channel
-   */
   fun createNotificationChannel() {
     // Create the NotificationChannel, but only on API 26+ because
     // the NotificationChannel class is new and not in the support library
@@ -162,38 +160,42 @@ class TauriNotificationManager(
     return builder.build()
   }
 
-  /**
-   * Downloads a remote avatar image and returns it as a circular-cropped bitmap.
-   * When an auth token is provided it is sent as a Bearer Authorization header,
-   * which is useful for endpoints that require authentication.
-   * Returns null on any failure (network error, invalid image, etc.).
-   */
+  // Downloads a remote avatar image as a circular-cropped bitmap.
+  // Runs on a background thread to avoid NetworkOnMainThreadException.
+  // Returns null on any failure (network error, invalid image, timeout, etc.).
   private fun downloadAvatarBitmap(url: String, authToken: String?): Bitmap? {
     return try {
-      val connection = java.net.URL(url).openConnection() as java.net.HttpURLConnection
-      connection.connectTimeout = 5_000
-      connection.readTimeout = 5_000
-      if (authToken != null) {
-        connection.setRequestProperty("Authorization", "Bearer $authToken")
-      }
-      connection.connect()
-      if (connection.responseCode != 200) {
-        connection.disconnect()
-        return null
-      }
-      val raw = BitmapFactory.decodeStream(connection.inputStream)
-      connection.disconnect()
-      if (raw == null) return null
-      cropCircle(raw)
+      val future = avatarExecutor.submit(
+        java.util.concurrent.Callable<Bitmap?> {
+          try {
+            val connection = java.net.URL(url).openConnection() as java.net.HttpURLConnection
+            connection.connectTimeout = 5_000
+            connection.readTimeout = 5_000
+            if (authToken != null) {
+              connection.setRequestProperty("Authorization", "Bearer $authToken")
+            }
+            connection.connect()
+            if (connection.responseCode != 200) {
+              connection.disconnect()
+              return@Callable null
+            }
+            val raw = BitmapFactory.decodeStream(connection.inputStream)
+            connection.disconnect()
+            if (raw == null) return@Callable null
+            cropCircle(raw)
+          } catch (e: Exception) {
+            Logger.error(Logger.tags(TAG), "Failed to download avatar: ${e.message}", e)
+            null
+          }
+        }
+      )
+      future.get(10, java.util.concurrent.TimeUnit.SECONDS)
     } catch (e: Exception) {
-      Logger.error(Logger.tags(TAG), "Failed to download avatar: ${e.message}", e)
+      Logger.error(Logger.tags(TAG), "Avatar download timed out or failed: ${e.message}", e)
       null
     }
   }
 
-  /**
-   * Crops a bitmap into a circle (for round notification avatars).
-   */
   private fun cropCircle(src: Bitmap): Bitmap {
     val size = minOf(src.width, src.height)
     val output = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
@@ -413,10 +415,8 @@ class TauriNotificationManager(
     return intent
   }
 
-  /**
-   * Build a notification trigger, such as triggering each N seconds, or
-   * on a certain date "shape" (such as every first of the month)
-   */
+  // Build a notification trigger, such as triggering each N seconds, or
+  // on a certain date "shape" (such as every first of the month)
   @SuppressLint("SimpleDateFormat")
   private fun triggerScheduledNotification(notification: android.app.Notification, request: Notification) {
     val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
@@ -586,9 +586,6 @@ class NotificationDismissReceiver : BroadcastReceiver() {
 }
 
 class TimedNotificationPublisher : BroadcastReceiver() {
-  /**
-   * Restore and present notification
-   */
   override fun onReceive(context: Context, intent: Intent) {
     val notificationManager =
       context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
