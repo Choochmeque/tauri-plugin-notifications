@@ -18,7 +18,9 @@ import android.os.Build.VERSION.SDK_INT
 import android.os.UserManager
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
+import androidx.core.app.Person
 import androidx.core.app.RemoteInput
+import androidx.core.graphics.drawable.IconCompat
 import app.tauri.Logger
 import app.tauri.plugin.JSObject
 import app.tauri.plugin.PluginManager
@@ -138,11 +140,20 @@ class TauriNotificationManager(
     return ids
   }
 
-  // TODO Progressbar support
-  // TODO System categories (DO_NOT_DISTURB etc.)
-  // TODO use NotificationCompat.MessagingStyle for latest API
-  // TODO expandable notification NotificationCompat.MessagingStyle
-  // TODO media style notification support NotificationCompat.MediaStyle
+  private fun buildPerson(person: MessagingStylePerson): Person {
+    val builder = Person.Builder().setName(person.name)
+    if (person.key != null) {
+      builder.setKey(person.key)
+    }
+    if (person.icon != null) {
+      val resId = AssetUtils.getResourceID(context, person.icon, "drawable")
+      if (resId != AssetUtils.RESOURCE_ID_ZERO_VALUE) {
+        builder.setIcon(IconCompat.createWithResource(context, resId))
+      }
+    }
+    return builder.build()
+  }
+
   @SuppressLint("MissingPermission")
   private fun buildNotification(
     notificationManager: NotificationManagerCompat,
@@ -159,7 +170,41 @@ class TauriNotificationManager(
       .setOngoing(notification.isOngoing)
       .setPriority(NotificationCompat.PRIORITY_DEFAULT)
       .setGroupSummary(notification.isGroupSummary)
-    if (notification.largeBody != null) {
+
+    // Progress bar support
+    val progressMax = notification.progressMax
+    val progress = notification.progress
+    if (progressMax != null || progress != null || notification.progressIndeterminate == true) {
+      mBuilder.setProgress(
+        progressMax ?: 100,
+        progress ?: 0,
+        notification.progressIndeterminate ?: false
+      )
+    }
+
+    // System category support
+    val category = notification.category
+    if (category != null) {
+      mBuilder.setCategory(category)
+    }
+
+    // Style selection (mutually exclusive: messagingStyle > largeBody > inboxLines)
+    if (notification.messagingStyle != null) {
+      val msgStyle = notification.messagingStyle!!
+      val userPerson = buildPerson(msgStyle.user)
+      val messagingStyle = NotificationCompat.MessagingStyle(userPerson)
+
+      if (msgStyle.conversationTitle != null) {
+        messagingStyle.conversationTitle = msgStyle.conversationTitle
+      }
+      messagingStyle.isGroupConversation = msgStyle.isGroupConversation
+
+      for (msg in msgStyle.messages) {
+        val senderPerson = msg.sender?.let { buildPerson(it) }
+        messagingStyle.addMessage(msg.text, msg.timestamp, senderPerson)
+      }
+      mBuilder.setStyle(messagingStyle)
+    } else if (notification.largeBody != null) {
       // support multiline text
       mBuilder.setStyle(
         NotificationCompat.BigTextStyle()
@@ -242,8 +287,14 @@ class TauriNotificationManager(
     if (actionTypeId != null) {
       val actionGroup = storage.getActionGroup(actionTypeId)
       for (notificationAction in actionGroup) {
-        // TODO Add custom icons to actions
-        val actionIntent = buildIntent(notification, notificationAction!!.id)
+        // Resolve custom action icon, fall back to transparent
+        val actionIconResId = if (notificationAction!!.icon != null) {
+          val resId = AssetUtils.getResourceID(context, notificationAction.icon, "drawable")
+          if (resId != AssetUtils.RESOURCE_ID_ZERO_VALUE) resId else R.drawable.ic_transparent
+        } else {
+          R.drawable.ic_transparent
+        }
+        val actionIntent = buildIntent(notification, notificationAction.id)
         val actionPendingIntent = PendingIntent.getActivity(
           context,
           (notification.id) + notificationAction.id.hashCode(),
@@ -251,7 +302,7 @@ class TauriNotificationManager(
           flags
         )
         val actionBuilder: NotificationCompat.Action.Builder = NotificationCompat.Action.Builder(
-          R.drawable.ic_transparent,
+          actionIconResId,
           notificationAction.title,
           actionPendingIntent
         )
@@ -309,7 +360,6 @@ class TauriNotificationManager(
    * Build a notification trigger, such as triggering each N seconds, or
    * on a certain date "shape" (such as every first of the month)
    */
-  // TODO support different AlarmManager.RTC modes depending on priority
   @SuppressLint("SimpleDateFormat")
   private fun triggerScheduledNotification(notification: android.app.Notification, request: Notification) {
     val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
@@ -327,6 +377,10 @@ class TauriNotificationManager(
     var pendingIntent =
       PendingIntent.getBroadcast(context, request.id, notificationIntent, flags)
 
+    // Choose RTC mode: use RTC_WAKEUP when allowWhileIdle is set (the alarm needs to
+    // wake the device), plain RTC otherwise to be more battery-friendly.
+    val rtcMode = if (schedule?.allowWhileIdle() == true) AlarmManager.RTC_WAKEUP else AlarmManager.RTC
+
     when (schedule) {
       is NotificationSchedule.At -> {
         if (schedule.date.time < Date().time) {
@@ -335,9 +389,9 @@ class TauriNotificationManager(
         }
         if (schedule.repeating) {
           val interval: Long = schedule.date.time - Date().time
-          alarmManager.setRepeating(AlarmManager.RTC, schedule.date.time, interval, pendingIntent)
+          alarmManager.setRepeating(rtcMode, schedule.date.time, interval, pendingIntent)
         } else {
-          setExactIfPossible(alarmManager, schedule, schedule.date.time, pendingIntent)
+          setExactIfPossible(alarmManager, schedule, schedule.date.time, pendingIntent, rtcMode)
         }
       }
       is NotificationSchedule.Interval -> {
@@ -345,7 +399,7 @@ class TauriNotificationManager(
         notificationIntent.putExtra(TimedNotificationPublisher.CRON_KEY, schedule.interval.toMatchString())
         pendingIntent =
           PendingIntent.getBroadcast(context, request.id, notificationIntent, flags)
-        setExactIfPossible(alarmManager, schedule, trigger, pendingIntent)
+        setExactIfPossible(alarmManager, schedule, trigger, pendingIntent, rtcMode)
         val sdf = SimpleDateFormat("yyyy/MM/dd HH:mm:ss")
         Logger.debug(
           Logger.tags(TAG),
@@ -355,7 +409,7 @@ class TauriNotificationManager(
       is NotificationSchedule.Every -> {
         val everyInterval = getIntervalTime(schedule.interval, schedule.count)
         val startTime: Long = Date().time + everyInterval
-        alarmManager.setRepeating(AlarmManager.RTC, startTime, everyInterval, pendingIntent)
+        alarmManager.setRepeating(rtcMode, startTime, everyInterval, pendingIntent)
       }
       else -> {}
     }
@@ -366,7 +420,8 @@ class TauriNotificationManager(
     alarmManager: AlarmManager,
     schedule: NotificationSchedule,
     trigger: Long,
-    pendingIntent: PendingIntent
+    pendingIntent: PendingIntent,
+    rtcMode: Int = AlarmManager.RTC
   ) {
     Logger.debug(Logger.tags(TAG), "Scheduling notification for " + Date(trigger).toString())
 
@@ -374,15 +429,15 @@ class TauriNotificationManager(
       Logger.warn(Logger.tags(TAG), "SCHEDULE_EXACT_ALARM permission not granted. Using inexact alarm.")
 
       if (SDK_INT >= Build.VERSION_CODES.M && schedule.allowWhileIdle()) {
-        alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, trigger, pendingIntent)
+        alarmManager.setAndAllowWhileIdle(rtcMode, trigger, pendingIntent)
       } else {
-        alarmManager[AlarmManager.RTC, trigger] = pendingIntent
+        alarmManager[rtcMode, trigger] = pendingIntent
       }
     } else {
       if (SDK_INT >= Build.VERSION_CODES.M && schedule.allowWhileIdle()) {
-        alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, trigger, pendingIntent)
+        alarmManager.setExactAndAllowWhileIdle(rtcMode, trigger, pendingIntent)
       } else {
-        alarmManager.setExact(AlarmManager.RTC, trigger, pendingIntent)
+        alarmManager.setExact(rtcMode, trigger, pendingIntent)
       }
     }
   }

@@ -46,6 +46,7 @@ class NotificationAction {
   lateinit var id: String
   var title: String? = null
   var input: Boolean? = null
+  var icon: String? = null
 }
 
 @InvokeArg

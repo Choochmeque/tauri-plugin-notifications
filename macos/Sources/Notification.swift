@@ -126,8 +126,7 @@ func handleScheduledNotification(_ schedule: NotificationSchedule) throws
       let dateInfo = Calendar.current.dateComponents(in: TimeZone.current, from: at)
 
       if dateInfo.date! < Date() {
-        // TODO:
-        //Logger.debug("Scheduled time is in the past: \(dateInfo.date!) < \(Date())")
+        Logger.debug("Scheduled time is in the past: \(dateInfo.date!) < \(Date())")
         throw NotificationError.pastScheduledTime
       }
 

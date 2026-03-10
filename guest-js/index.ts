@@ -131,6 +131,76 @@ interface Options {
    * Sets the number of items this notification represents on Android.
    */
   number?: number;
+  /**
+   * Current progress value for a progress bar notification (Android).
+   * Use with `progressMax` to show a determinate progress bar.
+   */
+  progress?: number;
+  /**
+   * Maximum progress value for a progress bar notification (Android).
+   * Defaults to 100 when `progress` is set.
+   */
+  progressMax?: number;
+  /**
+   * If true, shows an indeterminate progress bar (Android).
+   * When set, `progress` and `progressMax` are ignored.
+   */
+  progressIndeterminate?: boolean;
+  /**
+   * System notification category (Android).
+   * Maps to `NotificationCompat.CATEGORY_*` constants.
+   * Common values: `"alarm"`, `"call"`, `"email"`, `"err"`, `"event"`,
+   * `"msg"`, `"progress"`, `"promo"`, `"recommendation"`,
+   * `"reminder"`, `"service"`, `"social"`, `"status"`, `"sys"`, `"transport"`.
+   */
+  category?: string;
+  /**
+   * MessagingStyle configuration for conversation-style notifications (Android).
+   * Cannot be used with `largeBody` or `inboxLines`.
+   */
+  messagingStyle?: MessagingStyleConfig;
+}
+
+/**
+ * A person in a MessagingStyle notification.
+ */
+interface MessagingStylePerson {
+  /** Display name of the person. */
+  name: string;
+  /**
+   * Icon resource name for the person's avatar (Android).
+   * The icon must be placed in the app's `res/drawable` folder.
+   */
+  icon?: string;
+  /** A unique key to identify this person across messages. */
+  key?: string;
+}
+
+/**
+ * A single message in a MessagingStyle notification.
+ */
+interface MessagingStyleMessage {
+  /** The message text. */
+  text: string;
+  /** Timestamp of the message in milliseconds since epoch. */
+  timestamp: number;
+  /** The sender of the message. If null, the message is from the user. */
+  sender?: MessagingStylePerson;
+}
+
+/**
+ * Configuration for a conversation-style (MessagingStyle) notification (Android).
+ * This creates an expandable notification that shows a conversation thread.
+ */
+interface MessagingStyleConfig {
+  /** The user (device owner) participating in the conversation. */
+  user: MessagingStylePerson;
+  /** Title for the conversation (e.g., group chat name). */
+  conversationTitle?: string;
+  /** Whether this is a group conversation. */
+  isGroupConversation?: boolean;
+  /** The list of messages in the conversation. */
+  messages: MessagingStyleMessage[];
 }
 
 /**
@@ -294,6 +364,12 @@ interface Action {
   inputButtonTitle?: string;
   /** Placeholder text for the input field when `input` is true. */
   inputPlaceholder?: string;
+  /**
+   * Icon resource name for the action (Android).
+   * The icon must be placed in the app's `res/drawable` folder.
+   * Note: action icons are primarily visible on wearables and Android Auto.
+   */
+  icon?: string;
 }
 
 /**
@@ -995,6 +1071,9 @@ export type {
   NotificationClickedData,
   UnifiedPushPublicKeySet,
   UnifiedPushEndpoint,
+  MessagingStylePerson,
+  MessagingStyleMessage,
+  MessagingStyleConfig,
 };
 
 export {

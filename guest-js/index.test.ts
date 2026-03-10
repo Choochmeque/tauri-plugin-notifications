@@ -659,7 +659,8 @@ describe("Notification Functions", () => {
         endpoint: "https://nextpush.example.com/push/xyz",
         instance: "default",
         pubKeySet: {
-          pubKey: "BNcRdreALRFXTkOOUHK1EtK2wtZ5ZIILHY0CRbISTuErp8KS0DLjFCMDxEPPW4ECPF",
+          pubKey:
+            "BNcRdreALRFXTkOOUHK1EtK2wtZ5ZIILHY0CRbISTuErp8KS0DLjFCMDxEPPW4ECPF",
           auth: "8eDyX_uCN0XRhSbY5hs7Hg",
         },
       };
@@ -1326,6 +1327,216 @@ describe("Notification Functions", () => {
 
       expect(callback).toHaveBeenCalledWith(mockClickedData);
       expect(callback.mock.calls[0][0].data).toBeUndefined();
+    });
+  });
+
+  describe("sendNotification with progress bar", () => {
+    it("should send notification with determinate progress", async () => {
+      mockInvoke.mockResolvedValue(undefined);
+
+      const options = {
+        title: "Downloading...",
+        progress: 45,
+        progressMax: 100,
+      };
+
+      await sendNotification(options);
+
+      expect(mockInvoke).toHaveBeenCalledWith("plugin:notifications|notify", {
+        options,
+      });
+    });
+
+    it("should send notification with indeterminate progress", async () => {
+      mockInvoke.mockResolvedValue(undefined);
+
+      const options = {
+        title: "Loading...",
+        progressIndeterminate: true,
+      };
+
+      await sendNotification(options);
+
+      expect(mockInvoke).toHaveBeenCalledWith("plugin:notifications|notify", {
+        options,
+      });
+    });
+
+    it("should send notification with progress and body", async () => {
+      mockInvoke.mockResolvedValue(undefined);
+
+      const options = {
+        title: "Upload",
+        body: "Uploading file.txt",
+        progress: 75,
+        progressMax: 100,
+        ongoing: true,
+      };
+
+      await sendNotification(options);
+
+      expect(mockInvoke).toHaveBeenCalledWith("plugin:notifications|notify", {
+        options,
+      });
+    });
+  });
+
+  describe("sendNotification with category", () => {
+    it("should send notification with message category", async () => {
+      mockInvoke.mockResolvedValue(undefined);
+
+      const options = {
+        title: "New Message",
+        body: "Hello!",
+        category: "msg",
+      };
+
+      await sendNotification(options);
+
+      expect(mockInvoke).toHaveBeenCalledWith("plugin:notifications|notify", {
+        options,
+      });
+    });
+
+    it("should send notification with alarm category", async () => {
+      mockInvoke.mockResolvedValue(undefined);
+
+      const options = {
+        title: "Alarm",
+        category: "alarm",
+      };
+
+      await sendNotification(options);
+
+      expect(mockInvoke).toHaveBeenCalledWith("plugin:notifications|notify", {
+        options,
+      });
+    });
+  });
+
+  describe("sendNotification with messagingStyle", () => {
+    it("should send notification with simple messaging style", async () => {
+      mockInvoke.mockResolvedValue(undefined);
+
+      const options = {
+        title: "Chat",
+        messagingStyle: {
+          user: { name: "Me" },
+          messages: [
+            { text: "Hello!", timestamp: 1700000000000 },
+            {
+              text: "Hi there!",
+              timestamp: 1700000060000,
+              sender: { name: "Alice" },
+            },
+          ],
+        },
+      };
+
+      await sendNotification(options);
+
+      expect(mockInvoke).toHaveBeenCalledWith("plugin:notifications|notify", {
+        options,
+      });
+    });
+
+    it("should send notification with group conversation", async () => {
+      mockInvoke.mockResolvedValue(undefined);
+
+      const options = {
+        title: "Group Chat",
+        messagingStyle: {
+          user: { name: "Me", key: "user-1" },
+          conversationTitle: "Project Team",
+          isGroupConversation: true,
+          messages: [
+            {
+              text: "Meeting at 3pm",
+              timestamp: 1700000000000,
+              sender: { name: "Bob", key: "user-2", icon: "ic_bob" },
+            },
+            {
+              text: "Sounds good!",
+              timestamp: 1700000060000,
+              sender: { name: "Carol", key: "user-3" },
+            },
+            { text: "I'll be there", timestamp: 1700000120000 },
+          ],
+        },
+      };
+
+      await sendNotification(options);
+
+      expect(mockInvoke).toHaveBeenCalledWith("plugin:notifications|notify", {
+        options,
+      });
+    });
+
+    it("should send notification with user icon in messaging style", async () => {
+      mockInvoke.mockResolvedValue(undefined);
+
+      const options = {
+        title: "Chat",
+        messagingStyle: {
+          user: { name: "Me", icon: "ic_me", key: "self" },
+          messages: [{ text: "Hey!", timestamp: 1700000000000 }],
+        },
+      };
+
+      await sendNotification(options);
+
+      expect(mockInvoke).toHaveBeenCalledWith("plugin:notifications|notify", {
+        options,
+      });
+    });
+  });
+
+  describe("registerActionTypes with icon", () => {
+    it("should register action types with custom icons", async () => {
+      mockInvoke.mockResolvedValue(undefined);
+
+      const types = [
+        {
+          id: "message-actions",
+          actions: [
+            { id: "reply", title: "Reply", input: true, icon: "ic_reply" },
+            {
+              id: "delete",
+              title: "Delete",
+              destructive: true,
+              icon: "ic_delete",
+            },
+          ],
+        },
+      ];
+
+      await registerActionTypes(types);
+
+      expect(mockInvoke).toHaveBeenCalledWith(
+        "plugin:notifications|register_action_types",
+        { types },
+      );
+    });
+
+    it("should register action types mixing icons and no icons", async () => {
+      mockInvoke.mockResolvedValue(undefined);
+
+      const types = [
+        {
+          id: "mixed-actions",
+          actions: [
+            { id: "action-with-icon", title: "With Icon", icon: "ic_star" },
+            { id: "action-without-icon", title: "Without Icon" },
+          ],
+        },
+      ];
+
+      await registerActionTypes(types);
+
+      expect(mockInvoke).toHaveBeenCalledWith(
+        "plugin:notifications|register_action_types",
+        { types },
+      );
     });
   });
 });
