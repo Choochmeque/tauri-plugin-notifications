@@ -49,6 +49,47 @@ pub(crate) async fn unregister_for_push_notifications<R: Runtime>(
 }
 
 #[command]
+pub(crate) async fn register_for_unified_push<R: Runtime>(
+    _app: AppHandle<R>,
+    notification: State<'_, Notifications<R>>,
+) -> Result<serde_json::Value> {
+    notification.register_for_unified_push().await
+}
+
+#[command]
+pub(crate) async fn unregister_from_unified_push<R: Runtime>(
+    _app: AppHandle<R>,
+    notification: State<'_, Notifications<R>>,
+) -> Result<()> {
+    notification.unregister_from_unified_push()
+}
+
+#[command]
+pub(crate) async fn get_unified_push_distributors<R: Runtime>(
+    _app: AppHandle<R>,
+    notification: State<'_, Notifications<R>>,
+) -> Result<serde_json::Value> {
+    notification.get_unified_push_distributors()
+}
+
+#[command]
+pub(crate) async fn save_unified_push_distributor<R: Runtime>(
+    _app: AppHandle<R>,
+    notification: State<'_, Notifications<R>>,
+    distributor: String,
+) -> Result<()> {
+    notification.save_unified_push_distributor(distributor)
+}
+
+#[command]
+pub(crate) async fn get_unified_push_distributor<R: Runtime>(
+    _app: AppHandle<R>,
+    notification: State<'_, Notifications<R>>,
+) -> Result<serde_json::Value> {
+    notification.get_unified_push_distributor()
+}
+
+#[command]
 pub(crate) async fn notify<R: Runtime>(
     _app: AppHandle<R>,
     notification: State<'_, Notifications<R>>,

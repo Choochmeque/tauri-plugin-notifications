@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-save-unified-push-distributor"
+description = "Enables the save_unified_push_distributor command without any pre-configured scope."
+commands.allow = ["save_unified_push_distributor"]
+
+[[permission]]
+identifier = "deny-save-unified-push-distributor"
+description = "Denies the save_unified_push_distributor command without any pre-configured scope."
+commands.deny = ["save_unified_push_distributor"]

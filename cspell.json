@@ -33,7 +33,11 @@
     "unlisten",
     "twoweeks",
     "xcconfig",
-    "buildscript"
+    "buildscript",
+    "unifiedpush",
+    "ntfy",
+    "unregistration",
+    "hostable"
   ],
   "useGitignore": true,
   "ignorePaths": [

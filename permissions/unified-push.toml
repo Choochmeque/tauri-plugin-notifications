@@ -1,0 +1,18 @@
+"$schema" = "schemas/schema.json"
+
+[[set]]
+identifier = "allow-unified-push"
+description = """
+Enables UnifiedPush notification commands.
+
+Add this permission set alongside `notifications:default`
+when the `unified-push` Cargo feature is enabled.
+"""
+permissions = [
+  "allow-register-for-unified-push",
+  "allow-unregister-from-unified-push",
+  "allow-get-unified-push-distributors",
+  "allow-save-unified-push-distributor",
+  "allow-get-unified-push-distributor",
+]
+

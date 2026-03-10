@@ -241,9 +241,11 @@ class NotificationStorageTest {
         every { mockSharedPreferences.getString("id0", "") } returns "action1"
         every { mockSharedPreferences.getString("title0", "") } returns "Title 1"
         every { mockSharedPreferences.getBoolean("input0", false) } returns false
+        every { mockSharedPreferences.getString("icon0", null) } returns null
         every { mockSharedPreferences.getString("id1", "") } returns "action2"
         every { mockSharedPreferences.getString("title1", "") } returns "Title 2"
         every { mockSharedPreferences.getBoolean("input1", false) } returns true
+        every { mockSharedPreferences.getString("icon1", null) } returns null
 
         val result = notificationStorage.getActionGroup("type1")
 
@@ -271,6 +273,7 @@ class NotificationStorageTest {
         every { mockSharedPreferences.getString("id0", "") } returns null
         every { mockSharedPreferences.getString("title0", "") } returns null
         every { mockSharedPreferences.getBoolean("input0", false) } returns false
+        every { mockSharedPreferences.getString("icon0", null) } returns null
 
         val result = notificationStorage.getActionGroup("type1")
 

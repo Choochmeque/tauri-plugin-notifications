@@ -68,6 +68,40 @@ Without this feature enabled:
 - Push notification registration code is disabled
 - The `registerForPushNotifications()` function will return an error if called
 
+### UnifiedPush Support
+
+The `unified-push` feature is **disabled by default**. UnifiedPush is a decentralized push notification protocol that allows apps to receive push notifications through various distributors (like NextPush, ntfy, etc.) instead of being locked into FCM or APNs.
+
+To enable UnifiedPush support on Android:
+
+```toml
+[dependencies]
+tauri-plugin-notifications = { version = "0.4", features = ["unified-push"] }
+```
+
+**Note:** UnifiedPush is currently only supported on Android. It can be used alongside FCM or as a standalone push notification solution.
+
+To enable both FCM and UnifiedPush:
+
+```toml
+[dependencies]
+tauri-plugin-notifications = { version = "0.4", features = ["push-notifications", "unified-push"] }
+```
+
+**What is UnifiedPush?**
+
+UnifiedPush is an open standard for push notifications that gives users control over their notification delivery. Instead of relying solely on Google's FCM or Apple's APNs, apps can receive notifications through user-chosen distributors:
+
+- **NextPush** - A UnifiedPush distributor with server-side support
+- **ntfy** - Simple, self-hostable push notification service
+- **Other distributors** - Any app implementing the UnifiedPush protocol
+
+**Benefits:**
+- User privacy - users choose their notification provider
+- No Google Services dependency required
+- Works with self-hosted solutions
+- Open protocol that any distributor can implement
+
 ### Desktop Notification Backend (notify-rust)
 
 The `notify-rust` feature is **enabled by default** and provides cross-platform desktop notifications using the [notify-rust](https://crates.io/crates/notify-rust) crate.
@@ -101,6 +135,17 @@ Configure the plugin permissions in your `capabilities/default.json`:
 {
   "permissions": [
     "notifications:default"
+  ]
+}
+```
+
+If you enabled the `unified-push` feature, also add the UnifiedPush permission set:
+
+```json
+{
+  "permissions": [
+    "notifications:default",
+    "notifications:allow-unified-push"
   ]
 }
 ```
@@ -390,6 +435,63 @@ try {
 }
 ```
 
+#### UnifiedPush (Android)
+
+UnifiedPush provides a decentralized alternative to FCM, giving users control over their push notification delivery.
+
+```typescript
+import {
+  registerForUnifiedPush,
+  getUnifiedPushDistributors,
+  saveUnifiedPushDistributor,
+  onUnifiedPushMessage,
+  onUnifiedPushEndpoint
+} from '@choochmeque/tauri-plugin-notifications-api';
+
+// Check available UnifiedPush distributors
+const { distributors } = await getUnifiedPushDistributors();
+console.log('Available distributors:', distributors);
+
+// If no distributor is selected, prompt user to choose one
+if (distributors.length === 0) {
+  console.error('No UnifiedPush distributor installed. Please install NextPush or ntfy.');
+} else {
+  // Save the selected distributor (e.g., NextPush)
+  await saveUnifiedPushDistributor(distributors[0]);
+  
+  // Listen for new endpoints
+  const unlistenEndpoint = await onUnifiedPushEndpoint((data) => {
+    console.log('UnifiedPush endpoint:', data.endpoint);
+    // Send this endpoint to your server to send push notifications
+  });
+  
+  // Listen for incoming messages
+  const unlistenMessage = await onUnifiedPushMessage((data) => {
+    console.log('UnifiedPush message received:', data);
+  });
+  
+  // Register for UnifiedPush
+  const { endpoint, instance } = await registerForUnifiedPush();
+  console.log('Registered with UnifiedPush:', endpoint);
+}
+```
+
+**Sending UnifiedPush notifications:**
+
+Once you have the endpoint URL, your server can send notifications by making an HTTP POST request to the endpoint:
+
+```bash
+curl -X POST "https://your-distributor-url/endpoint" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "title": "Hello",
+    "body": "This is a UnifiedPush notification",
+    "data": {
+      "custom": "data"
+    }
+  }'
+```
+
 ### Rust
 
 ```rust
@@ -451,6 +553,69 @@ Requests the permission to send notifications.
 Registers the app for push notifications (mobile only). On Android, this retrieves the FCM device token. On iOS, this requests permissions and registers for remote notifications.
 
 **Returns:** `Promise<string>` - The device push token
+
+### `unregisterForPushNotifications()`
+Unregisters the app from push notifications (mobile only). Deletes the FCM token on Android.
+
+**Returns:** `Promise<void>`
+
+> **Breaking change:** `unregisterForPushNotifications()` previously returned `Promise<string>`. It now returns `Promise<void>` since the native side no longer resolves with a value.
+
+### `registerForUnifiedPush()`
+Registers the app for UnifiedPush notifications (Android only). UnifiedPush is a decentralized push notification protocol that allows receiving notifications through various distributors.
+
+**Returns:** `Promise<UnifiedPushEndpoint>` - An object containing:
+- `endpoint`: The URL where push messages should be sent
+- `instance`: The instance identifier for this registration
+- `pubKeySet` (optional): VAPID public-key set for encrypted push (contains `pubKey` and `auth` fields)
+
+### `unregisterFromUnifiedPush()`
+Unregisters the app from UnifiedPush notifications (Android only).
+
+**Returns:** `Promise<void>`
+
+### `getUnifiedPushDistributors()`
+Gets the list of available UnifiedPush distributors installed on the device (Android only). Distributors are apps that handle push notification delivery (e.g., NextPush, ntfy).
+
+**Returns:** `Promise<{ distributors: string[] }>`
+
+### `saveUnifiedPushDistributor(distributor: string)`
+Saves the selected UnifiedPush distributor (Android only). This sets which distributor app should be used for handling push notifications.
+
+**Parameters:**
+- `distributor`: The package name of the distributor to use
+
+**Returns:** `Promise<void>`
+
+### `getUnifiedPushDistributor()`
+Gets the currently selected UnifiedPush distributor (Android only).
+
+**Returns:** `Promise<{ distributor: string }>`
+
+### `onUnifiedPushEndpoint(callback: (data: UnifiedPushEndpoint) => void)`
+Listens for new UnifiedPush endpoint events. This event is triggered when a new UnifiedPush endpoint is registered or updated.
+
+**Returns:** `Promise<PluginListener>` with `unlisten()` method
+
+### `onUnifiedPushMessage(callback: (data: Record<string, unknown>) => void)`
+Listens for UnifiedPush message events. This event is triggered when a push message is received through UnifiedPush.
+
+**Returns:** `Promise<PluginListener>` with `unlisten()` method
+
+### `onUnifiedPushUnregistered(callback: (data: { instance: string }) => void)`
+Listens for UnifiedPush unregistration events. This event is triggered when the app is unregistered from UnifiedPush.
+
+**Returns:** `Promise<PluginListener>` with `unlisten()` method
+
+### `onUnifiedPushError(callback: (data: { message: string, instance?: string }) => void)`
+Listens for UnifiedPush error events. This event is triggered when there's an error with UnifiedPush registration or delivery.
+
+**Returns:** `Promise<PluginListener>` with `unlisten()` method
+
+### `onUnifiedPushTempUnavailable(callback: (data: { instance: string }) => void)`
+Listens for UnifiedPush temporary-unavailability events. Fired when the distributor app is temporarily unavailable (e.g. being updated). The existing registration remains valid; wait for an `onUnifiedPushEndpoint` callback before sending push messages again.
+
+**Returns:** `Promise<PluginListener>` with `unlisten()` method
 
 ### `sendNotification(options: Options | string)`
 Sends a notification to the user. Can be called with a simple string for the title or with a detailed options object.

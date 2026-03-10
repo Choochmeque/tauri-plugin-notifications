@@ -25,9 +25,13 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles("consumer-rules.pro")
 
-        // Enable push notifications based on Cargo feature flag
         val enablePush = buildProperties.getProperty("enablePushNotifications", "false").toBoolean()
         buildConfigField("boolean", "ENABLE_PUSH_NOTIFICATIONS", "$enablePush")
+
+        val enableUnifiedPush = buildProperties.getProperty("enableUnifiedPush", "false").toBoolean()
+        buildConfigField("boolean", "ENABLE_UNIFIED_PUSH", "$enableUnifiedPush")
+
+        manifestPlaceholders["unifiedPushReceiverEnabled"] = "$enableUnifiedPush"
     }
 
     buildTypes {
@@ -73,6 +77,9 @@ dependencies {
 
     implementation(platform("com.google.firebase:firebase-bom:34.7.0"))
     implementation("com.google.firebase:firebase-messaging-ktx:24.1.2")
+
+    implementation("org.unifiedpush.android:connector:3.3.2")
+
     testImplementation("junit:junit:4.13.2")
     testImplementation("io.mockk:mockk-android:1.14.9")
     testImplementation("io.mockk:mockk-agent:1.14.9")
