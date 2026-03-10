@@ -54,7 +54,7 @@ The `push-notifications` feature is **disabled by default**. To enable push noti
 
 ```toml
 [dependencies]
-tauri-plugin-notifications = { version = "0.3", features = ["push-notifications"] }
+tauri-plugin-notifications = { version = "0.4", features = ["push-notifications"] }
 ```
 
 This enables:
@@ -85,14 +85,14 @@ To disable `notify-rust` and use native platform implementations:
 
 ```toml
 [dependencies]
-tauri-plugin-notifications = { version = "0.3", default-features = false }
+tauri-plugin-notifications = { version = "0.4", default-features = false }
 ```
 
 To disable `notify-rust` and enable push notifications:
 
 ```toml
 [dependencies]
-tauri-plugin-notifications = { version = "0.3", default-features = false, features = ["push-notifications"] }
+tauri-plugin-notifications = { version = "0.4", default-features = false, features = ["push-notifications"] }
 ```
 
 Configure the plugin permissions in your `capabilities/default.json`:
