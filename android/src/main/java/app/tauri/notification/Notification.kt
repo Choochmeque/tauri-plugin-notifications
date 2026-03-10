@@ -14,6 +14,7 @@ import app.tauri.plugin.JSObject
 class MessagingStylePerson {
   var name: String = ""
   var icon: String? = null
+  var iconUrl: String? = null
   var key: String? = null
 }
 
@@ -30,6 +31,7 @@ class MessagingStyleConfig {
   var conversationTitle: String? = null
   var isGroupConversation: Boolean = false
   var messages: List<MessagingStyleMessage> = listOf()
+  var authToken: String? = null
 }
 
 @InvokeArg

@@ -554,12 +554,20 @@ Registers the app for push notifications (mobile only). On Android, this retriev
 
 **Returns:** `Promise<string>` - The device push token
 
+### `unregisterForPushNotifications()`
+Unregisters the app from push notifications (mobile only). Deletes the FCM token on Android.
+
+**Returns:** `Promise<void>`
+
+> **Breaking change:** `unregisterForPushNotifications()` previously returned `Promise<string>`. It now returns `Promise<void>` since the native side no longer resolves with a value.
+
 ### `registerForUnifiedPush()`
 Registers the app for UnifiedPush notifications (Android only). UnifiedPush is a decentralized push notification protocol that allows receiving notifications through various distributors.
 
 **Returns:** `Promise<UnifiedPushEndpoint>` - An object containing:
 - `endpoint`: The URL where push messages should be sent
 - `instance`: The instance identifier for this registration
+- `pubKeySet` (optional): VAPID public-key set for encrypted push (contains `pubKey` and `auth` fields)
 
 ### `unregisterFromUnifiedPush()`
 Unregisters the app from UnifiedPush notifications (Android only).
@@ -601,6 +609,11 @@ Listens for UnifiedPush unregistration events. This event is triggered when the 
 
 ### `onUnifiedPushError(callback: (data: { message: string, instance?: string }) => void)`
 Listens for UnifiedPush error events. This event is triggered when there's an error with UnifiedPush registration or delivery.
+
+**Returns:** `Promise<PluginListener>` with `unlisten()` method
+
+### `onUnifiedPushTempUnavailable(callback: (data: { instance: string }) => void)`
+Listens for UnifiedPush temporary-unavailability events. Fired when the distributor app is temporarily unavailable (e.g. being updated). The existing registration remains valid; wait for an `onUnifiedPushEndpoint` callback before sending push messages again.
 
 **Returns:** `Promise<PluginListener>` with `unlisten()` method
 

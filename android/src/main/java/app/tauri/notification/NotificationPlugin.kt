@@ -96,11 +96,10 @@ class NotificationPlugin(private val activity: Activity): Plugin(activity) {
   private var pendingTokenInvoke: Invoke? = null
   private var cachedToken: String? = null
 
-  @Volatile
   private var pendingUnifiedPushInvoke: Invoke? = null
-  @Volatile
   private var cachedUnifiedPushEndpoint: String? = null
-  @Volatile
+  private var cachedPubKey: String? = null
+  private var cachedAuth: String? = null
   private var unifiedPushInstance: String = "default"
 
   // Lock object for synchronizing compound read-check-write on UnifiedPush fields
@@ -538,6 +537,12 @@ class NotificationPlugin(private val activity: Activity): Plugin(activity) {
         val result = JSObject()
         result.put("endpoint", it)
         result.put("instance", unifiedPushInstance)
+        if (cachedPubKey != null && cachedAuth != null) {
+          val keySet = JSObject()
+          keySet.put("pubKey", cachedPubKey)
+          keySet.put("auth", cachedAuth)
+          result.put("pubKeySet", keySet)
+        }
         invoke.resolve(result)
         return
       }
@@ -560,6 +565,8 @@ class NotificationPlugin(private val activity: Activity): Plugin(activity) {
       pendingUnifiedPushInvoke?.reject("Unregistration requested while registration was in progress")
       pendingUnifiedPushInvoke = null
       cachedUnifiedPushEndpoint = null
+      cachedPubKey = null
+      cachedAuth = null
     }
 
     UnifiedPush.unregister(activity, unifiedPushInstance)
@@ -615,12 +622,12 @@ class NotificationPlugin(private val activity: Activity): Plugin(activity) {
   @PermissionCallback
   private fun unifiedPushPermissionsCallback(invoke: Invoke) {
     if (!manager.areNotificationsEnabled()) {
-      invoke.reject("Notification permissions denied")
       synchronized(unifiedPushLock) {
         if (pendingUnifiedPushInvoke === invoke) {
           pendingUnifiedPushInvoke = null
         }
       }
+      invoke.reject("Notification permissions denied")
       return
     }
 
@@ -638,6 +645,8 @@ class NotificationPlugin(private val activity: Activity): Plugin(activity) {
     val pendingInvoke: Invoke?
     synchronized(unifiedPushLock) {
       cachedUnifiedPushEndpoint = endpoint
+      cachedPubKey = pubKey
+      cachedAuth = auth
       unifiedPushInstance = instance
       pendingInvoke = pendingUnifiedPushInvoke
       pendingUnifiedPushInvoke = null
@@ -664,6 +673,8 @@ class NotificationPlugin(private val activity: Activity): Plugin(activity) {
 
     synchronized(unifiedPushLock) {
       cachedUnifiedPushEndpoint = null
+      cachedPubKey = null
+      cachedAuth = null
     }
 
     val data = JSObject()
@@ -725,13 +736,6 @@ class NotificationPlugin(private val activity: Activity): Plugin(activity) {
    */
   private fun putValueToJSObject(target: JSObject, key: String, value: Any) =
     JSObjectUtils.putValueToJSObject(target, key, value)
-
-  /**
-   * Recursively converts a [List] (from JSON array parsing) into a [JSArray].
-   * Delegates to [JSObjectUtils.convertListToJSArray].
-   */
-  private fun convertListToJSArray(list: List<*>): JSArray =
-    JSObjectUtils.convertListToJSArray(list)
 
   fun getNotificationManager(): TauriNotificationManager {
     return manager

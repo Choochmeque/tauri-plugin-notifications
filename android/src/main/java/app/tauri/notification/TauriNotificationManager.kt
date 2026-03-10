@@ -10,6 +10,8 @@ import android.content.BroadcastReceiver
 import android.content.ContentResolver
 import android.content.Context
 import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.media.AudioAttributes
 import android.net.Uri
@@ -140,18 +142,72 @@ class TauriNotificationManager(
     return ids
   }
 
-  private fun buildPerson(person: MessagingStylePerson): Person {
+  private fun buildPerson(person: MessagingStylePerson, authToken: String? = null): Person {
     val builder = Person.Builder().setName(person.name)
     if (person.key != null) {
       builder.setKey(person.key)
     }
-    if (person.icon != null) {
+    // Prefer iconUrl (remote avatar) over icon (drawable resource)
+    if (person.iconUrl != null) {
+      val bitmap = downloadAvatarBitmap(person.iconUrl!!, authToken)
+      if (bitmap != null) {
+        builder.setIcon(IconCompat.createWithBitmap(bitmap))
+      }
+    } else if (person.icon != null) {
       val resId = AssetUtils.getResourceID(context, person.icon, "drawable")
       if (resId != AssetUtils.RESOURCE_ID_ZERO_VALUE) {
         builder.setIcon(IconCompat.createWithResource(context, resId))
       }
     }
     return builder.build()
+  }
+
+  /**
+   * Downloads a remote avatar image and returns it as a circular-cropped bitmap.
+   * When an auth token is provided it is sent as a Bearer Authorization header,
+   * which is useful for endpoints that require authentication.
+   * Returns null on any failure (network error, invalid image, etc.).
+   */
+  private fun downloadAvatarBitmap(url: String, authToken: String?): Bitmap? {
+    return try {
+      val connection = java.net.URL(url).openConnection() as java.net.HttpURLConnection
+      connection.connectTimeout = 5_000
+      connection.readTimeout = 5_000
+      if (authToken != null) {
+        connection.setRequestProperty("Authorization", "Bearer $authToken")
+      }
+      connection.connect()
+      if (connection.responseCode != 200) {
+        connection.disconnect()
+        return null
+      }
+      val raw = BitmapFactory.decodeStream(connection.inputStream)
+      connection.disconnect()
+      if (raw == null) return null
+      cropCircle(raw)
+    } catch (e: Exception) {
+      Logger.error(Logger.tags(TAG), "Failed to download avatar: ${e.message}", e)
+      null
+    }
+  }
+
+  /**
+   * Crops a bitmap into a circle (for round notification avatars).
+   */
+  private fun cropCircle(src: Bitmap): Bitmap {
+    val size = minOf(src.width, src.height)
+    val output = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+    val canvas = android.graphics.Canvas(output)
+    val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG)
+    val rect = android.graphics.Rect(0, 0, size, size)
+    canvas.drawCircle(size / 2f, size / 2f, size / 2f, paint)
+    paint.xfermode = android.graphics.PorterDuffXfermode(android.graphics.PorterDuff.Mode.SRC_IN)
+    // Center-crop the source into the square
+    val srcLeft = (src.width - size) / 2
+    val srcTop = (src.height - size) / 2
+    val srcRect = android.graphics.Rect(srcLeft, srcTop, srcLeft + size, srcTop + size)
+    canvas.drawBitmap(src, srcRect, rect, paint)
+    return output
   }
 
   @SuppressLint("MissingPermission")
@@ -191,7 +247,8 @@ class TauriNotificationManager(
     // Style selection (mutually exclusive: messagingStyle > largeBody > inboxLines)
     if (notification.messagingStyle != null) {
       val msgStyle = notification.messagingStyle!!
-      val userPerson = buildPerson(msgStyle.user)
+      val authToken = msgStyle.authToken
+      val userPerson = buildPerson(msgStyle.user, authToken)
       val messagingStyle = NotificationCompat.MessagingStyle(userPerson)
 
       if (msgStyle.conversationTitle != null) {
@@ -200,7 +257,7 @@ class TauriNotificationManager(
       messagingStyle.isGroupConversation = msgStyle.isGroupConversation
 
       for (msg in msgStyle.messages) {
-        val senderPerson = msg.sender?.let { buildPerson(it) }
+        val senderPerson = msg.sender?.let { buildPerson(it, authToken) }
         messagingStyle.addMessage(msg.text, msg.timestamp, senderPerson)
       }
       mBuilder.setStyle(messagingStyle)

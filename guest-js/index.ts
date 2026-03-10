@@ -5,13 +5,9 @@
  * @module
  */
 
-import {
-  invoke,
-  type PluginListener,
-  addPluginListener,
-} from "@tauri-apps/api/core";
+import { invoke, type PluginListener, addPluginListener } from '@tauri-apps/api/core';
 
-export type { PermissionState } from "@tauri-apps/api/core";
+export type { PermissionState } from '@tauri-apps/api/core';
 
 /**
  * Options to send a notification.
@@ -122,7 +118,7 @@ interface Options {
    * - `"unifiedpush"` — notification received from a UnifiedPush distributor.
    * - `"local"` — notification created locally (immediate or scheduled).
    */
-  source?: "push" | "unifiedpush" | "local";
+  source?: 'push' | 'unifiedpush' | 'local';
   /**
    * Notification visibility.
    */
@@ -172,6 +168,13 @@ interface MessagingStylePerson {
    * The icon must be placed in the app's `res/drawable` folder.
    */
   icon?: string;
+  /**
+   * HTTP(S) URL to the person's avatar image (Android).
+   * When set, the image is downloaded and used as a circular avatar icon.
+   * Takes priority over the `icon` drawable resource.
+   * Use with `MessagingStyleConfig.authToken` for authenticated endpoints.
+   */
+  iconUrl?: string;
   /** A unique key to identify this person across messages. */
   key?: string;
 }
@@ -201,6 +204,11 @@ interface MessagingStyleConfig {
   isGroupConversation?: boolean;
   /** The list of messages in the conversation. */
   messages: MessagingStyleMessage[];
+  /**
+   * Bearer token for downloading authenticated avatar images (e.g. Matrix media).
+   * Passed as `Authorization: Bearer <token>` when fetching `iconUrl` images.
+   */
+  authToken?: string;
 }
 
 /**
@@ -236,17 +244,17 @@ interface ScheduleInterval {
  * Predefined intervals for repeating notifications.
  */
 enum ScheduleEvery {
-  Year = "year",
-  Month = "month",
-  TwoWeeks = "twoWeeks",
-  Week = "week",
-  Day = "day",
-  Hour = "hour",
-  Minute = "minute",
+  Year = 'year',
+  Month = 'month',
+  TwoWeeks = 'twoWeeks',
+  Week = 'week',
+  Day = 'day',
+  Hour = 'hour',
+  Minute = 'minute',
   /**
    * Not supported on iOS.
    */
-  Second = "second",
+  Second = 'second',
 }
 
 /**
@@ -302,10 +310,7 @@ class Schedule {
    * @param allowWhileIdle - On Android, allows notification to fire even when the device is in idle mode.
    * @returns A new Schedule instance.
    */
-  static interval(
-    interval: ScheduleInterval,
-    allowWhileIdle = false,
-  ): Schedule {
+  static interval(interval: ScheduleInterval, allowWhileIdle = false): Schedule {
     return {
       at: undefined,
       interval: { interval, allowWhileIdle },
@@ -321,11 +326,7 @@ class Schedule {
    * @param allowWhileIdle - On Android, allows notification to fire even when the device is in idle mode.
    * @returns A new Schedule instance.
    */
-  static every(
-    kind: ScheduleEvery,
-    count: number,
-    allowWhileIdle = false,
-  ): Schedule {
+  static every(kind: ScheduleEvery, count: number, allowWhileIdle = false): Schedule {
     return {
       at: undefined,
       interval: undefined,
@@ -497,7 +498,7 @@ interface Channel {
  * ```
  */
 async function isPermissionGranted(): Promise<boolean> {
-  return await invoke("plugin:notifications|is_permission_granted");
+  return await invoke('plugin:notifications|is_permission_granted');
 }
 
 /**
@@ -515,7 +516,7 @@ async function isPermissionGranted(): Promise<boolean> {
  * @returns A promise resolving to whether the user granted the permission or not.
  */
 async function requestPermission(): Promise<NotificationPermission> {
-  return await invoke("plugin:notifications|request_permission");
+  return await invoke('plugin:notifications|request_permission');
 }
 
 /**
@@ -531,7 +532,7 @@ async function requestPermission(): Promise<NotificationPermission> {
  * @returns A promise resolving to the device push token.
  */
 async function registerForPushNotifications(): Promise<string> {
-  return await invoke("plugin:notifications|register_for_push_notifications");
+  return await invoke('plugin:notifications|register_for_push_notifications');
 }
 
 /**
@@ -550,7 +551,7 @@ async function registerForPushNotifications(): Promise<string> {
  * @returns A promise resolving when unregistration is complete.
  */
 async function unregisterForPushNotifications(): Promise<void> {
-  return await invoke("plugin:notifications|unregister_for_push_notifications");
+  return await invoke('plugin:notifications|unregister_for_push_notifications');
 }
 
 /** VAPID / Web Push public key set provided by the distributor for encrypted push. */
@@ -587,7 +588,7 @@ interface UnifiedPushEndpoint {
  * @returns A promise resolving to the UnifiedPush endpoint information.
  */
 async function registerForUnifiedPush(): Promise<UnifiedPushEndpoint> {
-  return await invoke("plugin:notifications|register_for_unified_push");
+  return await invoke('plugin:notifications|register_for_unified_push');
 }
 
 /**
@@ -602,7 +603,7 @@ async function registerForUnifiedPush(): Promise<UnifiedPushEndpoint> {
  * @returns A promise resolving when unregistration is complete.
  */
 async function unregisterFromUnifiedPush(): Promise<void> {
-  return await invoke("plugin:notifications|unregister_from_unified_push");
+  return await invoke('plugin:notifications|unregister_from_unified_push');
 }
 
 /**
@@ -620,7 +621,7 @@ async function unregisterFromUnifiedPush(): Promise<void> {
 async function getUnifiedPushDistributors(): Promise<{
   distributors: string[];
 }> {
-  return await invoke("plugin:notifications|get_unified_push_distributors");
+  return await invoke('plugin:notifications|get_unified_push_distributors');
 }
 
 /**
@@ -636,7 +637,7 @@ async function getUnifiedPushDistributors(): Promise<{
  * @returns A promise resolving when the distributor is saved.
  */
 async function saveUnifiedPushDistributor(distributor: string): Promise<void> {
-  return await invoke("plugin:notifications|save_unified_push_distributor", {
+  return await invoke('plugin:notifications|save_unified_push_distributor', {
     distributor,
   });
 }
@@ -653,7 +654,7 @@ async function saveUnifiedPushDistributor(distributor: string): Promise<void> {
  * @returns A promise resolving to an object with the distributor package name.
  */
 async function getUnifiedPushDistributor(): Promise<{ distributor: string }> {
-  return await invoke("plugin:notifications|get_unified_push_distributor");
+  return await invoke('plugin:notifications|get_unified_push_distributor');
 }
 
 /**
@@ -671,9 +672,9 @@ async function getUnifiedPushDistributor(): Promise<{ distributor: string }> {
  * @returns A promise resolving to a function that removes the listener.
  */
 async function onUnifiedPushEndpoint(
-  cb: (data: UnifiedPushEndpoint) => void,
+  cb: (data: UnifiedPushEndpoint) => void
 ): Promise<PluginListener> {
-  return await addPluginListener("notifications", "unifiedpush-endpoint", cb);
+  return await addPluginListener('notifications', 'unifiedpush-endpoint', cb);
 }
 
 /**
@@ -691,9 +692,9 @@ async function onUnifiedPushEndpoint(
  * @returns A promise resolving to a function that removes the listener.
  */
 async function onUnifiedPushMessage(
-  cb: (data: Record<string, unknown>) => void,
+  cb: (data: Record<string, unknown>) => void
 ): Promise<PluginListener> {
-  return await addPluginListener("notifications", "unifiedpush-message", cb);
+  return await addPluginListener('notifications', 'unifiedpush-message', cb);
 }
 
 /**
@@ -711,13 +712,9 @@ async function onUnifiedPushMessage(
  * @returns A promise resolving to a function that removes the listener.
  */
 async function onUnifiedPushUnregistered(
-  cb: (data: { instance: string }) => void,
+  cb: (data: { instance: string }) => void
 ): Promise<PluginListener> {
-  return await addPluginListener(
-    "notifications",
-    "unifiedpush-unregistered",
-    cb,
-  );
+  return await addPluginListener('notifications', 'unifiedpush-unregistered', cb);
 }
 
 /**
@@ -735,9 +732,9 @@ async function onUnifiedPushUnregistered(
  * @returns A promise resolving to a function that removes the listener.
  */
 async function onUnifiedPushError(
-  cb: (data: { message: string; instance?: string }) => void,
+  cb: (data: { message: string; instance?: string }) => void
 ): Promise<PluginListener> {
-  return await addPluginListener("notifications", "unifiedpush-error", cb);
+  return await addPluginListener('notifications', 'unifiedpush-error', cb);
 }
 
 /**
@@ -759,13 +756,9 @@ async function onUnifiedPushError(
  * @returns A promise resolving to a function that removes the listener.
  */
 async function onUnifiedPushTempUnavailable(
-  cb: (data: { instance: string }) => void,
+  cb: (data: { instance: string }) => void
 ): Promise<PluginListener> {
-  return await addPluginListener(
-    "notifications",
-    "unifiedpush-temp-unavailable",
-    cb,
-  );
+  return await addPluginListener('notifications', 'unifiedpush-temp-unavailable', cb);
 }
 
 /**
@@ -786,9 +779,9 @@ async function onUnifiedPushTempUnavailable(
  * ```
  */
 async function sendNotification(options: Options | string): Promise<void> {
-  await invoke("plugin:notifications|notify", {
+  await invoke('plugin:notifications|notify', {
     options:
-      typeof options === "string"
+      typeof options === 'string'
         ? {
             title: options,
           }
@@ -814,7 +807,7 @@ async function sendNotification(options: Options | string): Promise<void> {
  * @returns A promise indicating the success or failure of the operation.
  */
 async function registerActionTypes(types: ActionType[]): Promise<void> {
-  await invoke("plugin:notifications|register_action_types", { types });
+  await invoke('plugin:notifications|register_action_types', { types });
 }
 
 /**
@@ -829,7 +822,7 @@ async function registerActionTypes(types: ActionType[]): Promise<void> {
  * @returns A promise resolving to the list of pending notifications.
  */
 async function pending(): Promise<PendingNotification[]> {
-  return await invoke("plugin:notifications|get_pending");
+  return await invoke('plugin:notifications|get_pending');
 }
 
 /**
@@ -844,7 +837,7 @@ async function pending(): Promise<PendingNotification[]> {
  * @returns A promise indicating the success or failure of the operation.
  */
 async function cancel(notifications: number[]): Promise<void> {
-  await invoke("plugin:notifications|cancel", { notifications });
+  await invoke('plugin:notifications|cancel', { notifications });
 }
 
 /**
@@ -859,7 +852,7 @@ async function cancel(notifications: number[]): Promise<void> {
  * @returns A promise indicating the success or failure of the operation.
  */
 async function cancelAll(): Promise<void> {
-  await invoke("plugin:notifications|cancel_all");
+  await invoke('plugin:notifications|cancel_all');
 }
 
 /**
@@ -874,7 +867,7 @@ async function cancelAll(): Promise<void> {
  * @returns A promise resolving to the list of active notifications.
  */
 async function active(): Promise<ActiveNotification[]> {
-  return await invoke("plugin:notifications|get_active");
+  return await invoke('plugin:notifications|get_active');
 }
 
 /**
@@ -888,10 +881,8 @@ async function active(): Promise<ActiveNotification[]> {
  *
  * @returns A promise indicating the success or failure of the operation.
  */
-async function removeActive(
-  notifications: Array<{ id: number; tag?: string }>,
-): Promise<void> {
-  await invoke("plugin:notifications|remove_active", { notifications });
+async function removeActive(notifications: Array<{ id: number; tag?: string }>): Promise<void> {
+  await invoke('plugin:notifications|remove_active', { notifications });
 }
 
 /**
@@ -906,7 +897,7 @@ async function removeActive(
  * @returns A promise indicating the success or failure of the operation.
  */
 async function removeAllActive(): Promise<void> {
-  await invoke("plugin:notifications|remove_active");
+  await invoke('plugin:notifications|remove_active');
 }
 
 /**
@@ -928,7 +919,7 @@ async function removeAllActive(): Promise<void> {
  * @returns A promise indicating the success or failure of the operation.
  */
 async function createChannel(channel: Channel): Promise<void> {
-  await invoke("plugin:notifications|create_channel", { channel });
+  await invoke('plugin:notifications|create_channel', { channel });
 }
 
 /**
@@ -943,7 +934,7 @@ async function createChannel(channel: Channel): Promise<void> {
  * @returns A promise indicating the success or failure of the operation.
  */
 async function removeChannel(id: string): Promise<void> {
-  await invoke("plugin:notifications|delete_channel", { id });
+  await invoke('plugin:notifications|delete_channel', { id });
 }
 
 /**
@@ -958,7 +949,7 @@ async function removeChannel(id: string): Promise<void> {
  * @returns A promise resolving to the list of notification channels.
  */
 async function channels(): Promise<Channel[]> {
-  return await invoke("plugin:notifications|list_channels");
+  return await invoke('plugin:notifications|list_channels');
 }
 
 /**
@@ -978,9 +969,9 @@ async function channels(): Promise<Channel[]> {
  * @returns A promise resolving to a function that removes the listener.
  */
 async function onNotificationReceived(
-  cb: (notification: Options) => void,
+  cb: (notification: Options) => void
 ): Promise<PluginListener> {
-  return await addPluginListener("notifications", "notification", cb);
+  return await addPluginListener('notifications', 'notification', cb);
 }
 
 /**
@@ -999,10 +990,8 @@ async function onNotificationReceived(
  * @param cb - Callback function to handle notification actions.
  * @returns A promise resolving to a function that removes the listener.
  */
-async function onAction(
-  cb: (notification: Options) => void,
-): Promise<PluginListener> {
-  return await addPluginListener("notifications", "actionPerformed", cb);
+async function onAction(cb: (notification: Options) => void): Promise<PluginListener> {
+  return await addPluginListener('notifications', 'actionPerformed', cb);
 }
 
 /**
@@ -1036,22 +1025,18 @@ interface NotificationClickedData {
  * @returns A promise resolving to a function that removes the listener.
  */
 async function onNotificationClicked(
-  cb: (data: NotificationClickedData) => void,
+  cb: (data: NotificationClickedData) => void
 ): Promise<PluginListener> {
-  const listener = await addPluginListener(
-    "notifications",
-    "notificationClicked",
-    cb,
-  );
+  const listener = await addPluginListener('notifications', 'notificationClicked', cb);
 
   // Notify native side so pending cold-start clicks are delivered
-  await invoke("plugin:notifications|set_click_listener_active", {
+  await invoke('plugin:notifications|set_click_listener_active', {
     active: true,
   });
 
   return {
     unregister: async () => {
-      await invoke("plugin:notifications|set_click_listener_active", {
+      await invoke('plugin:notifications|set_click_listener_active', {
         active: false,
       });
       return listener.unregister();

@@ -404,6 +404,7 @@ pub struct Action {
 pub struct MessagingStylePerson {
     pub name: String,
     pub icon: Option<String>,
+    pub icon_url: Option<String>,
     pub key: Option<String>,
 }
 
@@ -424,6 +425,7 @@ pub struct MessagingStyleConfig {
     pub is_group_conversation: bool,
     #[serde(default)]
     pub messages: Vec<MessagingStyleMessage>,
+    pub auth_token: Option<String>,
 }
 
 pub use android::*;
