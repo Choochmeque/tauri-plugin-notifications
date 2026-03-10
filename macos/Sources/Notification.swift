@@ -1,4 +1,7 @@
+import os
 import UserNotifications
+
+private let logger = Logger(subsystem: "tauri-plugin-notifications", category: "Notification")
 
 enum NotificationError: LocalizedError {
   case triggerRepeatIntervalTooShort
@@ -126,8 +129,7 @@ func handleScheduledNotification(_ schedule: NotificationSchedule) throws
       let dateInfo = Calendar.current.dateComponents(in: TimeZone.current, from: at)
 
       if dateInfo.date! < Date() {
-        // TODO:
-        //Logger.debug("Scheduled time is in the past: \(dateInfo.date!) < \(Date())")
+        logger.debug("Scheduled time is in the past: \(dateInfo.date!) < \(Date())")
         throw NotificationError.pastScheduledTime
       }
 
