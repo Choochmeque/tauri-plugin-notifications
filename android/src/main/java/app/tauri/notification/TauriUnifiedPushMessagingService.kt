@@ -20,6 +20,7 @@ open class TauriUnifiedPushMessagingService : MessagingReceiver() {
 
   companion object {
     private const val TAG = "TauriUnifiedPush"
+    @Volatile
     private var executor: Executor = Executors.newSingleThreadExecutor()
 
     @Volatile

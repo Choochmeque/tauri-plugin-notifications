@@ -50,7 +50,7 @@ class TauriNotificationManager(
 ) {
   private var defaultSoundID: Int = AssetUtils.RESOURCE_ID_ZERO_VALUE
   private var defaultSmallIconID: Int = AssetUtils.RESOURCE_ID_ZERO_VALUE
-  private val avatarExecutor: java.util.concurrent.ExecutorService = java.util.concurrent.Executors.newCachedThreadPool()
+  private val avatarExecutor: java.util.concurrent.ExecutorService = java.util.concurrent.Executors.newFixedThreadPool(4)
 
   fun handleNotificationActionPerformed(
     data: Intent,
@@ -168,7 +168,12 @@ class TauriNotificationManager(
       val future = avatarExecutor.submit(
         java.util.concurrent.Callable<Bitmap?> {
           try {
-            val connection = java.net.URL(url).openConnection() as java.net.HttpURLConnection
+            val parsedUrl = java.net.URL(url)
+            if (authToken != null && !parsedUrl.protocol.equals("https", ignoreCase = true)) {
+              Logger.error(Logger.tags(TAG), "Refusing to send auth token over non-HTTPS URL: $url", null)
+              return@Callable null
+            }
+            val connection = parsedUrl.openConnection() as java.net.HttpURLConnection
             connection.connectTimeout = 5_000
             connection.readTimeout = 5_000
             if (authToken != null) {

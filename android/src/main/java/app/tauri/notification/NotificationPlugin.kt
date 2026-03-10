@@ -621,12 +621,18 @@ class NotificationPlugin(private val activity: Activity): Plugin(activity) {
 
   @PermissionCallback
   private fun unifiedPushPermissionsCallback(invoke: Invoke) {
-    if (!manager.areNotificationsEnabled()) {
-      synchronized(unifiedPushLock) {
-        if (pendingUnifiedPushInvoke === invoke) {
-          pendingUnifiedPushInvoke = null
-        }
+    val isCurrent: Boolean
+    synchronized(unifiedPushLock) {
+      isCurrent = pendingUnifiedPushInvoke === invoke
+      if (isCurrent && !manager.areNotificationsEnabled()) {
+        pendingUnifiedPushInvoke = null
       }
+    }
+
+    // Stale callback — a newer registerForUnifiedPush already rejected this invoke
+    if (!isCurrent) return
+
+    if (!manager.areNotificationsEnabled()) {
       invoke.reject("Notification permissions denied")
       return
     }
