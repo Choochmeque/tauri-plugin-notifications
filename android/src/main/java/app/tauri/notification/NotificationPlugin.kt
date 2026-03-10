@@ -626,7 +626,12 @@ class NotificationPlugin(private val activity: Activity): Plugin(activity) {
     UnifiedPush.register(activity, unifiedPushInstance)
   }
 
-  fun handleNewUnifiedPushEndpoint(endpoint: String, instance: String) {
+  fun handleNewUnifiedPushEndpoint(
+    endpoint: String,
+    instance: String,
+    pubKey: String? = null,
+    auth: String? = null,
+  ) {
     if (!BuildConfig.ENABLE_UNIFIED_PUSH) return
 
     val pendingInvoke: Invoke?
@@ -637,16 +642,19 @@ class NotificationPlugin(private val activity: Activity): Plugin(activity) {
       pendingUnifiedPushInvoke = null
     }
 
-    val result = JSObject()
-    result.put("endpoint", endpoint)
-    result.put("instance", instance)
+    fun buildResult() = JSObject().apply {
+      put("endpoint", endpoint)
+      put("instance", instance)
+      if (pubKey != null && auth != null) {
+        val keySet = JSObject()
+        keySet.put("pubKey", pubKey)
+        keySet.put("auth", auth)
+        put("pubKeySet", keySet)
+      }
+    }
 
-    pendingInvoke?.resolve(result)
-
-    val data = JSObject()
-    data.put("endpoint", endpoint)
-    data.put("instance", instance)
-    trigger("unifiedpush-endpoint", data)
+    pendingInvoke?.resolve(buildResult())
+    trigger("unifiedpush-endpoint", buildResult())
   }
 
   // Called by TauriUnifiedPushMessagingService when unregistered
@@ -660,6 +668,20 @@ class NotificationPlugin(private val activity: Activity): Plugin(activity) {
     val data = JSObject()
     data.put("instance", instance)
     trigger("unifiedpush-unregistered", data)
+  }
+
+  /**
+   * Called by [TauriUnifiedPushMessagingService.onTempUnavailable] when the distributor is
+   * temporarily unavailable (e.g. the distributor app is being updated).
+   * The existing registration stays valid; callers should wait for a new
+   * [handleNewUnifiedPushEndpoint] before attempting to send messages.
+   */
+  fun handleUnifiedPushTempUnavailable(instance: String) {
+    if (!BuildConfig.ENABLE_UNIFIED_PUSH) return
+
+    val data = JSObject()
+    data.put("instance", instance)
+    trigger("unifiedpush-temp-unavailable", data)
   }
 
   // Called by TauriUnifiedPushMessagingService when a push message is received
@@ -698,60 +720,17 @@ class NotificationPlugin(private val activity: Activity): Plugin(activity) {
   /**
    * Recursively converts a native value (from JSON parsing) into the appropriate
    * JSObject/JSArray type and puts it into the target [JSObject] under the given [key].
-   * Handles String, Int, Long, Double, Boolean, Map, and List types.
+   * Delegates to [JSObjectUtils.putValueToJSObject].
    */
-  private fun putValueToJSObject(target: JSObject, key: String, value: Any) {
-    when (value) {
-      is String -> target.put(key, value)
-      is Int -> target.put(key, value)
-      is Long -> target.put(key, value)
-      is Double -> target.put(key, value)
-      is Boolean -> target.put(key, value)
-      is Map<*, *> -> {
-        val nestedObj = JSObject()
-        @Suppress("UNCHECKED_CAST")
-        val map = value as Map<String, Any>
-        for ((k, v) in map) {
-          putValueToJSObject(nestedObj, k, v)
-        }
-        target.put(key, nestedObj)
-      }
-      is List<*> -> {
-        target.put(key, convertListToJSArray(value))
-      }
-      else -> target.put(key, value.toString())
-    }
-  }
+  private fun putValueToJSObject(target: JSObject, key: String, value: Any) =
+    JSObjectUtils.putValueToJSObject(target, key, value)
 
   /**
-   * Recursively converts a [List] (from JSON array parsing) into a [JSArray],
-   * properly handling nested maps, lists, and primitive types.
+   * Recursively converts a [List] (from JSON array parsing) into a [JSArray].
+   * Delegates to [JSObjectUtils.convertListToJSArray].
    */
-  private fun convertListToJSArray(list: List<*>): JSArray {
-    val arr = JSArray()
-    for (item in list) {
-      when (item) {
-        is String -> arr.put(item)
-        is Int -> arr.put(item)
-        is Long -> arr.put(item)
-        is Double -> arr.put(item)
-        is Boolean -> arr.put(item)
-        is Map<*, *> -> {
-          val nestedObj = JSObject()
-          @Suppress("UNCHECKED_CAST")
-          val map = item as Map<String, Any>
-          for ((k, v) in map) {
-            putValueToJSObject(nestedObj, k, v)
-          }
-          arr.put(nestedObj)
-        }
-        is List<*> -> arr.put(convertListToJSArray(item))
-        null -> arr.put(org.json.JSONObject.NULL)
-        else -> arr.put(item.toString())
-      }
-    }
-    return arr
-  }
+  private fun convertListToJSArray(list: List<*>): JSArray =
+    JSObjectUtils.convertListToJSArray(list)
 
   fun getNotificationManager(): TauriNotificationManager {
     return manager

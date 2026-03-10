@@ -98,7 +98,19 @@ impl<R: Runtime> Notifications<R> {
                     (),
                 )
                 .await
-                .map(|r| serde_json::json!({ "endpoint": r.endpoint, "instance": r.instance }))
+                .map(|r| {
+                    let mut obj = serde_json::json!({
+                        "endpoint": r.endpoint,
+                        "instance": r.instance,
+                    });
+                    if let Some(keys) = r.pub_key_set {
+                        obj["pubKeySet"] = serde_json::json!({
+                            "pubKey": keys.pub_key,
+                            "auth": keys.auth,
+                        });
+                    }
+                    obj
+                })
                 .map_err(Into::into)
         }
         #[cfg(all(feature = "unified-push", not(target_os = "android")))]

@@ -8,6 +8,7 @@ import app.tauri.plugin.Plugin
 import io.mockk.*
 import org.junit.Assert.*
 import org.junit.After
+import org.junit.Assume.assumeTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -32,6 +33,8 @@ class NotificationPluginUnifiedPushTest {
 
     @Before
     fun setup() {
+        assumeTrue("UnifiedPush tests require ENABLE_UNIFIED_PUSH", BuildConfig.ENABLE_UNIFIED_PUSH)
+
         val activity = Robolectric.buildActivity(Activity::class.java).create().get()
         plugin = NotificationPlugin(activity)
         NotificationPlugin.instance = plugin
@@ -99,6 +102,38 @@ class NotificationPluginUnifiedPushTest {
     }
 
     @Test
+    fun testHandleNewUnifiedPushEndpoint_resolvesPendingInvoke_withPubKeySet() {
+        setPendingUnifiedPushInvoke(mockInvoke)
+
+        plugin.handleNewUnifiedPushEndpoint(
+            "https://nextpush.example.com/endpoint/xyz",
+            "default",
+            "BNcRdreALRFXTkOOUHK1EtK2wtZ5ZIILHY0CRbISTuErp8KS0DLjFCMDxEPPW4ECPF",
+            "8eDyX_uCN0XRhSbY5hs7Hg",
+        )
+
+        verify { mockInvoke.resolve(match<JSObject> {
+            it.getString("endpoint") == "https://nextpush.example.com/endpoint/xyz" &&
+            it.getString("instance") == "default" &&
+            it.getJSObject("pubKeySet")?.getString("pubKey") == "BNcRdreALRFXTkOOUHK1EtK2wtZ5ZIILHY0CRbISTuErp8KS0DLjFCMDxEPPW4ECPF" &&
+            it.getJSObject("pubKeySet")?.getString("auth") == "8eDyX_uCN0XRhSbY5hs7Hg"
+        }) }
+        assertNull(getPendingUnifiedPushInvoke())
+    }
+
+    @Test
+    fun testHandleNewUnifiedPushEndpoint_noPubKeySet_omitsField() {
+        setPendingUnifiedPushInvoke(mockInvoke)
+
+        plugin.handleNewUnifiedPushEndpoint("https://push.example.com/abc", "default", null, null)
+
+        verify { mockInvoke.resolve(match<JSObject> {
+            it.getString("endpoint") == "https://push.example.com/abc" &&
+            !it.has("pubKeySet")
+        }) }
+    }
+
+    @Test
     fun testHandleNewUnifiedPushEndpoint_updatesCachedEndpointAndInstance() {
         setPendingUnifiedPushInvoke(null)
 
@@ -116,6 +151,25 @@ class NotificationPluginUnifiedPushTest {
         plugin.handleNewUnifiedPushEndpoint("https://push.example.com/abc", "default")
 
         assertEquals("https://push.example.com/abc", getCachedUnifiedPushEndpoint())
+    }
+
+    // --- handleUnifiedPushTempUnavailable tests ---
+
+    @Test
+    fun testHandleUnifiedPushTempUnavailable_triggersEvent() {
+        // Should not throw and should trigger the unifiedpush-temp-unavailable event
+        // (trigger() is a no-op without a loaded WebView, but must not crash)
+        plugin.handleUnifiedPushTempUnavailable("test-instance")
+    }
+
+    @Test
+    fun testHandleUnifiedPushTempUnavailable_doesNotClearCachedEndpoint() {
+        setCachedUnifiedPushEndpoint("https://push.example.com/cached")
+
+        plugin.handleUnifiedPushTempUnavailable("test-instance")
+
+        // Temp-unavailable should NOT clear the cache — the registration is still valid
+        assertEquals("https://push.example.com/cached", getCachedUnifiedPushEndpoint())
     }
 
     // --- handleUnifiedPushRegistrationFailed tests ---

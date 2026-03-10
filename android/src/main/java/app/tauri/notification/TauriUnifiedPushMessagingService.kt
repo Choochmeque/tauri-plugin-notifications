@@ -3,9 +3,7 @@ package app.tauri.notification
 import android.content.Context
 import android.util.Log
 import androidx.annotation.VisibleForTesting
-import app.tauri.plugin.JSArray
 import app.tauri.plugin.JSObject
-import org.json.JSONArray
 import org.json.JSONObject
 import org.unifiedpush.android.connector.FailedReason
 import org.unifiedpush.android.connector.MessagingReceiver
@@ -51,12 +49,28 @@ open class TauriUnifiedPushMessagingService : MessagingReceiver() {
 
   override fun onNewEndpoint(context: Context, endpoint: PushEndpoint, instance: String) {
     Log.d(TAG, "New endpoint registered: ${endpoint.url}")
-    NotificationPlugin.instance?.handleNewUnifiedPushEndpoint(endpoint.url, instance)
+    val pubKeySet = endpoint.pubKeySet
+    NotificationPlugin.instance?.handleNewUnifiedPushEndpoint(
+      endpoint.url,
+      instance,
+      pubKeySet?.pubKey,
+      pubKeySet?.auth,
+    )
   }
 
   override fun onUnregistered(context: Context, instance: String) {
     Log.d(TAG, "Unregistered for instance: $instance")
     NotificationPlugin.instance?.handleUnifiedPushUnregistered(instance)
+  }
+
+  /**
+   * Called when the distributor is temporarily unavailable (e.g. the distributor app
+   * is being updated). The registration remains valid; the app should wait for a new
+   * [onNewEndpoint] callback before sending push messages.
+   */
+  override fun onTempUnavailable(context: Context, instance: String) {
+    Log.d(TAG, "Temporarily unavailable for instance: $instance")
+    NotificationPlugin.instance?.handleUnifiedPushTempUnavailable(instance)
   }
 
   override fun onMessage(context: Context, message: PushMessage, instance: String) {
@@ -69,7 +83,7 @@ open class TauriUnifiedPushMessagingService : MessagingReceiver() {
       try {
         val json = JSONObject(messageString)
         for (key in json.keys()) {
-          pushData[key] = jsonValueToNative(json.get(key))
+          pushData[key] = JSObjectUtils.jsonValueToNative(json.get(key))
         }
       } catch (e: Exception) {
         Log.w(TAG, "Message is not valid JSON, forwarding as raw text")
@@ -107,7 +121,7 @@ open class TauriUnifiedPushMessagingService : MessagingReceiver() {
 
     val extraData = JSObject()
     for ((key, value) in pushData) {
-      putValueToJSObject(extraData, key, value)
+      JSObjectUtils.putValueToJSObject(extraData, key, value)
     }
     val notification = Notification().apply {
       id = (System.nanoTime() % Int.MAX_VALUE).toInt()
@@ -128,74 +142,5 @@ open class TauriUnifiedPushMessagingService : MessagingReceiver() {
   override fun onRegistrationFailed(context: Context, reason: FailedReason, instance: String) {
     Log.e(TAG, "Registration failed for instance: $instance (reason: $reason)")
     NotificationPlugin.instance?.handleUnifiedPushRegistrationFailed(instance, reason.toString())
-  }
-
-  private fun jsonValueToNative(value: Any): Any {
-    return when (value) {
-      is JSONObject -> {
-        val map = mutableMapOf<String, Any>()
-        for (key in value.keys()) {
-          map[key] = jsonValueToNative(value.get(key))
-        }
-        map
-      }
-      is JSONArray -> {
-        val list = mutableListOf<Any>()
-        for (i in 0 until value.length()) {
-          list.add(jsonValueToNative(value.get(i)))
-        }
-        list
-      }
-      else -> value
-    }
-  }
-
-  private fun putValueToJSObject(target: JSObject, key: String, value: Any) {
-    when (value) {
-      is String -> target.put(key, value)
-      is Int -> target.put(key, value)
-      is Long -> target.put(key, value)
-      is Double -> target.put(key, value)
-      is Boolean -> target.put(key, value)
-      is Map<*, *> -> {
-        val nestedObj = JSObject()
-        @Suppress("UNCHECKED_CAST")
-        val map = value as Map<String, Any>
-        for ((k, v) in map) {
-          putValueToJSObject(nestedObj, k, v)
-        }
-        target.put(key, nestedObj)
-      }
-      is List<*> -> {
-        target.put(key, convertListToJSArray(value))
-      }
-      else -> target.put(key, value.toString())
-    }
-  }
-
-  private fun convertListToJSArray(list: List<*>): JSArray {
-    val arr = JSArray()
-    for (item in list) {
-      when (item) {
-        is String -> arr.put(item)
-        is Int -> arr.put(item)
-        is Long -> arr.put(item)
-        is Double -> arr.put(item)
-        is Boolean -> arr.put(item)
-        is Map<*, *> -> {
-          val nestedObj = JSObject()
-          @Suppress("UNCHECKED_CAST")
-          val map = item as Map<String, Any>
-          for ((k, v) in map) {
-            putValueToJSObject(nestedObj, k, v)
-          }
-          arr.put(nestedObj)
-        }
-        is List<*> -> arr.put(convertListToJSArray(item))
-        null -> arr.put(org.json.JSONObject.NULL)
-        else -> arr.put(item.toString())
-      }
-    }
-    return arr
   }
 }

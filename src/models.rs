@@ -21,9 +21,18 @@ pub struct PushNotificationResponse {
 #[cfg(feature = "unified-push")]
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct UnifiedPushPublicKeySet {
+    pub pub_key: String,
+    pub auth: String,
+}
+
+#[cfg(feature = "unified-push")]
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct UnifiedPushEndpointResponse {
     pub endpoint: String,
     pub instance: String,
+    pub pub_key_set: Option<UnifiedPushPublicKeySet>,
 }
 
 #[cfg(feature = "unified-push")]

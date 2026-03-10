@@ -28,6 +28,7 @@ import {
   onUnifiedPushMessage,
   onUnifiedPushUnregistered,
   onUnifiedPushError,
+  onUnifiedPushTempUnavailable,
   registerActionTypes,
   pending,
   cancel,
@@ -498,7 +499,7 @@ describe("Notification Functions", () => {
 
   describe("unregisterForPushNotifications", () => {
     it("should call invoke with correct plugin command", async () => {
-      mockInvoke.mockResolvedValue("");
+      mockInvoke.mockResolvedValue(undefined);
 
       await unregisterForPushNotifications();
 
@@ -507,13 +508,12 @@ describe("Notification Functions", () => {
       );
     });
 
-    it("should return the result from invoke", async () => {
-      const mockResult = "unregistered";
-      mockInvoke.mockResolvedValue(mockResult);
+    it("should resolve without a return value", async () => {
+      mockInvoke.mockResolvedValue(undefined);
 
       const result = await unregisterForPushNotifications();
 
-      expect(result).toBe(mockResult);
+      expect(result).toBeUndefined();
     });
   });
 
@@ -644,6 +644,31 @@ describe("Notification Functions", () => {
 
       expect(callback).toHaveBeenCalledWith(endpointData);
     });
+
+    it("should call callback with pubKeySet when distributor provides VAPID keys", async () => {
+      let capturedCallback: ((data: any) => void) | undefined;
+      mockAddPluginListener.mockImplementation((_plugin, _event, cb) => {
+        capturedCallback = cb;
+        return Promise.resolve(vi.fn());
+      });
+
+      const callback = vi.fn();
+      await onUnifiedPushEndpoint(callback);
+
+      const endpointData = {
+        endpoint: "https://nextpush.example.com/push/xyz",
+        instance: "default",
+        pubKeySet: {
+          pubKey: "BNcRdreALRFXTkOOUHK1EtK2wtZ5ZIILHY0CRbISTuErp8KS0DLjFCMDxEPPW4ECPF",
+          auth: "8eDyX_uCN0XRhSbY5hs7Hg",
+        },
+      };
+      capturedCallback?.(endpointData);
+
+      expect(callback).toHaveBeenCalledWith(endpointData);
+      expect(callback.mock.calls[0][0].pubKeySet.pubKey).toBeDefined();
+      expect(callback.mock.calls[0][0].pubKeySet.auth).toBeDefined();
+    });
   });
 
   describe("onUnifiedPushMessage", () => {
@@ -746,6 +771,38 @@ describe("Notification Functions", () => {
       capturedCallback?.(errorData);
 
       expect(callback).toHaveBeenCalledWith(errorData);
+    });
+  });
+
+  describe("onUnifiedPushTempUnavailable", () => {
+    it("should register temp-unavailable listener", async () => {
+      const mockUnlisten = vi.fn();
+      mockAddPluginListener.mockResolvedValue(mockUnlisten);
+
+      const callback = vi.fn();
+      const unlisten = await onUnifiedPushTempUnavailable(callback);
+
+      expect(mockAddPluginListener).toHaveBeenCalledWith(
+        "notifications",
+        "unifiedpush-temp-unavailable",
+        callback,
+      );
+      expect(unlisten).toBe(mockUnlisten);
+    });
+
+    it("should call callback with instance data", async () => {
+      let capturedCallback: ((data: any) => void) | undefined;
+      mockAddPluginListener.mockImplementation((_plugin, _event, cb) => {
+        capturedCallback = cb;
+        return Promise.resolve(vi.fn());
+      });
+
+      const callback = vi.fn();
+      await onUnifiedPushTempUnavailable(callback);
+
+      capturedCallback?.({ instance: "default" });
+
+      expect(callback).toHaveBeenCalledWith({ instance: "default" });
     });
   });
 

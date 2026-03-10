@@ -473,8 +473,16 @@ async function registerForPushNotifications(): Promise<string> {
  *
  * @returns A promise resolving when unregistration is complete.
  */
-async function unregisterForPushNotifications(): Promise<string> {
+async function unregisterForPushNotifications(): Promise<void> {
   return await invoke("plugin:notifications|unregister_for_push_notifications");
+}
+
+/** VAPID / Web Push public key set provided by the distributor for encrypted push. */
+interface UnifiedPushPublicKeySet {
+  /** The P-256 ECDH public key (base64url-encoded, uncompressed). */
+  pubKey: string;
+  /** The authentication secret (base64url-encoded). */
+  auth: string;
 }
 
 interface UnifiedPushEndpoint {
@@ -482,6 +490,12 @@ interface UnifiedPushEndpoint {
   endpoint: string;
   /** The instance identifier for this registration. */
   instance: string;
+  /**
+   * VAPID public-key set provided by the distributor.
+   * Present only when the distributor supports encrypted push (e.g. NextPush with VAPID).
+   * Pass `pubKeySet.pubKey` as `p256dh` and `pubKeySet.auth` as the auth secret to the push gateway.
+   */
+  pubKeySet?: UnifiedPushPublicKeySet;
 }
 
 /**
@@ -648,6 +662,34 @@ async function onUnifiedPushError(
   cb: (data: { message: string; instance?: string }) => void,
 ): Promise<PluginListener> {
   return await addPluginListener("notifications", "unifiedpush-error", cb);
+}
+
+/**
+ * Registers a listener for UnifiedPush temporary-unavailability events.
+ *
+ * Fired when the distributor app is temporarily unavailable (e.g. being updated).
+ * The existing registration remains valid; wait for an {@link onUnifiedPushEndpoint}
+ * callback before sending push messages again.
+ *
+ * @example
+ * ```typescript
+ * import { onUnifiedPushTempUnavailable } from '@choochmeque/tauri-plugin-notifications-api';
+ * const unlisten = await onUnifiedPushTempUnavailable((data) => {
+ *   console.warn('UnifiedPush temporarily unavailable for instance:', data.instance);
+ * });
+ * ```
+ *
+ * @param cb - Callback function to handle the temp-unavailable event.
+ * @returns A promise resolving to a function that removes the listener.
+ */
+async function onUnifiedPushTempUnavailable(
+  cb: (data: { instance: string }) => void,
+): Promise<PluginListener> {
+  return await addPluginListener(
+    "notifications",
+    "unifiedpush-temp-unavailable",
+    cb,
+  );
 }
 
 /**
@@ -951,6 +993,7 @@ export type {
   Channel,
   ScheduleInterval,
   NotificationClickedData,
+  UnifiedPushPublicKeySet,
   UnifiedPushEndpoint,
 };
 
@@ -971,6 +1014,7 @@ export {
   onUnifiedPushMessage,
   onUnifiedPushUnregistered,
   onUnifiedPushError,
+  onUnifiedPushTempUnavailable,
   registerActionTypes,
   pending,
   cancel,
