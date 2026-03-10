@@ -425,6 +425,7 @@ pub struct MessagingStyleConfig {
     pub is_group_conversation: bool,
     #[serde(default)]
     pub messages: Vec<MessagingStyleMessage>,
+    #[serde(skip_serializing)]
     pub auth_token: Option<String>,
 }
 

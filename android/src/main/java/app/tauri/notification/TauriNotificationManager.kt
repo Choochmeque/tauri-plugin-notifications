@@ -50,7 +50,9 @@ class TauriNotificationManager(
 ) {
   private var defaultSoundID: Int = AssetUtils.RESOURCE_ID_ZERO_VALUE
   private var defaultSmallIconID: Int = AssetUtils.RESOURCE_ID_ZERO_VALUE
-  private val avatarExecutor: java.util.concurrent.ExecutorService = java.util.concurrent.Executors.newFixedThreadPool(4)
+  private val avatarExecutor: java.util.concurrent.ExecutorService = java.util.concurrent.Executors.newFixedThreadPool(4) { runnable ->
+    Thread(runnable).apply { isDaemon = true; name = "avatar-download" }
+  }
 
   fun handleNotificationActionPerformed(
     data: Intent,
@@ -140,14 +142,14 @@ class TauriNotificationManager(
     return ids
   }
 
-  private fun buildPerson(person: MessagingStylePerson, authToken: String? = null): Person {
+  private fun buildPerson(person: MessagingStylePerson, prefetchedAvatars: Map<String, Bitmap?> = emptyMap()): Person {
     val builder = Person.Builder().setName(person.name)
     if (person.key != null) {
       builder.setKey(person.key)
     }
     // Prefer iconUrl (remote avatar) over icon (drawable resource)
     if (person.iconUrl != null) {
-      val bitmap = downloadAvatarBitmap(person.iconUrl!!, authToken)
+      val bitmap = prefetchedAvatars[person.iconUrl]
       if (bitmap != null) {
         builder.setIcon(IconCompat.createWithBitmap(bitmap))
       }
@@ -161,44 +163,75 @@ class TauriNotificationManager(
   }
 
   // Downloads a remote avatar image as a circular-cropped bitmap.
-  // Runs on a background thread to avoid NetworkOnMainThreadException.
-  // Returns null on any failure (network error, invalid image, timeout, etc.).
-  private fun downloadAvatarBitmap(url: String, authToken: String?): Bitmap? {
-    return try {
-      val future = avatarExecutor.submit(
-        java.util.concurrent.Callable<Bitmap?> {
-          try {
-            val parsedUrl = java.net.URL(url)
-            if (authToken != null && !parsedUrl.protocol.equals("https", ignoreCase = true)) {
-              Logger.error(Logger.tags(TAG), "Refusing to send auth token over non-HTTPS URL: $url", null)
-              return@Callable null
-            }
-            val connection = parsedUrl.openConnection() as java.net.HttpURLConnection
-            connection.connectTimeout = 5_000
-            connection.readTimeout = 5_000
-            if (authToken != null) {
-              connection.setRequestProperty("Authorization", "Bearer $authToken")
-            }
-            connection.connect()
-            if (connection.responseCode != 200) {
-              connection.disconnect()
-              return@Callable null
-            }
-            val raw = BitmapFactory.decodeStream(connection.inputStream)
-            connection.disconnect()
-            if (raw == null) return@Callable null
-            cropCircle(raw)
-          } catch (e: Exception) {
-            Logger.error(Logger.tags(TAG), "Failed to download avatar: ${e.message}", e)
-            null
+  // Submits the download to a background thread and returns a Future.
+  // The caller should collect all futures first, then resolve them to enable parallel downloads.
+  private fun submitAvatarDownload(url: String, authToken: String?): java.util.concurrent.Future<Bitmap?> {
+    return avatarExecutor.submit(
+      java.util.concurrent.Callable<Bitmap?> {
+        try {
+          val parsedUrl = java.net.URL(url)
+          if (authToken != null && !parsedUrl.protocol.equals("https", ignoreCase = true)) {
+            Logger.error(Logger.tags(TAG), "Refusing to send auth token over non-HTTPS URL: $url", null)
+            return@Callable null
           }
+          val connection = parsedUrl.openConnection() as java.net.HttpURLConnection
+          connection.connectTimeout = 5_000
+          connection.readTimeout = 5_000
+          if (authToken != null) {
+            connection.setRequestProperty("Authorization", "Bearer $authToken")
+          }
+          connection.connect()
+          if (connection.responseCode != 200) {
+            connection.disconnect()
+            return@Callable null
+          }
+          val raw = BitmapFactory.decodeStream(connection.inputStream)
+          connection.disconnect()
+          if (raw == null) return@Callable null
+          cropCircle(raw)
+        } catch (e: Exception) {
+          Logger.error(Logger.tags(TAG), "Failed to download avatar: ${e.message}", e)
+          null
         }
-      )
+      }
+    )
+  }
+
+  // Resolves a previously submitted avatar future, blocking for up to 10 seconds.
+  private fun resolveAvatarFuture(future: java.util.concurrent.Future<Bitmap?>): Bitmap? {
+    return try {
       future.get(10, java.util.concurrent.TimeUnit.SECONDS)
     } catch (e: Exception) {
       Logger.error(Logger.tags(TAG), "Avatar download timed out or failed: ${e.message}", e)
       null
     }
+  }
+
+  // Pre-downloads all avatar images for a MessagingStyle notification in parallel.
+  // Returns a map from URL to Bitmap (or null on failure).
+  private fun prefetchAvatars(msgStyle: MessagingStyleConfig): Map<String, Bitmap?> {
+    val authToken = msgStyle.authToken
+    // Collect all unique URLs that need downloading
+    val urlsToDownload = mutableSetOf<String>()
+    msgStyle.user.iconUrl?.let { urlsToDownload.add(it) }
+    for (msg in msgStyle.messages) {
+      msg.sender?.iconUrl?.let { urlsToDownload.add(it) }
+    }
+    if (urlsToDownload.isEmpty()) return emptyMap()
+
+    // Submit all downloads in parallel
+    val futures = urlsToDownload.associateWith { url -> submitAvatarDownload(url, authToken) }
+
+    // Resolve all futures (total wait is ~10s max, not N×10s)
+    return futures.mapValues { (_, future) -> resolveAvatarFuture(future) }
+  }
+
+  /**
+   * Shuts down the background executor used for avatar downloads.
+   * Should be called when the plugin is being destroyed / the activity is finishing.
+   */
+  fun destroy() {
+    avatarExecutor.shutdown()
   }
 
   private fun cropCircle(src: Bitmap): Bitmap {
@@ -254,8 +287,9 @@ class TauriNotificationManager(
     // Style selection (mutually exclusive: messagingStyle > largeBody > inboxLines)
     if (notification.messagingStyle != null) {
       val msgStyle = notification.messagingStyle!!
-      val authToken = msgStyle.authToken
-      val userPerson = buildPerson(msgStyle.user, authToken)
+      // Pre-fetch all avatar images in parallel (max ~10s total, not N×10s)
+      val avatars = prefetchAvatars(msgStyle)
+      val userPerson = buildPerson(msgStyle.user, avatars)
       val messagingStyle = NotificationCompat.MessagingStyle(userPerson)
 
       if (msgStyle.conversationTitle != null) {
@@ -264,7 +298,7 @@ class TauriNotificationManager(
       messagingStyle.isGroupConversation = msgStyle.isGroupConversation
 
       for (msg in msgStyle.messages) {
-        val senderPerson = msg.sender?.let { buildPerson(it, authToken) }
+        val senderPerson = msg.sender?.let { buildPerson(it, avatars) }
         messagingStyle.addMessage(msg.text, msg.timestamp, senderPerson)
       }
       mBuilder.setStyle(messagingStyle)

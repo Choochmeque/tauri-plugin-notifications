@@ -9,6 +9,7 @@ import android.service.notification.StatusBarNotification
 import androidx.annotation.RequiresApi
 import app.tauri.annotation.InvokeArg
 import app.tauri.plugin.JSObject
+import com.fasterxml.jackson.annotation.JsonProperty
 
 @InvokeArg
 class MessagingStylePerson {
@@ -31,6 +32,7 @@ class MessagingStyleConfig {
   var conversationTitle: String? = null
   var isGroupConversation: Boolean = false
   var messages: List<MessagingStyleMessage> = listOf()
+  @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
   var authToken: String? = null
 }
 

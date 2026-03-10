@@ -248,7 +248,7 @@ class NotificationPlugin(private val activity: Activity): Plugin(activity) {
   @Command
   fun show(invoke: Invoke) {
     val notification = invoke.parseArgs(Notification::class.java)
-    notification.sourceJson = invoke.getRawArgs()
+    notification.sourceJson = stripAuthToken(invoke.getRawArgs())
 
     val id = manager.schedule(notification)
     if (notification.schedule != null) {
@@ -621,23 +621,43 @@ class NotificationPlugin(private val activity: Activity): Plugin(activity) {
 
   @PermissionCallback
   private fun unifiedPushPermissionsCallback(invoke: Invoke) {
-    val isCurrent: Boolean
+    val shouldRegister: Boolean
+    val instanceToRegister: String
     synchronized(unifiedPushLock) {
-      isCurrent = pendingUnifiedPushInvoke === invoke
-      if (isCurrent && !manager.areNotificationsEnabled()) {
+      val isCurrent = pendingUnifiedPushInvoke === invoke
+      if (!isCurrent) {
+        // Stale callback — a newer registerForUnifiedPush already rejected this invoke
+        return
+      }
+      if (!manager.areNotificationsEnabled()) {
         pendingUnifiedPushInvoke = null
+        // Release lock before rejecting to avoid holding it during invoke callback
+        shouldRegister = false
+        instanceToRegister = unifiedPushInstance
+      } else {
+        // Capture instance while still holding the lock so a concurrent
+        // unregisterFromUnifiedPush cannot clear it between check and use.
+        shouldRegister = true
+        instanceToRegister = unifiedPushInstance
       }
     }
 
-    // Stale callback — a newer registerForUnifiedPush already rejected this invoke
-    if (!isCurrent) return
-
-    if (!manager.areNotificationsEnabled()) {
+    if (!shouldRegister) {
       invoke.reject("Notification permissions denied")
       return
     }
 
-    UnifiedPush.register(activity, unifiedPushInstance)
+    // Double-check that the invoke is still the pending one.  Between releasing
+    // unifiedPushLock above and reaching this point, unregisterFromUnifiedPush
+    // could have cleared pendingUnifiedPushInvoke to cancel the registration.
+    synchronized(unifiedPushLock) {
+      if (pendingUnifiedPushInvoke !== invoke) {
+        // Unregistration was requested while we were about to register — abort.
+        return
+      }
+    }
+
+    UnifiedPush.register(activity, instanceToRegister)
   }
 
   fun handleNewUnifiedPushEndpoint(
@@ -742,6 +762,25 @@ class NotificationPlugin(private val activity: Activity): Plugin(activity) {
    */
   private fun putValueToJSObject(target: JSObject, key: String, value: Any) =
     JSObjectUtils.putValueToJSObject(target, key, value)
+
+  /**
+   * Removes the `authToken` field from `messagingStyle` in the raw JSON string
+   * to prevent credentials from being persisted in notification storage or intents.
+   */
+  private fun stripAuthToken(json: String?): String? {
+    if (json == null) return null
+    return try {
+      val obj = JSObject(json)
+      val messagingStyle = obj.optJSONObject("messagingStyle")
+      if (messagingStyle != null && messagingStyle.has("authToken")) {
+        messagingStyle.remove("authToken")
+      }
+      obj.toString()
+    } catch (e: Exception) {
+      Logger.error(Logger.tags(TAG), "Failed to strip authToken from JSON: ${e.message}", e)
+      json
+    }
+  }
 
   fun getNotificationManager(): TauriNotificationManager {
     return manager
