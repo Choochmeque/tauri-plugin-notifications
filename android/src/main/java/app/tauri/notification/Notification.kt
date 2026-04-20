@@ -81,13 +81,13 @@ class Notification {
     fun buildNotificationPendingList(notifications: List<Notification>): List<PendingNotification> {
       val pendingNotifications = mutableListOf<PendingNotification>()
       for (notification in notifications) {
-        val pendingNotification = PendingNotification(
-          id = notification.id,
-          title = notification.title,
-          body = notification.body,
-          schedule = notification.schedule,
+        val pendingNotification = PendingNotification().apply {
+          id = notification.id
+          title = notification.title
+          body = notification.body
+          schedule = notification.schedule
           extra = notification.extra
-        )
+        }
         pendingNotifications.add(pendingNotification)
       }
       return pendingNotifications
@@ -98,29 +98,24 @@ class Notification {
       val activeNotifications = mutableListOf<ActiveNotificationInfo>()
       for (statusBarNotification in statusBarNotifications) {
         val notification = statusBarNotification.notification
-        val data = mutableMapOf<String, String>()
+        val extractedData = mutableMapOf<String, String>()
         if (notification != null) {
           for (key in notification.extras.keySet()) {
             notification.extras.getString(key)?.let { value ->
-              data[key] = value
+              extractedData[key] = value
             }
           }
         }
 
-        val activeNotification = ActiveNotificationInfo(
-          id = statusBarNotification.id,
-          tag = statusBarNotification.tag,
-          title = notification?.extras?.getCharSequence(android.app.Notification.EXTRA_TITLE)?.toString(),
-          body = notification?.extras?.getCharSequence(android.app.Notification.EXTRA_TEXT)?.toString(),
-          group = notification?.group,
-          groupSummary = notification?.let { 0 != it.flags and android.app.Notification.FLAG_GROUP_SUMMARY } ?: false,
-          data = data,
-          extra = emptyMap(),
-          attachments = emptyList(),
-          actionTypeId = null,
-          schedule = null,
-          sound = null
-        )
+        val activeNotification = ActiveNotificationInfo().apply {
+          id = statusBarNotification.id
+          tag = statusBarNotification.tag
+          title = notification?.extras?.getCharSequence(android.app.Notification.EXTRA_TITLE)?.toString()
+          body = notification?.extras?.getCharSequence(android.app.Notification.EXTRA_TEXT)?.toString()
+          group = notification?.group
+          groupSummary = notification?.let { 0 != it.flags and android.app.Notification.FLAG_GROUP_SUMMARY } ?: false
+          data = extractedData
+        }
         activeNotifications.add(activeNotification)
       }
       return activeNotifications
@@ -128,30 +123,33 @@ class Notification {
   }
 }
 
-class PendingNotification(
-  val id: Int,
-  val title: String?,
-  val body: String?,
-  val schedule: NotificationSchedule?,
-  val extra: JSObject?
-)
+@InvokeArg
+class PendingNotification {
+  var id: Int = 0
+  var title: String? = null
+  var body: String? = null
+  var schedule: NotificationSchedule? = null
+  var extra: JSObject? = null
+}
 
-class ActiveNotificationInfo(
-  val id: Int,
-  val tag: String?,
-  val title: String?,
-  val body: String?,
-  val group: String?,
-  val groupSummary: Boolean,
-  val data: Map<String, String>,
-  val extra: Map<String, Any>,
-  val attachments: List<AttachmentInfo>,
-  val actionTypeId: String?,
-  val schedule: NotificationSchedule?,
-  val sound: String?
-)
+@InvokeArg
+class ActiveNotificationInfo {
+  var id: Int = 0
+  var tag: String? = null
+  var title: String? = null
+  var body: String? = null
+  var group: String? = null
+  var groupSummary: Boolean = false
+  var data: Map<String, String> = emptyMap()
+  var extra: Map<String, Any> = emptyMap()
+  var attachments: List<AttachmentInfo> = emptyList()
+  var actionTypeId: String? = null
+  var schedule: NotificationSchedule? = null
+  var sound: String? = null
+}
 
-class AttachmentInfo(
-  val id: String,
-  val url: String
-)
+@InvokeArg
+class AttachmentInfo {
+  var id: String = ""
+  var url: String = ""
+}
