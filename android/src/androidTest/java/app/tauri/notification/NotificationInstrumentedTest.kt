@@ -244,13 +244,13 @@ class NotificationInstrumentedTest {
         val extra = JSObject()
         extra.put("key", "value")
 
-        val pendingNotification = PendingNotification(
-            id = 500,
-            title = "Pending",
-            body = "Pending body",
-            schedule = schedule,
-            extra = extra
-        )
+        val pendingNotification = PendingNotification().apply {
+            id = 500
+            title = "Pending"
+            body = "Pending body"
+            this.schedule = schedule
+            this.extra = extra
+        }
 
         assertEquals(500, pendingNotification.id)
         assertEquals("Pending", pendingNotification.title)

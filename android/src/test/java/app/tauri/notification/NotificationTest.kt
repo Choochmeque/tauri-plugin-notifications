@@ -416,13 +416,13 @@ class NotificationTest {
         val schedule = NotificationSchedule.At()
         val extra = JSObject()
 
-        val pendingNotification = PendingNotification(
-            id = 10,
-            title = "Pending Title",
-            body = "Pending Body",
-            schedule = schedule,
-            extra = extra
-        )
+        val pendingNotification = PendingNotification().apply {
+            id = 10
+            title = "Pending Title"
+            body = "Pending Body"
+            this.schedule = schedule
+            this.extra = extra
+        }
 
         assertEquals(10, pendingNotification.id)
         assertEquals("Pending Title", pendingNotification.title)
