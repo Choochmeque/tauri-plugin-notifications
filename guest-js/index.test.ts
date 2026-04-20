@@ -795,6 +795,7 @@ describe("Notification Functions", () => {
 
       expect(mockInvoke).toHaveBeenCalledWith(
         "plugin:notifications|remove_active",
+        { notifications: [] },
       );
     });
   });
