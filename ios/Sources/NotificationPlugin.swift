@@ -357,18 +357,17 @@ class NotificationPlugin: Plugin {
   }
 
   @objc func removeActive(_ invoke: Invoke) {
-    do {
-      let args = try invoke.parseArgs(RemoveActiveArgs.self)
+    let args = try? invoke.parseArgs(RemoveActiveArgs.self)
+    if let args, !args.notifications.isEmpty {
       UNUserNotificationCenter.current().removeDeliveredNotifications(
         withIdentifiers: args.notifications.map { String($0.id) })
-      invoke.resolve()
-    } catch {
+    } else {
       UNUserNotificationCenter.current().removeAllDeliveredNotifications()
       DispatchQueue.main.async(execute: {
         UIApplication.shared.applicationIconBadgeNumber = 0
       })
-      invoke.resolve()
     }
+    invoke.resolve()
   }
 
   @objc func getActive(_ invoke: Invoke) {

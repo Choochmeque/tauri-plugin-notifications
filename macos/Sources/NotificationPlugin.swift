@@ -292,8 +292,12 @@ class NotificationPlugin {
 
   public func removeActive(args: RustString) throws(FFIResult) {
     let args = try args.decode(RemoveActiveArgs.self)
-    UNUserNotificationCenter.current().removeDeliveredNotifications(
-      withIdentifiers: args.notifications.map { String($0.id) })
+    if args.notifications.isEmpty {
+      try removeAllActive()
+    } else {
+      UNUserNotificationCenter.current().removeDeliveredNotifications(
+        withIdentifiers: args.notifications.map { String($0.id) })
+    }
   }
 
   public func removeAllActive() throws(FFIResult) {
