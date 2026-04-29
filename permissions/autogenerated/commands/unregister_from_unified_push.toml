@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-unregister-from-unified-push"
+description = "Enables the unregister_from_unified_push command without any pre-configured scope."
+commands.allow = ["unregister_from_unified_push"]
+
+[[permission]]
+identifier = "deny-unregister-from-unified-push"
+description = "Denies the unregister_from_unified_push command without any pre-configured scope."
+commands.deny = ["unregister_from_unified_push"]

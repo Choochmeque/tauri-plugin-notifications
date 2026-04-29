@@ -9,6 +9,32 @@ import android.service.notification.StatusBarNotification
 import androidx.annotation.RequiresApi
 import app.tauri.annotation.InvokeArg
 import app.tauri.plugin.JSObject
+import com.fasterxml.jackson.annotation.JsonProperty
+
+@InvokeArg
+class MessagingStylePerson {
+  var name: String = ""
+  var icon: String? = null
+  var iconUrl: String? = null
+  var key: String? = null
+}
+
+@InvokeArg
+class MessagingStyleMessage {
+  var text: String = ""
+  var timestamp: Long = 0
+  var sender: MessagingStylePerson? = null
+}
+
+@InvokeArg
+class MessagingStyleConfig {
+  var user: MessagingStylePerson = MessagingStylePerson()
+  var conversationTitle: String? = null
+  var isGroupConversation: Boolean = false
+  var messages: List<MessagingStyleMessage> = listOf()
+  @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
+  var authToken: String? = null
+}
 
 @InvokeArg
 class Notification {
@@ -35,6 +61,17 @@ class Notification {
   var visibility: Int? = null
   var number: Int? = null
   var silent: Boolean? = null
+
+  // Progress bar support
+  var progress: Int? = null
+  var progressMax: Int? = null
+  var progressIndeterminate: Boolean? = null
+
+  // System category (maps to NotificationCompat.CATEGORY_* constants)
+  var category: String? = null
+
+  // MessagingStyle support
+  var messagingStyle: MessagingStyleConfig? = null
 
   fun getSound(context: Context, defaultSound: Int): String? {
     var soundPath: String? = null

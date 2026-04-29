@@ -20,6 +20,7 @@ import app.tauri.plugin.JSArray
 import app.tauri.plugin.JSObject
 import app.tauri.plugin.Plugin
 import com.google.firebase.messaging.FirebaseMessaging
+import org.unifiedpush.android.connector.UnifiedPush
 
 const val LOCAL_NOTIFICATIONS = "permissionState"
 
@@ -45,6 +46,7 @@ class NotificationAction {
   lateinit var id: String
   var title: String? = null
   var input: Boolean? = null
+  var icon: String? = null
 }
 
 @InvokeArg
@@ -74,6 +76,11 @@ class RemoveActiveArgs {
   var notifications: List<ActiveNotification> = listOf()
 }
 
+@InvokeArg
+class SaveUnifiedPushDistributorArgs {
+  var distributor: String? = null
+}
+
 @TauriPlugin(
   permissions = [
     Permission(strings = [Manifest.permission.POST_NOTIFICATIONS], alias = "permissionState")
@@ -89,7 +96,15 @@ class NotificationPlugin(private val activity: Activity): Plugin(activity) {
   private var pendingTokenInvoke: Invoke? = null
   private var cachedToken: String? = null
 
-  // Click listener tracking for cold-start support
+  private var pendingUnifiedPushInvoke: Invoke? = null
+  private var cachedUnifiedPushEndpoint: String? = null
+  private var cachedPubKey: String? = null
+  private var cachedAuth: String? = null
+  private var unifiedPushInstance: String = "default"
+
+  // Lock object for synchronizing compound read-check-write on UnifiedPush fields
+  private val unifiedPushLock = Any()
+
   private var hasClickedListener = false
   private var pendingNotificationClick: JSObject? = null
 
@@ -233,7 +248,7 @@ class NotificationPlugin(private val activity: Activity): Plugin(activity) {
   @Command
   fun show(invoke: Invoke) {
     val notification = invoke.parseArgs(Notification::class.java)
-    notification.sourceJson = invoke.getRawArgs()
+    notification.sourceJson = stripAuthToken(invoke.getRawArgs())
 
     val id = manager.schedule(notification)
     if (notification.schedule != null) {
@@ -348,6 +363,8 @@ class NotificationPlugin(private val activity: Activity): Plugin(activity) {
     } else {
       if (getPermissionState(LOCAL_NOTIFICATIONS) !== PermissionState.GRANTED) {
         requestPermissionForAlias(LOCAL_NOTIFICATIONS, invoke, "permissionsCallback")
+      } else {
+        permissionState(invoke)
       }
     }
   }
@@ -451,7 +468,6 @@ class NotificationPlugin(private val activity: Activity): Plugin(activity) {
     if (!BuildConfig.ENABLE_PUSH_NOTIFICATIONS) return
 
     cachedToken = token
-    // Trigger push-token event to notify the frontend about the token
     val data = JSObject()
     data.put("token", token)
     trigger("push-token", data)
@@ -463,23 +479,7 @@ class NotificationPlugin(private val activity: Activity): Plugin(activity) {
 
     val data = JSObject()
     for ((key, value) in pushData) {
-      when (value) {
-        is String -> data.put(key, value)
-        is Int -> data.put(key, value)
-        is Long -> data.put(key, value)
-        is Double -> data.put(key, value)
-        is Boolean -> data.put(key, value)
-        is Map<*, *> -> {
-          val nestedObj = JSObject()
-          @Suppress("UNCHECKED_CAST")
-          val map = value as Map<String, Any>
-          for ((k, v) in map) {
-            nestedObj.put(k, v.toString())
-          }
-          data.put(key, nestedObj)
-        }
-        else -> data.put(key, value.toString())
-      }
+      putValueToJSObject(data, key, value)
     }
     trigger("push-message", data)
   }
@@ -504,6 +504,286 @@ class NotificationPlugin(private val activity: Activity): Plugin(activity) {
     } else {
       "denied"
     }
+  }
+
+
+  @Command
+  fun registerForUnifiedPush(invoke: Invoke) {
+    if (!BuildConfig.ENABLE_UNIFIED_PUSH) {
+      invoke.reject("UnifiedPush is disabled in this build")
+      return
+    }
+
+    // First check if notifications are enabled
+    if (!manager.areNotificationsEnabled()) {
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        if (getPermissionState(LOCAL_NOTIFICATIONS) !== PermissionState.GRANTED) {
+          synchronized(unifiedPushLock) {
+            pendingUnifiedPushInvoke?.reject("Superseded by a new registration request")
+            pendingUnifiedPushInvoke = invoke
+          }
+          requestPermissionForAlias(LOCAL_NOTIFICATIONS, invoke, "unifiedPushPermissionsCallback")
+          return
+        }
+      } else {
+        invoke.reject("Notification permissions not granted")
+        return
+      }
+    }
+
+    synchronized(unifiedPushLock) {
+      // If we already have a cached endpoint, return it immediately
+      cachedUnifiedPushEndpoint?.let {
+        val result = JSObject()
+        result.put("endpoint", it)
+        result.put("instance", unifiedPushInstance)
+        if (cachedPubKey != null && cachedAuth != null) {
+          val keySet = JSObject()
+          keySet.put("pubKey", cachedPubKey)
+          keySet.put("auth", cachedAuth)
+          result.put("pubKeySet", keySet)
+        }
+        invoke.resolve(result)
+        return
+      }
+
+      pendingUnifiedPushInvoke?.reject("Superseded by a new registration request")
+      pendingUnifiedPushInvoke = invoke
+    }
+    UnifiedPush.register(activity, unifiedPushInstance)
+  }
+
+  @Command
+  fun unregisterFromUnifiedPush(invoke: Invoke) {
+    if (!BuildConfig.ENABLE_UNIFIED_PUSH) {
+      invoke.reject("UnifiedPush is disabled in this build")
+      return
+    }
+
+    synchronized(unifiedPushLock) {
+      // Reject any pending registration invoke to prevent the JS caller from hanging
+      pendingUnifiedPushInvoke?.reject("Unregistration requested while registration was in progress")
+      pendingUnifiedPushInvoke = null
+      cachedUnifiedPushEndpoint = null
+      cachedPubKey = null
+      cachedAuth = null
+    }
+
+    UnifiedPush.unregister(activity, unifiedPushInstance)
+    invoke.resolve()
+  }
+
+  @Command
+  fun getUnifiedPushDistributors(invoke: Invoke) {
+    if (!BuildConfig.ENABLE_UNIFIED_PUSH) {
+      invoke.reject("UnifiedPush is disabled in this build")
+      return
+    }
+
+    val distributors = UnifiedPush.getDistributors(activity)
+    val result = JSObject()
+    val distributorsArray = JSArray()
+    distributors.forEach { distributorsArray.put(it) }
+    result.put("distributors", distributorsArray)
+    invoke.resolve(result)
+  }
+
+  @Command
+  fun saveUnifiedPushDistributor(invoke: Invoke) {
+    if (!BuildConfig.ENABLE_UNIFIED_PUSH) {
+      invoke.reject("UnifiedPush is disabled in this build")
+      return
+    }
+
+    val args = invoke.parseArgs(SaveUnifiedPushDistributorArgs::class.java)
+    val distributor = args.distributor
+    if (distributor == null) {
+      invoke.reject("Distributor parameter is required")
+      return
+    }
+
+    UnifiedPush.saveDistributor(activity, distributor)
+    invoke.resolve()
+  }
+
+  @Command
+  fun getUnifiedPushDistributor(invoke: Invoke) {
+    if (!BuildConfig.ENABLE_UNIFIED_PUSH) {
+      invoke.reject("UnifiedPush is disabled in this build")
+      return
+    }
+
+    val distributor = UnifiedPush.getSavedDistributor(activity) ?: ""
+    val result = JSObject()
+    result.put("distributor", distributor)
+    invoke.resolve(result)
+  }
+
+  @PermissionCallback
+  private fun unifiedPushPermissionsCallback(invoke: Invoke) {
+    val shouldRegister: Boolean
+    val instanceToRegister: String
+    synchronized(unifiedPushLock) {
+      val isCurrent = pendingUnifiedPushInvoke === invoke
+      if (!isCurrent) {
+        // Stale callback — a newer registerForUnifiedPush already rejected this invoke
+        return
+      }
+      if (!manager.areNotificationsEnabled()) {
+        pendingUnifiedPushInvoke = null
+        // Release lock before rejecting to avoid holding it during invoke callback
+        shouldRegister = false
+        instanceToRegister = unifiedPushInstance
+      } else {
+        // Capture instance while still holding the lock so a concurrent
+        // unregisterFromUnifiedPush cannot clear it between check and use.
+        shouldRegister = true
+        instanceToRegister = unifiedPushInstance
+      }
+    }
+
+    if (!shouldRegister) {
+      invoke.reject("Notification permissions denied")
+      return
+    }
+
+    // Double-check that the invoke is still the pending one.  Between releasing
+    // unifiedPushLock above and reaching this point, unregisterFromUnifiedPush
+    // could have cleared pendingUnifiedPushInvoke to cancel the registration.
+    synchronized(unifiedPushLock) {
+      if (pendingUnifiedPushInvoke !== invoke) {
+        // Unregistration was requested while we were about to register — abort.
+        return
+      }
+    }
+
+    UnifiedPush.register(activity, instanceToRegister)
+  }
+
+  fun handleNewUnifiedPushEndpoint(
+    endpoint: String,
+    instance: String,
+    pubKey: String? = null,
+    auth: String? = null,
+  ) {
+    if (!BuildConfig.ENABLE_UNIFIED_PUSH) return
+
+    val pendingInvoke: Invoke?
+    synchronized(unifiedPushLock) {
+      cachedUnifiedPushEndpoint = endpoint
+      cachedPubKey = pubKey
+      cachedAuth = auth
+      unifiedPushInstance = instance
+      pendingInvoke = pendingUnifiedPushInvoke
+      pendingUnifiedPushInvoke = null
+    }
+
+    fun buildResult() = JSObject().apply {
+      put("endpoint", endpoint)
+      put("instance", instance)
+      if (pubKey != null && auth != null) {
+        val keySet = JSObject()
+        keySet.put("pubKey", pubKey)
+        keySet.put("auth", auth)
+        put("pubKeySet", keySet)
+      }
+    }
+
+    pendingInvoke?.resolve(buildResult())
+    trigger("unifiedpush-endpoint", buildResult())
+  }
+
+  // Called by TauriUnifiedPushMessagingService when unregistered
+  fun handleUnifiedPushUnregistered(instance: String) {
+    if (!BuildConfig.ENABLE_UNIFIED_PUSH) return
+
+    synchronized(unifiedPushLock) {
+      cachedUnifiedPushEndpoint = null
+      cachedPubKey = null
+      cachedAuth = null
+    }
+
+    val data = JSObject()
+    data.put("instance", instance)
+    trigger("unifiedpush-unregistered", data)
+  }
+
+  /**
+   * Called by [TauriUnifiedPushMessagingService.onTempUnavailable] when the distributor is
+   * temporarily unavailable (e.g. the distributor app is being updated).
+   * The existing registration stays valid; callers should wait for a new
+   * [handleNewUnifiedPushEndpoint] before attempting to send messages.
+   */
+  fun handleUnifiedPushTempUnavailable(instance: String) {
+    if (!BuildConfig.ENABLE_UNIFIED_PUSH) return
+
+    val data = JSObject()
+    data.put("instance", instance)
+    trigger("unifiedpush-temp-unavailable", data)
+  }
+
+  // Called by TauriUnifiedPushMessagingService when a push message is received
+  fun triggerUnifiedPushMessage(pushData: Map<String, Any>) {
+    if (!BuildConfig.ENABLE_UNIFIED_PUSH) return
+
+    val data = JSObject()
+    for ((key, value) in pushData) {
+      putValueToJSObject(data, key, value)
+    }
+    trigger("unifiedpush-message", data)
+  }
+
+  // Called by TauriUnifiedPushMessagingService when registration fails
+  fun handleUnifiedPushRegistrationFailed(instance: String, reason: String? = null) {
+    if (!BuildConfig.ENABLE_UNIFIED_PUSH) return
+
+    val errorMessage = if (reason != null) {
+      "UnifiedPush registration failed for instance: $instance (reason: $reason)"
+    } else {
+      "UnifiedPush registration failed for instance: $instance"
+    }
+    val errorData = JSObject()
+    errorData.put("message", errorMessage)
+    errorData.put("instance", instance)
+    trigger("unifiedpush-error", errorData)
+
+    val pendingInvoke: Invoke?
+    synchronized(unifiedPushLock) {
+      pendingInvoke = pendingUnifiedPushInvoke
+      pendingUnifiedPushInvoke = null
+    }
+    pendingInvoke?.reject(errorMessage)
+  }
+
+  /**
+   * Recursively converts a native value (from JSON parsing) into the appropriate
+   * JSObject/JSArray type and puts it into the target [JSObject] under the given [key].
+   * Delegates to [JSObjectUtils.putValueToJSObject].
+   */
+  private fun putValueToJSObject(target: JSObject, key: String, value: Any) =
+    JSObjectUtils.putValueToJSObject(target, key, value)
+
+  /**
+   * Removes the `authToken` field from `messagingStyle` in the raw JSON string
+   * to prevent credentials from being persisted in notification storage or intents.
+   */
+  private fun stripAuthToken(json: String?): String? {
+    if (json == null) return null
+    return try {
+      val obj = JSObject(json)
+      val messagingStyle = obj.optJSONObject("messagingStyle")
+      if (messagingStyle != null && messagingStyle.has("authToken")) {
+        messagingStyle.remove("authToken")
+      }
+      obj.toString()
+    } catch (e: Exception) {
+      Logger.error(Logger.tags(TAG), "Failed to strip authToken from JSON: ${e.message}", e)
+      json
+    }
+  }
+
+  fun getNotificationManager(): TauriNotificationManager {
+    return manager
   }
 
   @Command

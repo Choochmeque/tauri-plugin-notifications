@@ -10,6 +10,8 @@ import android.content.BroadcastReceiver
 import android.content.ContentResolver
 import android.content.Context
 import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.media.AudioAttributes
 import android.net.Uri
@@ -18,7 +20,9 @@ import android.os.Build.VERSION.SDK_INT
 import android.os.UserManager
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
+import androidx.core.app.Person
 import androidx.core.app.RemoteInput
+import androidx.core.graphics.drawable.IconCompat
 import app.tauri.Logger
 import app.tauri.plugin.JSObject
 import app.tauri.plugin.PluginManager
@@ -46,6 +50,9 @@ class TauriNotificationManager(
 ) {
   private var defaultSoundID: Int = AssetUtils.RESOURCE_ID_ZERO_VALUE
   private var defaultSmallIconID: Int = AssetUtils.RESOURCE_ID_ZERO_VALUE
+  private val avatarExecutor: java.util.concurrent.ExecutorService = java.util.concurrent.Executors.newFixedThreadPool(4) { runnable ->
+    Thread(runnable).apply { isDaemon = true; name = "avatar-download" }
+  }
 
   fun handleNotificationActionPerformed(
     data: Intent,
@@ -84,9 +91,6 @@ class TauriNotificationManager(
     return dataJson
   }
 
-  /**
-   * Create notification channel
-   */
   fun createNotificationChannel() {
     // Create the NotificationChannel, but only on API 26+ because
     // the NotificationChannel class is new and not in the support library
@@ -113,17 +117,17 @@ class TauriNotificationManager(
     }
   }
 
-  private fun trigger(notificationManager: NotificationManagerCompat, notification: Notification): Int {
+  private fun trigger(notificationManager: NotificationManagerCompat, notification: Notification, source: String = "local"): Int {
     dismissVisibleNotification(notification.id)
     cancelTimerForNotification(notification.id)
-    buildNotification(notificationManager, notification)
+    buildNotification(notificationManager, notification, source)
 
     return notification.id
   }
 
-  fun schedule(notification: Notification): Int {
+  fun schedule(notification: Notification, source: String = "local"): Int {
     val notificationManager = NotificationManagerCompat.from(context)
-    return trigger(notificationManager, notification)
+    return trigger(notificationManager, notification, source)
   }
 
   fun schedule(notifications: List<Notification>): List<Int> {
@@ -138,15 +142,119 @@ class TauriNotificationManager(
     return ids
   }
 
-  // TODO Progressbar support
-  // TODO System categories (DO_NOT_DISTURB etc.)
-  // TODO use NotificationCompat.MessagingStyle for latest API
-  // TODO expandable notification NotificationCompat.MessagingStyle
-  // TODO media style notification support NotificationCompat.MediaStyle
+  private fun buildPerson(person: MessagingStylePerson, prefetchedAvatars: Map<String, Bitmap?> = emptyMap()): Person {
+    val builder = Person.Builder().setName(person.name)
+    if (person.key != null) {
+      builder.setKey(person.key)
+    }
+    // Prefer iconUrl (remote avatar) over icon (drawable resource)
+    if (person.iconUrl != null) {
+      val bitmap = prefetchedAvatars[person.iconUrl]
+      if (bitmap != null) {
+        builder.setIcon(IconCompat.createWithBitmap(bitmap))
+      }
+    } else if (person.icon != null) {
+      val resId = AssetUtils.getResourceID(context, person.icon, "drawable")
+      if (resId != AssetUtils.RESOURCE_ID_ZERO_VALUE) {
+        builder.setIcon(IconCompat.createWithResource(context, resId))
+      }
+    }
+    return builder.build()
+  }
+
+  // Downloads a remote avatar image as a circular-cropped bitmap.
+  // Submits the download to a background thread and returns a Future.
+  // The caller should collect all futures first, then resolve them to enable parallel downloads.
+  private fun submitAvatarDownload(url: String, authToken: String?): java.util.concurrent.Future<Bitmap?> {
+    return avatarExecutor.submit(
+      java.util.concurrent.Callable<Bitmap?> {
+        try {
+          val parsedUrl = java.net.URL(url)
+          if (authToken != null && !parsedUrl.protocol.equals("https", ignoreCase = true)) {
+            Logger.error(Logger.tags(TAG), "Refusing to send auth token over non-HTTPS URL: $url", null)
+            return@Callable null
+          }
+          val connection = parsedUrl.openConnection() as java.net.HttpURLConnection
+          connection.connectTimeout = 5_000
+          connection.readTimeout = 5_000
+          if (authToken != null) {
+            connection.setRequestProperty("Authorization", "Bearer $authToken")
+          }
+          connection.connect()
+          if (connection.responseCode != 200) {
+            connection.disconnect()
+            return@Callable null
+          }
+          val raw = BitmapFactory.decodeStream(connection.inputStream)
+          connection.disconnect()
+          if (raw == null) return@Callable null
+          cropCircle(raw)
+        } catch (e: Exception) {
+          Logger.error(Logger.tags(TAG), "Failed to download avatar: ${e.message}", e)
+          null
+        }
+      }
+    )
+  }
+
+  // Resolves a previously submitted avatar future, blocking for up to 10 seconds.
+  private fun resolveAvatarFuture(future: java.util.concurrent.Future<Bitmap?>): Bitmap? {
+    return try {
+      future.get(10, java.util.concurrent.TimeUnit.SECONDS)
+    } catch (e: Exception) {
+      Logger.error(Logger.tags(TAG), "Avatar download timed out or failed: ${e.message}", e)
+      null
+    }
+  }
+
+  // Pre-downloads all avatar images for a MessagingStyle notification in parallel.
+  // Returns a map from URL to Bitmap (or null on failure).
+  private fun prefetchAvatars(msgStyle: MessagingStyleConfig): Map<String, Bitmap?> {
+    val authToken = msgStyle.authToken
+    // Collect all unique URLs that need downloading
+    val urlsToDownload = mutableSetOf<String>()
+    msgStyle.user.iconUrl?.let { urlsToDownload.add(it) }
+    for (msg in msgStyle.messages) {
+      msg.sender?.iconUrl?.let { urlsToDownload.add(it) }
+    }
+    if (urlsToDownload.isEmpty()) return emptyMap()
+
+    // Submit all downloads in parallel
+    val futures = urlsToDownload.associateWith { url -> submitAvatarDownload(url, authToken) }
+
+    // Resolve all futures (total wait is ~10s max, not N×10s)
+    return futures.mapValues { (_, future) -> resolveAvatarFuture(future) }
+  }
+
+  /**
+   * Shuts down the background executor used for avatar downloads.
+   * Should be called when the plugin is being destroyed / the activity is finishing.
+   */
+  fun destroy() {
+    avatarExecutor.shutdown()
+  }
+
+  private fun cropCircle(src: Bitmap): Bitmap {
+    val size = minOf(src.width, src.height)
+    val output = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+    val canvas = android.graphics.Canvas(output)
+    val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG)
+    val rect = android.graphics.Rect(0, 0, size, size)
+    canvas.drawCircle(size / 2f, size / 2f, size / 2f, paint)
+    paint.xfermode = android.graphics.PorterDuffXfermode(android.graphics.PorterDuff.Mode.SRC_IN)
+    // Center-crop the source into the square
+    val srcLeft = (src.width - size) / 2
+    val srcTop = (src.height - size) / 2
+    val srcRect = android.graphics.Rect(srcLeft, srcTop, srcLeft + size, srcTop + size)
+    canvas.drawBitmap(src, srcRect, rect, paint)
+    return output
+  }
+
   @SuppressLint("MissingPermission")
   private fun buildNotification(
     notificationManager: NotificationManagerCompat,
     notification: Notification,
+    source: String = "local",
   ) {
     val channelId = notification.channelId ?: DEFAULT_NOTIFICATION_CHANNEL_ID
     val mBuilder = NotificationCompat.Builder(
@@ -158,7 +266,43 @@ class TauriNotificationManager(
       .setOngoing(notification.isOngoing)
       .setPriority(NotificationCompat.PRIORITY_DEFAULT)
       .setGroupSummary(notification.isGroupSummary)
-    if (notification.largeBody != null) {
+
+    // Progress bar support
+    val progressMax = notification.progressMax
+    val progress = notification.progress
+    if (progressMax != null || progress != null || notification.progressIndeterminate == true) {
+      mBuilder.setProgress(
+        progressMax ?: 100,
+        progress ?: 0,
+        notification.progressIndeterminate ?: false
+      )
+    }
+
+    // System category support
+    val category = notification.category
+    if (category != null) {
+      mBuilder.setCategory(category)
+    }
+
+    // Style selection (mutually exclusive: messagingStyle > largeBody > inboxLines)
+    if (notification.messagingStyle != null) {
+      val msgStyle = notification.messagingStyle!!
+      // Pre-fetch all avatar images in parallel (max ~10s total, not N×10s)
+      val avatars = prefetchAvatars(msgStyle)
+      val userPerson = buildPerson(msgStyle.user, avatars)
+      val messagingStyle = NotificationCompat.MessagingStyle(userPerson)
+
+      if (msgStyle.conversationTitle != null) {
+        messagingStyle.conversationTitle = msgStyle.conversationTitle
+      }
+      messagingStyle.isGroupConversation = msgStyle.isGroupConversation
+
+      for (msg in msgStyle.messages) {
+        val senderPerson = msg.sender?.let { buildPerson(it, avatars) }
+        messagingStyle.addMessage(msg.text, msg.timestamp, senderPerson)
+      }
+      mBuilder.setStyle(messagingStyle)
+    } else if (notification.largeBody != null) {
       // support multiline text
       mBuilder.setStyle(
         NotificationCompat.BigTextStyle()
@@ -215,7 +359,7 @@ class TauriNotificationManager(
     } else {
       notificationManager.notify(notification.id, buildNotification)
       try {
-        NotificationPlugin.triggerNotification(notification)
+        NotificationPlugin.triggerNotification(notification, source)
       } catch (e: JSONException) {
         Logger.error(Logger.tags(TAG), "Failed to trigger notification event: ${e.message}", e)
       }
@@ -241,8 +385,14 @@ class TauriNotificationManager(
     if (actionTypeId != null) {
       val actionGroup = storage.getActionGroup(actionTypeId)
       for (notificationAction in actionGroup) {
-        // TODO Add custom icons to actions
-        val actionIntent = buildIntent(notification, notificationAction!!.id)
+        // Resolve custom action icon, fall back to transparent
+        val actionIconResId = if (notificationAction!!.icon != null) {
+          val resId = AssetUtils.getResourceID(context, notificationAction.icon, "drawable")
+          if (resId != AssetUtils.RESOURCE_ID_ZERO_VALUE) resId else R.drawable.ic_transparent
+        } else {
+          R.drawable.ic_transparent
+        }
+        val actionIntent = buildIntent(notification, notificationAction.id)
         val actionPendingIntent = PendingIntent.getActivity(
           context,
           (notification.id) + notificationAction.id.hashCode(),
@@ -250,7 +400,7 @@ class TauriNotificationManager(
           flags
         )
         val actionBuilder: NotificationCompat.Action.Builder = NotificationCompat.Action.Builder(
-          R.drawable.ic_transparent,
+          actionIconResId,
           notificationAction.title,
           actionPendingIntent
         )
@@ -304,11 +454,8 @@ class TauriNotificationManager(
     return intent
   }
 
-  /**
-   * Build a notification trigger, such as triggering each N seconds, or
-   * on a certain date "shape" (such as every first of the month)
-   */
-  // TODO support different AlarmManager.RTC modes depending on priority
+  // Build a notification trigger, such as triggering each N seconds, or
+  // on a certain date "shape" (such as every first of the month)
   @SuppressLint("SimpleDateFormat")
   private fun triggerScheduledNotification(notification: android.app.Notification, request: Notification) {
     val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
@@ -326,6 +473,10 @@ class TauriNotificationManager(
     var pendingIntent =
       PendingIntent.getBroadcast(context, request.id, notificationIntent, flags)
 
+    // Choose RTC mode: use RTC_WAKEUP when allowWhileIdle is set (the alarm needs to
+    // wake the device), plain RTC otherwise to be more battery-friendly.
+    val rtcMode = if (schedule?.allowWhileIdle() == true) AlarmManager.RTC_WAKEUP else AlarmManager.RTC
+
     when (schedule) {
       is NotificationSchedule.At -> {
         if (schedule.date.time < Date().time) {
@@ -334,9 +485,9 @@ class TauriNotificationManager(
         }
         if (schedule.repeating) {
           val interval: Long = schedule.date.time - Date().time
-          alarmManager.setRepeating(AlarmManager.RTC, schedule.date.time, interval, pendingIntent)
+          alarmManager.setRepeating(rtcMode, schedule.date.time, interval, pendingIntent)
         } else {
-          setExactIfPossible(alarmManager, schedule, schedule.date.time, pendingIntent)
+          setExactIfPossible(alarmManager, schedule, schedule.date.time, pendingIntent, rtcMode)
         }
       }
       is NotificationSchedule.Interval -> {
@@ -344,7 +495,7 @@ class TauriNotificationManager(
         notificationIntent.putExtra(TimedNotificationPublisher.CRON_KEY, schedule.interval.toMatchString())
         pendingIntent =
           PendingIntent.getBroadcast(context, request.id, notificationIntent, flags)
-        setExactIfPossible(alarmManager, schedule, trigger, pendingIntent)
+        setExactIfPossible(alarmManager, schedule, trigger, pendingIntent, rtcMode)
         val sdf = SimpleDateFormat("yyyy/MM/dd HH:mm:ss")
         Logger.debug(
           Logger.tags(TAG),
@@ -354,7 +505,7 @@ class TauriNotificationManager(
       is NotificationSchedule.Every -> {
         val everyInterval = getIntervalTime(schedule.interval, schedule.count)
         val startTime: Long = Date().time + everyInterval
-        alarmManager.setRepeating(AlarmManager.RTC, startTime, everyInterval, pendingIntent)
+        alarmManager.setRepeating(rtcMode, startTime, everyInterval, pendingIntent)
       }
       else -> {}
     }
@@ -365,7 +516,8 @@ class TauriNotificationManager(
     alarmManager: AlarmManager,
     schedule: NotificationSchedule,
     trigger: Long,
-    pendingIntent: PendingIntent
+    pendingIntent: PendingIntent,
+    rtcMode: Int = AlarmManager.RTC
   ) {
     Logger.debug(Logger.tags(TAG), "Scheduling notification for " + Date(trigger).toString())
 
@@ -373,15 +525,15 @@ class TauriNotificationManager(
       Logger.warn(Logger.tags(TAG), "SCHEDULE_EXACT_ALARM permission not granted. Using inexact alarm.")
 
       if (SDK_INT >= Build.VERSION_CODES.M && schedule.allowWhileIdle()) {
-        alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, trigger, pendingIntent)
+        alarmManager.setAndAllowWhileIdle(rtcMode, trigger, pendingIntent)
       } else {
-        alarmManager[AlarmManager.RTC, trigger] = pendingIntent
+        alarmManager[rtcMode, trigger] = pendingIntent
       }
     } else {
       if (SDK_INT >= Build.VERSION_CODES.M && schedule.allowWhileIdle()) {
-        alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, trigger, pendingIntent)
+        alarmManager.setExactAndAllowWhileIdle(rtcMode, trigger, pendingIntent)
       } else {
-        alarmManager.setExact(AlarmManager.RTC, trigger, pendingIntent)
+        alarmManager.setExact(rtcMode, trigger, pendingIntent)
       }
     }
   }
@@ -445,6 +597,9 @@ class TauriNotificationManager(
       resId = AssetUtils.getResourceID(context, smallIconConfigResourceName, "drawable")
     }
     if (resId == AssetUtils.RESOURCE_ID_ZERO_VALUE) {
+      resId = context.resources.getIdentifier("ic_notification", "drawable", context.packageName)
+    }
+    if (resId == AssetUtils.RESOURCE_ID_ZERO_VALUE) {
       resId = android.R.drawable.ic_dialog_info
     }
     defaultSmallIconID = resId
@@ -470,9 +625,6 @@ class NotificationDismissReceiver : BroadcastReceiver() {
 }
 
 class TimedNotificationPublisher : BroadcastReceiver() {
-  /**
-   * Restore and present notification
-   */
   override fun onReceive(context: Context, intent: Intent) {
     val notificationManager =
       context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager

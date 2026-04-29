@@ -19,6 +19,16 @@ import {
   requestPermission,
   registerForPushNotifications,
   unregisterForPushNotifications,
+  registerForUnifiedPush,
+  unregisterFromUnifiedPush,
+  getUnifiedPushDistributors,
+  saveUnifiedPushDistributor,
+  getUnifiedPushDistributor,
+  onUnifiedPushEndpoint,
+  onUnifiedPushMessage,
+  onUnifiedPushUnregistered,
+  onUnifiedPushError,
+  onUnifiedPushTempUnavailable,
   registerActionTypes,
   pending,
   cancel,
@@ -489,7 +499,7 @@ describe("Notification Functions", () => {
 
   describe("unregisterForPushNotifications", () => {
     it("should call invoke with correct plugin command", async () => {
-      mockInvoke.mockResolvedValue("");
+      mockInvoke.mockResolvedValue(undefined);
 
       await unregisterForPushNotifications();
 
@@ -498,13 +508,302 @@ describe("Notification Functions", () => {
       );
     });
 
-    it("should return the result from invoke", async () => {
-      const mockResult = "unregistered";
-      mockInvoke.mockResolvedValue(mockResult);
+    it("should resolve without a return value", async () => {
+      mockInvoke.mockResolvedValue(undefined);
 
       const result = await unregisterForPushNotifications();
 
-      expect(result).toBe(mockResult);
+      expect(result).toBeUndefined();
+    });
+  });
+
+  describe("registerForUnifiedPush", () => {
+    it("should call invoke with correct plugin command", async () => {
+      const mockEndpoint = {
+        endpoint: "https://example.com/push",
+        instance: "default",
+      };
+      mockInvoke.mockResolvedValue(mockEndpoint);
+
+      const result = await registerForUnifiedPush();
+
+      expect(mockInvoke).toHaveBeenCalledWith(
+        "plugin:notifications|register_for_unified_push",
+      );
+      expect(result).toEqual(mockEndpoint);
+    });
+  });
+
+  describe("unregisterFromUnifiedPush", () => {
+    it("should call invoke with correct plugin command", async () => {
+      mockInvoke.mockResolvedValue(undefined);
+
+      await unregisterFromUnifiedPush();
+
+      expect(mockInvoke).toHaveBeenCalledWith(
+        "plugin:notifications|unregister_from_unified_push",
+      );
+    });
+  });
+
+  describe("getUnifiedPushDistributors", () => {
+    it("should return the list of distributors", async () => {
+      const mockDistributors = {
+        distributors: [
+          "org.unifiedpush.distributor.nextpush",
+          "io.heckel.ntfy",
+        ],
+      };
+      mockInvoke.mockResolvedValue(mockDistributors);
+
+      const result = await getUnifiedPushDistributors();
+
+      expect(mockInvoke).toHaveBeenCalledWith(
+        "plugin:notifications|get_unified_push_distributors",
+      );
+      expect(result).toEqual(mockDistributors);
+    });
+
+    it("should handle empty distributors list", async () => {
+      mockInvoke.mockResolvedValue({ distributors: [] });
+
+      const result = await getUnifiedPushDistributors();
+
+      expect(result.distributors).toEqual([]);
+    });
+  });
+
+  describe("saveUnifiedPushDistributor", () => {
+    it("should call invoke with distributor parameter", async () => {
+      mockInvoke.mockResolvedValue(undefined);
+
+      await saveUnifiedPushDistributor("org.unifiedpush.distributor.nextpush");
+
+      expect(mockInvoke).toHaveBeenCalledWith(
+        "plugin:notifications|save_unified_push_distributor",
+        { distributor: "org.unifiedpush.distributor.nextpush" },
+      );
+    });
+  });
+
+  describe("getUnifiedPushDistributor", () => {
+    it("should return the current distributor", async () => {
+      const mockDistributor = {
+        distributor: "org.unifiedpush.distributor.nextpush",
+      };
+      mockInvoke.mockResolvedValue(mockDistributor);
+
+      const result = await getUnifiedPushDistributor();
+
+      expect(mockInvoke).toHaveBeenCalledWith(
+        "plugin:notifications|get_unified_push_distributor",
+      );
+      expect(result).toEqual(mockDistributor);
+    });
+
+    it("should handle empty distributor", async () => {
+      mockInvoke.mockResolvedValue({ distributor: "" });
+
+      const result = await getUnifiedPushDistributor();
+
+      expect(result.distributor).toBe("");
+    });
+  });
+
+  describe("onUnifiedPushEndpoint", () => {
+    it("should register endpoint listener", async () => {
+      const mockUnlisten = vi.fn();
+      mockAddPluginListener.mockResolvedValue(mockUnlisten);
+
+      const callback = vi.fn();
+      const unlisten = await onUnifiedPushEndpoint(callback);
+
+      expect(mockAddPluginListener).toHaveBeenCalledWith(
+        "notifications",
+        "unifiedpush-endpoint",
+        callback,
+      );
+      expect(unlisten).toBe(mockUnlisten);
+    });
+
+    it("should call callback with endpoint data", async () => {
+      let capturedCallback: ((data: any) => void) | undefined;
+      mockAddPluginListener.mockImplementation((_plugin, _event, cb) => {
+        capturedCallback = cb;
+        return Promise.resolve(vi.fn());
+      });
+
+      const callback = vi.fn();
+      await onUnifiedPushEndpoint(callback);
+
+      const endpointData = {
+        endpoint: "https://example.com/push",
+        instance: "default",
+      };
+      capturedCallback?.(endpointData);
+
+      expect(callback).toHaveBeenCalledWith(endpointData);
+    });
+
+    it("should call callback with pubKeySet when distributor provides VAPID keys", async () => {
+      let capturedCallback: ((data: any) => void) | undefined;
+      mockAddPluginListener.mockImplementation((_plugin, _event, cb) => {
+        capturedCallback = cb;
+        return Promise.resolve(vi.fn());
+      });
+
+      const callback = vi.fn();
+      await onUnifiedPushEndpoint(callback);
+
+      const endpointData = {
+        endpoint: "https://nextpush.example.com/push/xyz",
+        instance: "default",
+        pubKeySet: {
+          pubKey:
+            "BNcRdreALRFXTkOOUHK1EtK2wtZ5ZIILHY0CRbISTuErp8KS0DLjFCMDxEPPW4ECPF",
+          auth: "8eDyX_uCN0XRhSbY5hs7Hg",
+        },
+      };
+      capturedCallback?.(endpointData);
+
+      expect(callback).toHaveBeenCalledWith(endpointData);
+      expect(callback.mock.calls[0][0].pubKeySet.pubKey).toBeDefined();
+      expect(callback.mock.calls[0][0].pubKeySet.auth).toBeDefined();
+    });
+  });
+
+  describe("onUnifiedPushMessage", () => {
+    it("should register message listener", async () => {
+      const mockUnlisten = vi.fn();
+      mockAddPluginListener.mockResolvedValue(mockUnlisten);
+
+      const callback = vi.fn();
+      const unlisten = await onUnifiedPushMessage(callback);
+
+      expect(mockAddPluginListener).toHaveBeenCalledWith(
+        "notifications",
+        "unifiedpush-message",
+        callback,
+      );
+      expect(unlisten).toBe(mockUnlisten);
+    });
+
+    it("should call callback with message data", async () => {
+      let capturedCallback: ((data: any) => void) | undefined;
+      mockAddPluginListener.mockImplementation((_plugin, _event, cb) => {
+        capturedCallback = cb;
+        return Promise.resolve(vi.fn());
+      });
+
+      const callback = vi.fn();
+      await onUnifiedPushMessage(callback);
+
+      const messageData = {
+        title: "Hello",
+        body: "World",
+        instance: "default",
+        source: "unifiedpush",
+      };
+      capturedCallback?.(messageData);
+
+      expect(callback).toHaveBeenCalledWith(messageData);
+    });
+  });
+
+  describe("onUnifiedPushUnregistered", () => {
+    it("should register unregistered listener", async () => {
+      const mockUnlisten = vi.fn();
+      mockAddPluginListener.mockResolvedValue(mockUnlisten);
+
+      const callback = vi.fn();
+      const unlisten = await onUnifiedPushUnregistered(callback);
+
+      expect(mockAddPluginListener).toHaveBeenCalledWith(
+        "notifications",
+        "unifiedpush-unregistered",
+        callback,
+      );
+      expect(unlisten).toBe(mockUnlisten);
+    });
+
+    it("should call callback with instance data", async () => {
+      let capturedCallback: ((data: any) => void) | undefined;
+      mockAddPluginListener.mockImplementation((_plugin, _event, cb) => {
+        capturedCallback = cb;
+        return Promise.resolve(vi.fn());
+      });
+
+      const callback = vi.fn();
+      await onUnifiedPushUnregistered(callback);
+
+      capturedCallback?.({ instance: "default" });
+
+      expect(callback).toHaveBeenCalledWith({ instance: "default" });
+    });
+  });
+
+  describe("onUnifiedPushError", () => {
+    it("should register error listener", async () => {
+      const mockUnlisten = vi.fn();
+      mockAddPluginListener.mockResolvedValue(mockUnlisten);
+
+      const callback = vi.fn();
+      const unlisten = await onUnifiedPushError(callback);
+
+      expect(mockAddPluginListener).toHaveBeenCalledWith(
+        "notifications",
+        "unifiedpush-error",
+        callback,
+      );
+      expect(unlisten).toBe(mockUnlisten);
+    });
+
+    it("should call callback with error data", async () => {
+      let capturedCallback: ((data: any) => void) | undefined;
+      mockAddPluginListener.mockImplementation((_plugin, _event, cb) => {
+        capturedCallback = cb;
+        return Promise.resolve(vi.fn());
+      });
+
+      const callback = vi.fn();
+      await onUnifiedPushError(callback);
+
+      const errorData = { message: "Registration failed", instance: "default" };
+      capturedCallback?.(errorData);
+
+      expect(callback).toHaveBeenCalledWith(errorData);
+    });
+  });
+
+  describe("onUnifiedPushTempUnavailable", () => {
+    it("should register temp-unavailable listener", async () => {
+      const mockUnlisten = vi.fn();
+      mockAddPluginListener.mockResolvedValue(mockUnlisten);
+
+      const callback = vi.fn();
+      const unlisten = await onUnifiedPushTempUnavailable(callback);
+
+      expect(mockAddPluginListener).toHaveBeenCalledWith(
+        "notifications",
+        "unifiedpush-temp-unavailable",
+        callback,
+      );
+      expect(unlisten).toBe(mockUnlisten);
+    });
+
+    it("should call callback with instance data", async () => {
+      let capturedCallback: ((data: any) => void) | undefined;
+      mockAddPluginListener.mockImplementation((_plugin, _event, cb) => {
+        capturedCallback = cb;
+        return Promise.resolve(vi.fn());
+      });
+
+      const callback = vi.fn();
+      await onUnifiedPushTempUnavailable(callback);
+
+      capturedCallback?.({ instance: "default" });
+
+      expect(callback).toHaveBeenCalledWith({ instance: "default" });
     });
   });
 
@@ -602,7 +901,9 @@ describe("Notification Functions", () => {
 
       expect(mockInvoke).toHaveBeenCalledWith(
         "plugin:notifications|register_action_types",
-        { types },
+        {
+          types,
+        },
       );
     });
 
@@ -636,7 +937,9 @@ describe("Notification Functions", () => {
 
       expect(mockInvoke).toHaveBeenCalledWith(
         "plugin:notifications|register_action_types",
-        { types },
+        {
+          types,
+        },
       );
     });
   });
@@ -973,7 +1276,9 @@ describe("Notification Functions", () => {
       );
       expect(mockInvoke).toHaveBeenCalledWith(
         "plugin:notifications|set_click_listener_active",
-        { active: true },
+        {
+          active: true,
+        },
       );
       expect(listener).toHaveProperty("unregister");
     });
@@ -991,7 +1296,9 @@ describe("Notification Functions", () => {
 
       expect(mockInvoke).toHaveBeenCalledWith(
         "plugin:notifications|set_click_listener_active",
-        { active: false },
+        {
+          active: false,
+        },
       );
       expect(mockUnregister).toHaveBeenCalled();
     });
@@ -1029,6 +1336,220 @@ describe("Notification Functions", () => {
 
       expect(callback).toHaveBeenCalledWith(mockClickedData);
       expect(callback.mock.calls[0][0].data).toBeUndefined();
+    });
+  });
+
+  describe("sendNotification with progress bar", () => {
+    it("should send notification with determinate progress", async () => {
+      mockInvoke.mockResolvedValue(undefined);
+
+      const options = {
+        title: "Downloading...",
+        progress: 45,
+        progressMax: 100,
+      };
+
+      await sendNotification(options);
+
+      expect(mockInvoke).toHaveBeenCalledWith("plugin:notifications|notify", {
+        options,
+      });
+    });
+
+    it("should send notification with indeterminate progress", async () => {
+      mockInvoke.mockResolvedValue(undefined);
+
+      const options = {
+        title: "Loading...",
+        progressIndeterminate: true,
+      };
+
+      await sendNotification(options);
+
+      expect(mockInvoke).toHaveBeenCalledWith("plugin:notifications|notify", {
+        options,
+      });
+    });
+
+    it("should send notification with progress and body", async () => {
+      mockInvoke.mockResolvedValue(undefined);
+
+      const options = {
+        title: "Upload",
+        body: "Uploading file.txt",
+        progress: 75,
+        progressMax: 100,
+        ongoing: true,
+      };
+
+      await sendNotification(options);
+
+      expect(mockInvoke).toHaveBeenCalledWith("plugin:notifications|notify", {
+        options,
+      });
+    });
+  });
+
+  describe("sendNotification with category", () => {
+    it("should send notification with message category", async () => {
+      mockInvoke.mockResolvedValue(undefined);
+
+      const options = {
+        title: "New Message",
+        body: "Hello!",
+        category: "msg",
+      };
+
+      await sendNotification(options);
+
+      expect(mockInvoke).toHaveBeenCalledWith("plugin:notifications|notify", {
+        options,
+      });
+    });
+
+    it("should send notification with alarm category", async () => {
+      mockInvoke.mockResolvedValue(undefined);
+
+      const options = {
+        title: "Alarm",
+        category: "alarm",
+      };
+
+      await sendNotification(options);
+
+      expect(mockInvoke).toHaveBeenCalledWith("plugin:notifications|notify", {
+        options,
+      });
+    });
+  });
+
+  describe("sendNotification with messagingStyle", () => {
+    it("should send notification with simple messaging style", async () => {
+      mockInvoke.mockResolvedValue(undefined);
+
+      const options = {
+        title: "Chat",
+        messagingStyle: {
+          user: { name: "Me" },
+          messages: [
+            { text: "Hello!", timestamp: 1700000000000 },
+            {
+              text: "Hi there!",
+              timestamp: 1700000060000,
+              sender: { name: "Alice" },
+            },
+          ],
+        },
+      };
+
+      await sendNotification(options);
+
+      expect(mockInvoke).toHaveBeenCalledWith("plugin:notifications|notify", {
+        options,
+      });
+    });
+
+    it("should send notification with group conversation", async () => {
+      mockInvoke.mockResolvedValue(undefined);
+
+      const options = {
+        title: "Group Chat",
+        messagingStyle: {
+          user: { name: "Me", key: "user-1" },
+          conversationTitle: "Project Team",
+          isGroupConversation: true,
+          messages: [
+            {
+              text: "Meeting at 3pm",
+              timestamp: 1700000000000,
+              sender: { name: "Bob", key: "user-2", icon: "ic_bob" },
+            },
+            {
+              text: "Sounds good!",
+              timestamp: 1700000060000,
+              sender: { name: "Carol", key: "user-3" },
+            },
+            { text: "I'll be there", timestamp: 1700000120000 },
+          ],
+        },
+      };
+
+      await sendNotification(options);
+
+      expect(mockInvoke).toHaveBeenCalledWith("plugin:notifications|notify", {
+        options,
+      });
+    });
+
+    it("should send notification with user icon in messaging style", async () => {
+      mockInvoke.mockResolvedValue(undefined);
+
+      const options = {
+        title: "Chat",
+        messagingStyle: {
+          user: { name: "Me", icon: "ic_me", key: "self" },
+          messages: [{ text: "Hey!", timestamp: 1700000000000 }],
+        },
+      };
+
+      await sendNotification(options);
+
+      expect(mockInvoke).toHaveBeenCalledWith("plugin:notifications|notify", {
+        options,
+      });
+    });
+  });
+
+  describe("registerActionTypes with icon", () => {
+    it("should register action types with custom icons", async () => {
+      mockInvoke.mockResolvedValue(undefined);
+
+      const types = [
+        {
+          id: "message-actions",
+          actions: [
+            { id: "reply", title: "Reply", input: true, icon: "ic_reply" },
+            {
+              id: "delete",
+              title: "Delete",
+              destructive: true,
+              icon: "ic_delete",
+            },
+          ],
+        },
+      ];
+
+      await registerActionTypes(types);
+
+      expect(mockInvoke).toHaveBeenCalledWith(
+        "plugin:notifications|register_action_types",
+        {
+          types,
+        },
+      );
+    });
+
+    it("should register action types mixing icons and no icons", async () => {
+      mockInvoke.mockResolvedValue(undefined);
+
+      const types = [
+        {
+          id: "mixed-actions",
+          actions: [
+            { id: "action-with-icon", title: "With Icon", icon: "ic_star" },
+            { id: "action-without-icon", title: "Without Icon" },
+          ],
+        },
+      ];
+
+      await registerActionTypes(types);
+
+      expect(mockInvoke).toHaveBeenCalledWith(
+        "plugin:notifications|register_action_types",
+        {
+          types,
+        },
+      );
     });
   });
 });

@@ -18,6 +18,37 @@ pub struct PushNotificationResponse {
     pub device_token: String,
 }
 
+#[cfg(feature = "unified-push")]
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UnifiedPushPublicKeySet {
+    pub pub_key: String,
+    pub auth: String,
+}
+
+#[cfg(feature = "unified-push")]
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UnifiedPushEndpointResponse {
+    pub endpoint: String,
+    pub instance: String,
+    pub pub_key_set: Option<UnifiedPushPublicKeySet>,
+}
+
+#[cfg(feature = "unified-push")]
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UnifiedPushDistributorsResponse {
+    pub distributors: Vec<String>,
+}
+
+#[cfg(feature = "unified-push")]
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UnifiedPushDistributorResponse {
+    pub distributor: String,
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Attachment {
@@ -186,6 +217,17 @@ pub struct NotificationData {
     pub(crate) auto_cancel: bool,
     #[serde(default)]
     pub(crate) silent: bool,
+    /// Current progress value for a progress bar notification (Android).
+    pub(crate) progress: Option<i32>,
+    /// Maximum progress value for a progress bar notification (Android).
+    pub(crate) progress_max: Option<i32>,
+    /// If true, shows an indeterminate progress bar (Android).
+    #[serde(default)]
+    pub(crate) progress_indeterminate: bool,
+    /// System notification category, e.g. "msg", "alarm", "call" (Android).
+    pub(crate) category: Option<String>,
+    /// Conversation-style (MessagingStyle) notification configuration (Android).
+    pub(crate) messaging_style: Option<MessagingStyleConfig>,
 }
 
 fn default_id() -> i32 {
@@ -215,6 +257,11 @@ impl Default for NotificationData {
             ongoing: false,
             auto_cancel: false,
             silent: false,
+            progress: None,
+            progress_max: None,
+            progress_indeterminate: false,
+            category: None,
+            messaging_style: None,
         }
     }
 }
@@ -348,6 +395,38 @@ pub struct Action {
     input: bool,
     input_button_title: Option<String>,
     input_placeholder: Option<String>,
+    /// Icon resource name for the action (Android).
+    icon: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MessagingStylePerson {
+    pub name: String,
+    pub icon: Option<String>,
+    pub icon_url: Option<String>,
+    pub key: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MessagingStyleMessage {
+    pub text: String,
+    pub timestamp: i64,
+    pub sender: Option<MessagingStylePerson>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MessagingStyleConfig {
+    pub user: MessagingStylePerson,
+    pub conversation_title: Option<String>,
+    #[serde(default)]
+    pub is_group_conversation: bool,
+    #[serde(default)]
+    pub messages: Vec<MessagingStyleMessage>,
+    #[serde(skip_serializing)]
+    pub auth_token: Option<String>,
 }
 
 pub use android::*;

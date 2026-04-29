@@ -2,7 +2,7 @@
 name = "tauri-plugin-notifications"
 version = "0.4.5"
 authors = ["You"]
-description = "A Tauri v2 plugin for sending notifications on desktop and mobile platforms with support for system notifications and push delivery via FCM and APNs."
+description = "A Tauri v2 plugin for sending notifications on desktop and mobile platforms with support for system notifications and push delivery via FCM, APNs, and UnifiedPush."
 edition = "2021"
 rust-version = "1.77.2"
 exclude = ["/examples", "/dist-js", "/guest-js", "/node_modules"]
@@ -13,6 +13,7 @@ repository = "https://github.com/Choochmeque/tauri-plugin-notifications"
 [features]
 default = ["notify-rust"]
 push-notifications = []
+unified-push = []
 notify-rust = ["dep:notify-rust"]
 
 [dependencies]

@@ -119,9 +119,10 @@ interface Options {
   /**
    * The source of the notification. Only present in `onNotificationReceived` callbacks.
    * - `"push"` — notification received from a remote push (FCM/APNs).
+   * - `"unifiedpush"` — notification received from a UnifiedPush distributor.
    * - `"local"` — notification created locally (immediate or scheduled).
    */
-  source?: "push" | "local";
+  source?: "push" | "unifiedpush" | "local";
   /**
    * Notification visibility.
    */
@@ -130,6 +131,88 @@ interface Options {
    * Sets the number of items this notification represents on Android.
    */
   number?: number;
+  /**
+   * Current progress value for a progress bar notification (Android).
+   * Use with `progressMax` to show a determinate progress bar.
+   */
+  progress?: number;
+  /**
+   * Maximum progress value for a progress bar notification (Android).
+   * Defaults to 100 when `progress` is set.
+   */
+  progressMax?: number;
+  /**
+   * If true, shows an indeterminate progress bar (Android).
+   * When set, `progress` and `progressMax` are ignored.
+   */
+  progressIndeterminate?: boolean;
+  /**
+   * System notification category (Android).
+   * Maps to `NotificationCompat.CATEGORY_*` constants.
+   * Common values: `"alarm"`, `"call"`, `"email"`, `"err"`, `"event"`,
+   * `"msg"`, `"progress"`, `"promo"`, `"recommendation"`,
+   * `"reminder"`, `"service"`, `"social"`, `"status"`, `"sys"`, `"transport"`.
+   */
+  category?: string;
+  /**
+   * MessagingStyle configuration for conversation-style notifications (Android).
+   * Cannot be used with `largeBody` or `inboxLines`.
+   */
+  messagingStyle?: MessagingStyleConfig;
+}
+
+/**
+ * A person in a MessagingStyle notification.
+ */
+interface MessagingStylePerson {
+  /** Display name of the person. */
+  name: string;
+  /**
+   * Icon resource name for the person's avatar (Android).
+   * The icon must be placed in the app's `res/drawable` folder.
+   */
+  icon?: string;
+  /**
+   * HTTP(S) URL to the person's avatar image (Android).
+   * When set, the image is downloaded and used as a circular avatar icon.
+   * Takes priority over the `icon` drawable resource.
+   * Use with `MessagingStyleConfig.authToken` for authenticated endpoints.
+   */
+  iconUrl?: string;
+  /** A unique key to identify this person across messages. */
+  key?: string;
+}
+
+/**
+ * A single message in a MessagingStyle notification.
+ */
+interface MessagingStyleMessage {
+  /** The message text. */
+  text: string;
+  /** Timestamp of the message in milliseconds since epoch. */
+  timestamp: number;
+  /** The sender of the message. If null, the message is from the user. */
+  sender?: MessagingStylePerson;
+}
+
+/**
+ * Configuration for a conversation-style (MessagingStyle) notification (Android).
+ * This creates an expandable notification that shows a conversation thread.
+ */
+interface MessagingStyleConfig {
+  /** The user (device owner) participating in the conversation. */
+  user: MessagingStylePerson;
+  /** Title for the conversation (e.g., group chat name). */
+  conversationTitle?: string;
+  /** Whether this is a group conversation. */
+  isGroupConversation?: boolean;
+  /** The list of messages in the conversation. */
+  messages: MessagingStyleMessage[];
+  /**
+   * Bearer token for downloading authenticated avatar images (e.g. Matrix media).
+   * Passed as `Authorization: Bearer <token>` when fetching `iconUrl` images.
+   */
+  authToken?: string;
 }
 
 /**
@@ -293,6 +376,12 @@ interface Action {
   inputButtonTitle?: string;
   /** Placeholder text for the input field when `input` is true. */
   inputPlaceholder?: string;
+  /**
+   * Icon resource name for the action (Android).
+   * The icon must be placed in the app's `res/drawable` folder.
+   * Note: action icons are primarily visible on wearables and Android Auto.
+   */
+  icon?: string;
 }
 
 /**
@@ -472,12 +561,228 @@ async function registerForPushNotifications(): Promise<string> {
  *
  * @returns A promise resolving when unregistration is complete.
  */
-async function unregisterForPushNotifications(): Promise<string> {
+async function unregisterForPushNotifications(): Promise<void> {
   return await invoke("plugin:notifications|unregister_for_push_notifications");
+}
+
+/** VAPID / Web Push public key set provided by the distributor for encrypted push. */
+interface UnifiedPushPublicKeySet {
+  /** The P-256 ECDH public key (base64url-encoded, uncompressed). */
+  pubKey: string;
+  /** The authentication secret (base64url-encoded). */
+  auth: string;
+}
+
+interface UnifiedPushEndpoint {
+  /** The endpoint URL where push messages should be sent. */
+  endpoint: string;
+  /** The instance identifier for this registration. */
+  instance: string;
+  /**
+   * VAPID public-key set provided by the distributor.
+   * Present only when the distributor supports encrypted push (e.g. NextPush with VAPID).
+   * Pass `pubKeySet.pubKey` as `p256dh` and `pubKeySet.auth` as the auth secret to the push gateway.
+   */
+  pubKeySet?: UnifiedPushPublicKeySet;
+}
+
+/**
+ * Registers the app for UnifiedPush notifications (Android only).
+ *
+ * @example
+ * ```typescript
+ * import { registerForUnifiedPush } from '@choochmeque/tauri-plugin-notifications-api';
+ * const { endpoint, instance } = await registerForUnifiedPush();
+ * console.log('UnifiedPush endpoint:', endpoint);
+ * ```
+ *
+ * @returns A promise resolving to the UnifiedPush endpoint information.
+ */
+async function registerForUnifiedPush(): Promise<UnifiedPushEndpoint> {
+  return await invoke("plugin:notifications|register_for_unified_push");
+}
+
+/**
+ * Unregisters the app from UnifiedPush notifications (Android only).
+ *
+ * @example
+ * ```typescript
+ * import { unregisterFromUnifiedPush } from '@choochmeque/tauri-plugin-notifications-api';
+ * await unregisterFromUnifiedPush();
+ * ```
+ *
+ * @returns A promise resolving when unregistration is complete.
+ */
+async function unregisterFromUnifiedPush(): Promise<void> {
+  return await invoke("plugin:notifications|unregister_from_unified_push");
+}
+
+/**
+ * Gets the list of available UnifiedPush distributors installed on the device.
+ *
+ * @example
+ * ```typescript
+ * import { getUnifiedPushDistributors } from '@choochmeque/tauri-plugin-notifications-api';
+ * const { distributors } = await getUnifiedPushDistributors();
+ * console.log('Available distributors:', distributors);
+ * ```
+ *
+ * @returns A promise resolving to an object with a distributors array.
+ */
+async function getUnifiedPushDistributors(): Promise<{
+  distributors: string[];
+}> {
+  return await invoke("plugin:notifications|get_unified_push_distributors");
+}
+
+/**
+ * Saves the selected UnifiedPush distributor.
+ *
+ * @example
+ * ```typescript
+ * import { saveUnifiedPushDistributor } from '@choochmeque/tauri-plugin-notifications-api';
+ * await saveUnifiedPushDistributor('org.unifiedpush.distributor.nextpush');
+ * ```
+ *
+ * @param distributor - The package name of the distributor to use.
+ * @returns A promise resolving when the distributor is saved.
+ */
+async function saveUnifiedPushDistributor(distributor: string): Promise<void> {
+  return await invoke("plugin:notifications|save_unified_push_distributor", {
+    distributor,
+  });
+}
+
+/**
+ * Gets the currently selected UnifiedPush distributor.
+ *
+ * @example
+ * ```typescript
+ * import { getUnifiedPushDistributor } from '@choochmeque/tauri-plugin-notifications-api';
+ * const { distributor } = await getUnifiedPushDistributor();
+ * ```
+ *
+ * @returns A promise resolving to an object with the distributor package name.
+ */
+async function getUnifiedPushDistributor(): Promise<{ distributor: string }> {
+  return await invoke("plugin:notifications|get_unified_push_distributor");
+}
+
+/**
+ * Registers a listener for new UnifiedPush endpoint events.
+ *
+ * @example
+ * ```typescript
+ * import { onUnifiedPushEndpoint } from '@choochmeque/tauri-plugin-notifications-api';
+ * const unlisten = await onUnifiedPushEndpoint((data) => {
+ *   console.log('New UnifiedPush endpoint:', data.endpoint);
+ * });
+ * ```
+ *
+ * @param cb - Callback function to handle the endpoint event.
+ * @returns A promise resolving to a function that removes the listener.
+ */
+async function onUnifiedPushEndpoint(
+  cb: (data: UnifiedPushEndpoint) => void,
+): Promise<PluginListener> {
+  return await addPluginListener("notifications", "unifiedpush-endpoint", cb);
+}
+
+/**
+ * Registers a listener for UnifiedPush message events.
+ *
+ * @example
+ * ```typescript
+ * import { onUnifiedPushMessage } from '@choochmeque/tauri-plugin-notifications-api';
+ * const unlisten = await onUnifiedPushMessage((data) => {
+ *   console.log('UnifiedPush message received:', data);
+ * });
+ * ```
+ *
+ * @param cb - Callback function to handle the message event.
+ * @returns A promise resolving to a function that removes the listener.
+ */
+async function onUnifiedPushMessage(
+  cb: (data: Record<string, unknown>) => void,
+): Promise<PluginListener> {
+  return await addPluginListener("notifications", "unifiedpush-message", cb);
+}
+
+/**
+ * Registers a listener for UnifiedPush unregistration events.
+ *
+ * @example
+ * ```typescript
+ * import { onUnifiedPushUnregistered } from '@choochmeque/tauri-plugin-notifications-api';
+ * const unlisten = await onUnifiedPushUnregistered((data) => {
+ *   console.log('UnifiedPush unregistered for instance:', data.instance);
+ * });
+ * ```
+ *
+ * @param cb - Callback function to handle the unregistration event.
+ * @returns A promise resolving to a function that removes the listener.
+ */
+async function onUnifiedPushUnregistered(
+  cb: (data: { instance: string }) => void,
+): Promise<PluginListener> {
+  return await addPluginListener(
+    "notifications",
+    "unifiedpush-unregistered",
+    cb,
+  );
+}
+
+/**
+ * Registers a listener for UnifiedPush error events.
+ *
+ * @example
+ * ```typescript
+ * import { onUnifiedPushError } from '@choochmeque/tauri-plugin-notifications-api';
+ * const unlisten = await onUnifiedPushError((data) => {
+ *   console.error('UnifiedPush error:', data.message);
+ * });
+ * ```
+ *
+ * @param cb - Callback function to handle the error event.
+ * @returns A promise resolving to a function that removes the listener.
+ */
+async function onUnifiedPushError(
+  cb: (data: { message: string; instance?: string }) => void,
+): Promise<PluginListener> {
+  return await addPluginListener("notifications", "unifiedpush-error", cb);
+}
+
+/**
+ * Registers a listener for UnifiedPush temporary-unavailability events.
+ *
+ * Fired when the distributor app is temporarily unavailable (e.g. being updated).
+ * The existing registration remains valid; wait for an {@link onUnifiedPushEndpoint}
+ * callback before sending push messages again.
+ *
+ * @example
+ * ```typescript
+ * import { onUnifiedPushTempUnavailable } from '@choochmeque/tauri-plugin-notifications-api';
+ * const unlisten = await onUnifiedPushTempUnavailable((data) => {
+ *   console.warn('UnifiedPush temporarily unavailable for instance:', data.instance);
+ * });
+ * ```
+ *
+ * @param cb - Callback function to handle the temp-unavailable event.
+ * @returns A promise resolving to a function that removes the listener.
+ */
+async function onUnifiedPushTempUnavailable(
+  cb: (data: { instance: string }) => void,
+): Promise<PluginListener> {
+  return await addPluginListener(
+    "notifications",
+    "unifiedpush-temp-unavailable",
+    cb,
+  );
 }
 
 /**
  * Sends a notification to the user.
+ *
  * @example
  * ```typescript
  * import { isPermissionGranted, requestPermission, sendNotification } from '@choochmeque/tauri-plugin-notifications-api';
@@ -751,12 +1056,11 @@ async function onNotificationClicked(
     cb,
   );
 
-  // Tell native side listener is active (triggers pending if any)
+  // Notify native side so pending cold-start clicks are delivered
   await invoke("plugin:notifications|set_click_listener_active", {
     active: true,
   });
 
-  // Return wrapped listener that notifies native side on unregister
   return {
     unregister: async () => {
       await invoke("plugin:notifications|set_click_listener_active", {
@@ -777,6 +1081,11 @@ export type {
   Channel,
   ScheduleInterval,
   NotificationClickedData,
+  UnifiedPushPublicKeySet,
+  UnifiedPushEndpoint,
+  MessagingStylePerson,
+  MessagingStyleMessage,
+  MessagingStyleConfig,
 };
 
 export {
@@ -787,6 +1096,16 @@ export {
   isPermissionGranted,
   registerForPushNotifications,
   unregisterForPushNotifications,
+  registerForUnifiedPush,
+  unregisterFromUnifiedPush,
+  getUnifiedPushDistributors,
+  saveUnifiedPushDistributor,
+  getUnifiedPushDistributor,
+  onUnifiedPushEndpoint,
+  onUnifiedPushMessage,
+  onUnifiedPushUnregistered,
+  onUnifiedPushError,
+  onUnifiedPushTempUnavailable,
   registerActionTypes,
   pending,
   cancel,

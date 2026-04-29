@@ -14,7 +14,6 @@
             </intent-filter>
         </receiver>
 
-        <!-- Firebase Cloud Messaging Service for handling push notifications -->
         <service
             android:name="app.tauri.notification.TauriFirebaseMessagingService"
             android:exported="false">
@@ -22,6 +21,19 @@
                 <action android:name="com.google.firebase.MESSAGING_EVENT" />
             </intent-filter>
         </service>
+
+        <receiver
+            android:name="app.tauri.notification.TauriUnifiedPushMessagingService"
+            android:exported="true"
+            android:enabled="${unifiedPushReceiverEnabled}">
+            <intent-filter>
+                <action android:name="org.unifiedpush.android.connector.MESSAGE"/>
+                <action android:name="org.unifiedpush.android.connector.UNREGISTERED"/>
+                <action android:name="org.unifiedpush.android.connector.NEW_ENDPOINT"/>
+                <action android:name="org.unifiedpush.android.connector.REGISTRATION_FAILED" />
+                <action android:name="org.unifiedpush.android.connector.TEMP_UNAVAILABLE" />
+            </intent-filter>
+        </receiver>
     </application>
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />

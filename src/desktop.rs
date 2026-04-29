@@ -63,6 +63,36 @@ impl<R: Runtime> Notifications<R> {
         )))
     }
 
+    pub async fn register_for_unified_push(&self) -> crate::Result<serde_json::Value> {
+        Err(crate::Error::Io(std::io::Error::other(
+            "UnifiedPush is not supported on desktop platforms",
+        )))
+    }
+
+    pub fn unregister_from_unified_push(&self) -> crate::Result<()> {
+        Err(crate::Error::Io(std::io::Error::other(
+            "UnifiedPush is not supported on desktop platforms",
+        )))
+    }
+
+    pub fn get_unified_push_distributors(&self) -> crate::Result<serde_json::Value> {
+        Err(crate::Error::Io(std::io::Error::other(
+            "UnifiedPush is not supported on desktop platforms",
+        )))
+    }
+
+    pub fn save_unified_push_distributor(&self, _distributor: String) -> crate::Result<()> {
+        Err(crate::Error::Io(std::io::Error::other(
+            "UnifiedPush is not supported on desktop platforms",
+        )))
+    }
+
+    pub fn get_unified_push_distributor(&self) -> crate::Result<serde_json::Value> {
+        Err(crate::Error::Io(std::io::Error::other(
+            "UnifiedPush is not supported on desktop platforms",
+        )))
+    }
+
     pub async fn permission_state(&self) -> crate::Result<PermissionState> {
         Ok(PermissionState::Granted)
     }

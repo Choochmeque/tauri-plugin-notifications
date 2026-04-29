@@ -89,6 +89,140 @@ impl<R: Runtime> Notifications<R> {
         }
     }
 
+    pub async fn register_for_unified_push(&self) -> crate::Result<serde_json::Value> {
+        #[cfg(all(feature = "unified-push", target_os = "android"))]
+        {
+            self.0
+                .run_mobile_plugin_async::<crate::UnifiedPushEndpointResponse>(
+                    "registerForUnifiedPush",
+                    (),
+                )
+                .await
+                .map(|r| {
+                    let mut obj = serde_json::json!({
+                        "endpoint": r.endpoint,
+                        "instance": r.instance,
+                    });
+                    if let Some(keys) = r.pub_key_set {
+                        obj["pubKeySet"] = serde_json::json!({
+                            "pubKey": keys.pub_key,
+                            "auth": keys.auth,
+                        });
+                    }
+                    obj
+                })
+                .map_err(Into::into)
+        }
+        #[cfg(all(feature = "unified-push", not(target_os = "android")))]
+        {
+            Err(crate::Error::Io(std::io::Error::other(
+                "UnifiedPush is only supported on Android",
+            )))
+        }
+        #[cfg(not(feature = "unified-push"))]
+        {
+            Err(crate::Error::Io(std::io::Error::other(
+                "UnifiedPush feature is not enabled",
+            )))
+        }
+    }
+
+    pub fn unregister_from_unified_push(&self) -> crate::Result<()> {
+        #[cfg(all(feature = "unified-push", target_os = "android"))]
+        {
+            self.0
+                .run_mobile_plugin::<()>("unregisterFromUnifiedPush", ())
+                .map_err(Into::into)
+        }
+        #[cfg(all(feature = "unified-push", not(target_os = "android")))]
+        {
+            Err(crate::Error::Io(std::io::Error::other(
+                "UnifiedPush is only supported on Android",
+            )))
+        }
+        #[cfg(not(feature = "unified-push"))]
+        {
+            Err(crate::Error::Io(std::io::Error::other(
+                "UnifiedPush feature is not enabled",
+            )))
+        }
+    }
+
+    pub fn get_unified_push_distributors(&self) -> crate::Result<serde_json::Value> {
+        #[cfg(all(feature = "unified-push", target_os = "android"))]
+        {
+            self.0
+                .run_mobile_plugin::<crate::UnifiedPushDistributorsResponse>(
+                    "getUnifiedPushDistributors",
+                    (),
+                )
+                .map(|r| serde_json::json!({ "distributors": r.distributors }))
+                .map_err(Into::into)
+        }
+        #[cfg(all(feature = "unified-push", not(target_os = "android")))]
+        {
+            Err(crate::Error::Io(std::io::Error::other(
+                "UnifiedPush is only supported on Android",
+            )))
+        }
+        #[cfg(not(feature = "unified-push"))]
+        {
+            Err(crate::Error::Io(std::io::Error::other(
+                "UnifiedPush feature is not enabled",
+            )))
+        }
+    }
+
+    pub fn save_unified_push_distributor(&self, distributor: String) -> crate::Result<()> {
+        #[cfg(all(feature = "unified-push", target_os = "android"))]
+        {
+            let mut args = HashMap::new();
+            args.insert("distributor", distributor);
+            self.0
+                .run_mobile_plugin::<()>("saveUnifiedPushDistributor", args)
+                .map_err(Into::into)
+        }
+        #[cfg(all(feature = "unified-push", not(target_os = "android")))]
+        {
+            let _ = distributor;
+            Err(crate::Error::Io(std::io::Error::other(
+                "UnifiedPush is only supported on Android",
+            )))
+        }
+        #[cfg(not(feature = "unified-push"))]
+        {
+            let _ = distributor;
+            Err(crate::Error::Io(std::io::Error::other(
+                "UnifiedPush feature is not enabled",
+            )))
+        }
+    }
+
+    pub fn get_unified_push_distributor(&self) -> crate::Result<serde_json::Value> {
+        #[cfg(all(feature = "unified-push", target_os = "android"))]
+        {
+            self.0
+                .run_mobile_plugin::<crate::UnifiedPushDistributorResponse>(
+                    "getUnifiedPushDistributor",
+                    (),
+                )
+                .map(|r| serde_json::json!({ "distributor": r.distributor }))
+                .map_err(Into::into)
+        }
+        #[cfg(all(feature = "unified-push", not(target_os = "android")))]
+        {
+            Err(crate::Error::Io(std::io::Error::other(
+                "UnifiedPush is only supported on Android",
+            )))
+        }
+        #[cfg(not(feature = "unified-push"))]
+        {
+            Err(crate::Error::Io(std::io::Error::other(
+                "UnifiedPush feature is not enabled",
+            )))
+        }
+    }
+
     pub async fn permission_state(&self) -> crate::Result<PermissionState> {
         self.0
             .run_mobile_plugin_async::<PermissionResponse>("checkPermissions", ())
@@ -198,8 +332,6 @@ impl<R: Runtime> Notifications<R> {
         )));
     }
 
-    /// Set click listener active state.
-    /// Used internally to track if JS listener is registered.
     pub fn set_click_listener_active(&self, active: bool) -> crate::Result<()> {
         let mut args = HashMap::new();
         args.insert("active", active);
