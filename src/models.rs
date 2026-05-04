@@ -155,6 +155,8 @@ mod iso8601 {
     }
 }
 
+// Each bool is an independent flag in the JS wire format; grouping them would change the JSON shape.
+#[allow(clippy::struct_excessive_bools)]
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NotificationData {
@@ -211,7 +213,7 @@ impl Default for NotificationData {
             large_icon: None,
             icon_color: None,
             attachments: Vec::new(),
-            extra: Default::default(),
+            extra: HashMap::default(),
             ongoing: false,
             auto_cancel: false,
             silent: false,
@@ -229,19 +231,23 @@ pub struct PendingNotification {
 }
 
 impl PendingNotification {
-    pub fn id(&self) -> i32 {
+    #[must_use]
+    pub const fn id(&self) -> i32 {
         self.id
     }
 
+    #[must_use]
     pub fn title(&self) -> Option<&str> {
         self.title.as_deref()
     }
 
+    #[must_use]
     pub fn body(&self) -> Option<&str> {
         self.body.as_deref()
     }
 
-    pub fn schedule(&self) -> &Schedule {
+    #[must_use]
+    pub const fn schedule(&self) -> &Schedule {
         &self.schedule
     }
 }
@@ -268,55 +274,69 @@ pub struct ActiveNotification {
 }
 
 impl ActiveNotification {
-    pub fn id(&self) -> i32 {
+    #[must_use]
+    pub const fn id(&self) -> i32 {
         self.id
     }
 
+    #[must_use]
     pub fn tag(&self) -> Option<&str> {
         self.tag.as_deref()
     }
 
+    #[must_use]
     pub fn title(&self) -> Option<&str> {
         self.title.as_deref()
     }
 
+    #[must_use]
     pub fn body(&self) -> Option<&str> {
         self.body.as_deref()
     }
 
+    #[must_use]
     pub fn group(&self) -> Option<&str> {
         self.group.as_deref()
     }
 
-    pub fn group_summary(&self) -> bool {
+    #[must_use]
+    pub const fn group_summary(&self) -> bool {
         self.group_summary
     }
 
-    pub fn data(&self) -> &HashMap<String, String> {
+    #[must_use]
+    pub const fn data(&self) -> &HashMap<String, String> {
         &self.data
     }
 
-    pub fn extra(&self) -> &HashMap<String, serde_json::Value> {
+    #[must_use]
+    pub const fn extra(&self) -> &HashMap<String, serde_json::Value> {
         &self.extra
     }
 
+    #[must_use]
     pub fn attachments(&self) -> &[Attachment] {
         &self.attachments
     }
 
+    #[must_use]
     pub fn action_type_id(&self) -> Option<&str> {
         self.action_type_id.as_deref()
     }
 
-    pub fn schedule(&self) -> Option<&Schedule> {
+    #[must_use]
+    pub const fn schedule(&self) -> Option<&Schedule> {
         self.schedule.as_ref()
     }
 
+    #[must_use]
     pub fn sound(&self) -> Option<&str> {
         self.sound.as_deref()
     }
 }
 
+// Each bool is an independent UNNotificationCategory option; grouping would change the JSON shape.
+#[allow(clippy::struct_excessive_bools)]
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ActionType {
@@ -333,6 +353,8 @@ pub struct ActionType {
     hidden_previews_show_subtitle: bool,
 }
 
+// Each bool is an independent UNNotificationAction option; grouping would change the JSON shape.
+#[allow(clippy::struct_excessive_bools)]
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Action {
@@ -402,84 +424,101 @@ mod android {
                 lights: Some(false),
                 light_color: None,
                 vibration: Some(false),
-                importance: Default::default(),
+                importance: None,
                 visibility: None,
             })
         }
 
+        #[must_use]
         pub fn id(&self) -> &str {
             &self.id
         }
 
+        #[must_use]
         pub fn name(&self) -> &str {
             &self.name
         }
 
+        #[must_use]
         pub fn description(&self) -> Option<&str> {
             self.description.as_deref()
         }
 
+        #[must_use]
         pub fn sound(&self) -> Option<&str> {
             self.sound.as_deref()
         }
 
+        #[must_use]
         pub fn lights(&self) -> bool {
             self.lights.unwrap_or(false)
         }
 
+        #[must_use]
         pub fn light_color(&self) -> Option<&str> {
             self.light_color.as_deref()
         }
 
+        #[must_use]
         pub fn vibration(&self) -> bool {
             self.vibration.unwrap_or(false)
         }
 
+        #[must_use]
         pub fn importance(&self) -> Importance {
             self.importance.unwrap_or_default()
         }
 
-        pub fn visibility(&self) -> Option<Visibility> {
+        #[must_use]
+        pub const fn visibility(&self) -> Option<Visibility> {
             self.visibility
         }
     }
 
     impl ChannelBuilder {
+        #[must_use]
         pub fn description(mut self, description: impl Into<String>) -> Self {
             self.0.description.replace(description.into());
             self
         }
 
+        #[must_use]
         pub fn sound(mut self, sound: impl Into<String>) -> Self {
             self.0.sound.replace(sound.into());
             self
         }
 
-        pub fn lights(mut self, lights: bool) -> Self {
+        #[must_use]
+        pub const fn lights(mut self, lights: bool) -> Self {
             self.0.lights = Some(lights);
             self
         }
 
+        #[must_use]
         pub fn light_color(mut self, color: impl Into<String>) -> Self {
             self.0.light_color.replace(color.into());
             self
         }
 
-        pub fn vibration(mut self, vibration: bool) -> Self {
+        #[must_use]
+        pub const fn vibration(mut self, vibration: bool) -> Self {
             self.0.vibration = Some(vibration);
             self
         }
 
-        pub fn importance(mut self, importance: Importance) -> Self {
+        #[must_use]
+        pub const fn importance(mut self, importance: Importance) -> Self {
             self.0.importance = Some(importance);
             self
         }
 
+        #[must_use]
         pub fn visibility(mut self, visibility: Visibility) -> Self {
             self.0.visibility.replace(visibility);
             self
         }
 
+        #[must_use]
         pub fn build(self) -> Channel {
             self.0
         }

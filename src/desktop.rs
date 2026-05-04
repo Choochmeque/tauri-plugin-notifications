@@ -6,6 +6,8 @@ use tauri::{
 
 use crate::NotificationsBuilder;
 
+// Signature must match the iOS/Android `init` so the cfg-gated call sites in `lib.rs::init` compile uniformly.
+#[allow(clippy::unnecessary_wraps)]
 pub fn init<R: Runtime, C: DeserializeOwned>(
     app: &AppHandle<R>,
     _api: PluginApi<R, C>,
@@ -18,6 +20,8 @@ pub fn init<R: Runtime, C: DeserializeOwned>(
 /// You can get an instance of this type via [`NotificationsExt`](crate::NotificationsExt)
 pub struct Notifications<R: Runtime>(AppHandle<R>);
 
+// `async` and `Result` mirror the mobile/macOS plugin API so callers can `.await` and `?` uniformly.
+#[allow(clippy::unused_async, clippy::unnecessary_wraps)]
 impl<R: Runtime> crate::NotificationsBuilder<R> {
     pub async fn show(self) -> crate::Result<()> {
         let mut notification = imp::Notification::new(self.app.config().identifier.clone());
@@ -42,6 +46,8 @@ impl<R: Runtime> crate::NotificationsBuilder<R> {
     }
 }
 
+// `async` mirrors the mobile/macOS plugin API so callers can `.await` uniformly.
+#[allow(clippy::unused_async)]
 impl<R: Runtime> Notifications<R> {
     pub fn builder(&self) -> NotificationsBuilder<R> {
         NotificationsBuilder::new(self.0.clone())
@@ -181,6 +187,8 @@ mod imp {
         }
 
         /// Shows the notification.
+        // `current_exe()?` returns Result on Windows; Result is kept for that branch.
+        #[allow(clippy::unnecessary_wraps)]
         pub fn show(self) -> crate::Result<()> {
             let mut notification = notify_rust::Notification::new();
             if let Some(body) = self.body {

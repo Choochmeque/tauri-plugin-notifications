@@ -1,3 +1,7 @@
+// Tauri command handlers must take owned values: `State<'_, _>` is the framework's
+// preferred wrapper, and serde-deserialized payloads (Vec, String, ...) cannot be borrowed.
+#![allow(clippy::needless_pass_by_value)]
+
 use serde::Deserialize;
 use tauri::{command, plugin::PermissionState, AppHandle, Runtime, State};
 
@@ -5,14 +9,14 @@ use crate::{NotificationData, Notifications, Result};
 
 #[derive(Debug, Deserialize)]
 #[allow(dead_code)]
-pub(crate) struct NotificationIdentifier {
+pub struct NotificationIdentifier {
     pub id: i32,
     #[allow(dead_code)]
     pub tag: Option<String>,
 }
 
 #[command]
-pub(crate) async fn is_permission_granted<R: Runtime>(
+pub async fn is_permission_granted<R: Runtime>(
     _app: AppHandle<R>,
     notification: State<'_, Notifications<R>>,
 ) -> Result<Option<bool>> {
@@ -25,7 +29,7 @@ pub(crate) async fn is_permission_granted<R: Runtime>(
 }
 
 #[command]
-pub(crate) async fn request_permission<R: Runtime>(
+pub async fn request_permission<R: Runtime>(
     _app: AppHandle<R>,
     notification: State<'_, Notifications<R>>,
 ) -> Result<PermissionState> {
@@ -33,7 +37,7 @@ pub(crate) async fn request_permission<R: Runtime>(
 }
 
 #[command]
-pub(crate) async fn register_for_push_notifications<R: Runtime>(
+pub async fn register_for_push_notifications<R: Runtime>(
     _app: AppHandle<R>,
     notification: State<'_, Notifications<R>>,
 ) -> Result<String> {
@@ -41,7 +45,7 @@ pub(crate) async fn register_for_push_notifications<R: Runtime>(
 }
 
 #[command]
-pub(crate) async fn unregister_for_push_notifications<R: Runtime>(
+pub async fn unregister_for_push_notifications<R: Runtime>(
     _app: AppHandle<R>,
     notification: State<'_, Notifications<R>>,
 ) -> Result<()> {
@@ -49,7 +53,7 @@ pub(crate) async fn unregister_for_push_notifications<R: Runtime>(
 }
 
 #[command]
-pub(crate) async fn notify<R: Runtime>(
+pub async fn notify<R: Runtime>(
     _app: AppHandle<R>,
     notification: State<'_, Notifications<R>>,
     options: NotificationData,
@@ -60,7 +64,7 @@ pub(crate) async fn notify<R: Runtime>(
 }
 
 #[command]
-pub(crate) async fn register_action_types<R: Runtime>(
+pub async fn register_action_types<R: Runtime>(
     _app: AppHandle<R>,
     notification: State<'_, Notifications<R>>,
     types: Vec<crate::ActionType>,
@@ -69,7 +73,7 @@ pub(crate) async fn register_action_types<R: Runtime>(
 }
 
 #[command]
-pub(crate) async fn get_pending<R: Runtime>(
+pub async fn get_pending<R: Runtime>(
     _app: AppHandle<R>,
     notification: State<'_, Notifications<R>>,
 ) -> Result<Vec<crate::PendingNotification>> {
@@ -77,7 +81,7 @@ pub(crate) async fn get_pending<R: Runtime>(
 }
 
 #[command]
-pub(crate) async fn get_active<R: Runtime>(
+pub async fn get_active<R: Runtime>(
     _app: AppHandle<R>,
     notification: State<'_, Notifications<R>>,
 ) -> Result<Vec<crate::ActiveNotification>> {
@@ -85,7 +89,7 @@ pub(crate) async fn get_active<R: Runtime>(
 }
 
 #[command]
-pub(crate) fn set_click_listener_active<R: Runtime>(
+pub fn set_click_listener_active<R: Runtime>(
     _app: AppHandle<R>,
     notification: State<'_, Notifications<R>>,
     active: bool,
@@ -94,7 +98,7 @@ pub(crate) fn set_click_listener_active<R: Runtime>(
 }
 
 #[command]
-pub(crate) fn remove_active<R: Runtime>(
+pub fn remove_active<R: Runtime>(
     _app: AppHandle<R>,
     notification: State<'_, Notifications<R>>,
     notifications: Vec<NotificationIdentifier>,
@@ -104,7 +108,7 @@ pub(crate) fn remove_active<R: Runtime>(
 }
 
 #[command]
-pub(crate) fn cancel<R: Runtime>(
+pub fn cancel<R: Runtime>(
     _app: AppHandle<R>,
     notification: State<'_, Notifications<R>>,
     notifications: Vec<i32>,
@@ -113,7 +117,7 @@ pub(crate) fn cancel<R: Runtime>(
 }
 
 #[command]
-pub(crate) fn cancel_all<R: Runtime>(
+pub fn cancel_all<R: Runtime>(
     _app: AppHandle<R>,
     notification: State<'_, Notifications<R>>,
 ) -> Result<()> {
@@ -121,7 +125,7 @@ pub(crate) fn cancel_all<R: Runtime>(
 }
 
 #[command]
-pub(crate) fn create_channel<R: Runtime>(
+pub fn create_channel<R: Runtime>(
     _app: AppHandle<R>,
     notification: State<'_, Notifications<R>>,
     channel: crate::Channel,
@@ -130,7 +134,7 @@ pub(crate) fn create_channel<R: Runtime>(
 }
 
 #[command]
-pub(crate) fn delete_channel<R: Runtime>(
+pub fn delete_channel<R: Runtime>(
     _app: AppHandle<R>,
     notification: State<'_, Notifications<R>>,
     id: String,
@@ -139,7 +143,7 @@ pub(crate) fn delete_channel<R: Runtime>(
 }
 
 #[command]
-pub(crate) fn list_channels<R: Runtime>(
+pub fn list_channels<R: Runtime>(
     _app: AppHandle<R>,
     notification: State<'_, Notifications<R>>,
 ) -> Result<Vec<crate::Channel>> {

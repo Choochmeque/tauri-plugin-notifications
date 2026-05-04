@@ -25,7 +25,8 @@ pub fn init() {
 /// Trigger an event to all registered listeners for the given event name.
 ///
 /// Called by platform-specific code when notification events occur.
-#[allow(dead_code)]
+// Owned `payload` is taken from the FFI bridge in `macos.rs`.
+#[allow(dead_code, clippy::needless_pass_by_value)]
 pub fn trigger(event: &str, payload: String) -> crate::Result<()> {
     let listeners = LISTENERS.get().ok_or_else(|| {
         crate::Error::from(PluginInvokeError::InvokeRejected(ErrorResponse {
@@ -35,15 +36,21 @@ pub fn trigger(event: &str, payload: String) -> crate::Result<()> {
         }))
     })?;
 
-    let guard = listeners.read().map_err(|e| {
-        crate::Error::from(PluginInvokeError::InvokeRejected(ErrorResponse {
-            code: None,
-            message: Some(format!("Failed to acquire read lock: {e}")),
-            data: (),
-        }))
-    })?;
+    let channels: Vec<tauri::ipc::Channel<serde_json::Value>> = {
+        let guard = listeners.read().map_err(|e| {
+            crate::Error::from(PluginInvokeError::InvokeRejected(ErrorResponse {
+                code: None,
+                message: Some(format!("Failed to acquire read lock: {e}")),
+                data: (),
+            }))
+        })?;
+        guard
+            .get(event)
+            .map(|c| c.values().cloned().collect())
+            .unwrap_or_default()
+    };
 
-    if let Some(channels) = guard.get(event) {
+    if !channels.is_empty() {
         let value: serde_json::Value = serde_json::from_str(&payload).map_err(|e| {
             crate::Error::from(PluginInvokeError::InvokeRejected(ErrorResponse {
                 code: None,
@@ -51,7 +58,7 @@ pub fn trigger(event: &str, payload: String) -> crate::Result<()> {
                 data: (),
             }))
         })?;
-        for channel in channels.values() {
+        for channel in &channels {
             let _ = channel.send(value.clone());
         }
     }
@@ -59,29 +66,35 @@ pub fn trigger(event: &str, payload: String) -> crate::Result<()> {
 }
 
 /// Register a channel to receive events for the given event name.
+// Tauri commands receive serde-deserialized owned values.
+#[allow(clippy::needless_pass_by_value)]
 #[tauri::command]
-pub(crate) fn register_listener(
+pub fn register_listener(
     event: String,
     handler: tauri::ipc::Channel<serde_json::Value>,
 ) -> crate::Result<()> {
     let listeners = LISTENERS.get_or_init(|| RwLock::new(HashMap::new()));
-    let mut guard = listeners.write().map_err(|e| {
-        crate::Error::from(PluginInvokeError::InvokeRejected(ErrorResponse {
-            code: None,
-            message: Some(format!("Failed to acquire write lock: {e}")),
-            data: (),
-        }))
-    })?;
-    guard
-        .entry(event)
-        .or_default()
-        .insert(handler.id(), handler);
+    {
+        let mut guard = listeners.write().map_err(|e| {
+            crate::Error::from(PluginInvokeError::InvokeRejected(ErrorResponse {
+                code: None,
+                message: Some(format!("Failed to acquire write lock: {e}")),
+                data: (),
+            }))
+        })?;
+        guard
+            .entry(event)
+            .or_default()
+            .insert(handler.id(), handler);
+    }
     Ok(())
 }
 
 /// Remove a previously registered listener by event name and channel ID.
+// Tauri commands receive serde-deserialized owned values.
+#[allow(clippy::needless_pass_by_value)]
 #[tauri::command]
-pub(crate) fn remove_listener(event: String, channel_id: u32) -> crate::Result<()> {
+pub fn remove_listener(event: String, channel_id: u32) -> crate::Result<()> {
     let listeners = LISTENERS.get().ok_or_else(|| {
         crate::Error::from(PluginInvokeError::InvokeRejected(ErrorResponse {
             code: None,
@@ -89,15 +102,17 @@ pub(crate) fn remove_listener(event: String, channel_id: u32) -> crate::Result<(
             data: (),
         }))
     })?;
-    let mut guard = listeners.write().map_err(|e| {
-        crate::Error::from(PluginInvokeError::InvokeRejected(ErrorResponse {
-            code: None,
-            message: Some(format!("Failed to acquire write lock: {e}")),
-            data: (),
-        }))
-    })?;
-    if let Some(channels) = guard.get_mut(&event) {
-        channels.remove(&channel_id);
+    {
+        let mut guard = listeners.write().map_err(|e| {
+            crate::Error::from(PluginInvokeError::InvokeRejected(ErrorResponse {
+                code: None,
+                message: Some(format!("Failed to acquire write lock: {e}")),
+                data: (),
+            }))
+        })?;
+        if let Some(channels) = guard.get_mut(&event) {
+            channels.remove(&channel_id);
+        }
     }
     Ok(())
 }

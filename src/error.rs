@@ -2,7 +2,7 @@ use serde::{ser::Serializer, Serialize};
 
 pub type Result<T> = std::result::Result<T, Error>;
 
-/// Replica of the tauri::plugin::mobile::ErrorResponse for desktop platforms.
+/// Replica of the [`tauri::plugin::mobile::ErrorResponse`] for desktop platforms.
 #[cfg(desktop)]
 #[derive(Debug, thiserror::Error, Clone, serde::Deserialize)]
 pub struct ErrorResponse<T = ()> {
@@ -31,7 +31,7 @@ impl<T> std::fmt::Display for ErrorResponse<T> {
     }
 }
 
-/// Replica of the tauri::plugin::mobile::PluginInvokeError for desktop platforms.
+/// Replica of the [`tauri::plugin::mobile::PluginInvokeError`] for desktop platforms.
 #[cfg(desktop)]
 #[derive(Debug, thiserror::Error)]
 pub enum PluginInvokeError {
@@ -91,7 +91,7 @@ mod tests {
     fn test_io_error_display() {
         let io_err = io::Error::new(io::ErrorKind::NotFound, "test error");
         let err = Error::Io(io_err);
-        let display_str = format!("{}", err);
+        let display_str = format!("{err}");
         assert!(display_str.contains("test error"));
     }
 

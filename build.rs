@@ -34,7 +34,7 @@ fn main() {
         .unwrap_or_default()
         .contains("android")
     {
-        let properties_content = format!("enablePushNotifications={}", enable_push);
+        let properties_content = format!("enablePushNotifications={enable_push}");
         std::fs::write("android/build.properties", properties_content)
             .expect("Failed to write build.properties");
     }
@@ -73,6 +73,10 @@ fn main() {
     {
         // Only run macOS-specific build steps when building for macOS
         if std::env::var("CARGO_CFG_TARGET_OS").unwrap_or_default() == "macos" {
+            // Rebuild when target architecture or deployment target changes
+            println!("cargo:rerun-if-env-changed=CARGO_CFG_TARGET_ARCH");
+            println!("cargo:rerun-if-env-changed=MACOSX_DEPLOYMENT_TARGET");
+
             let bridges = vec!["src/macos.rs"];
             for path in &bridges {
                 println!("cargo:rerun-if-changed={path}");
@@ -99,18 +103,22 @@ fn main() {
 #[cfg(target_os = "macos")]
 fn compile_swift() {
     let swift_package_dir = manifest_dir().join("macos");
+    let target_triple = swift_target_triple();
 
     let mut cmd = Command::new("swift");
 
-    cmd.current_dir(swift_package_dir).arg("build").args([
-        "-Xswiftc",
-        "-import-objc-header",
-        "-Xswiftc",
-        swift_source_dir()
-            .join("bridging-header.h")
-            .to_str()
-            .expect("Bridging header path must be valid UTF-8"),
-    ]);
+    cmd.current_dir(&swift_package_dir)
+        .arg("build")
+        .args(["--triple", &target_triple])
+        .args([
+            "-Xswiftc",
+            "-import-objc-header",
+            "-Xswiftc",
+            swift_source_dir()
+                .join("bridging-header.h")
+                .to_str()
+                .expect("Bridging header path must be valid UTF-8"),
+        ]);
 
     if is_release_build() {
         cmd.args(["-c", "release"]);
@@ -122,16 +130,17 @@ fn compile_swift() {
         .wait_with_output()
         .expect("Failed to wait for swift build output");
 
-    if !exit_status.status.success() {
-        panic!(
-            r#"
+    assert!(
+        exit_status.status.success(),
+        r"
+Swift build failed for target: {}
 Stderr: {}
 Stdout: {}
-"#,
-            String::from_utf8(exit_status.stderr).expect("Stderr must be valid UTF-8"),
-            String::from_utf8(exit_status.stdout).expect("Stdout must be valid UTF-8"),
-        )
-    }
+",
+        target_triple,
+        String::from_utf8(exit_status.stderr).expect("Stderr must be valid UTF-8"),
+        String::from_utf8(exit_status.stdout).expect("Stdout must be valid UTF-8"),
+    );
 }
 
 #[cfg(target_os = "macos")]
@@ -161,6 +170,30 @@ fn generated_code_dir() -> PathBuf {
 }
 
 #[cfg(target_os = "macos")]
+fn target_arch() -> String {
+    std::env::var("CARGO_CFG_TARGET_ARCH").expect("CARGO_CFG_TARGET_ARCH must be set")
+}
+
+#[cfg(target_os = "macos")]
+fn swift_arch() -> &'static str {
+    match target_arch().as_str() {
+        "aarch64" => "arm64",
+        "x86_64" => "x86_64",
+        arch => panic!("Unsupported architecture for macOS: {arch}"),
+    }
+}
+
+#[cfg(target_os = "macos")]
+fn macos_deployment_target() -> String {
+    std::env::var("MACOSX_DEPLOYMENT_TARGET").unwrap_or_else(|_| "13.0".to_string())
+}
+
+#[cfg(target_os = "macos")]
+fn swift_target_triple() -> String {
+    format!("{}-apple-macosx{}", swift_arch(), macos_deployment_target())
+}
+
+#[cfg(target_os = "macos")]
 fn swift_library_static_lib_dir() -> PathBuf {
     let debug_or_release = if is_release_build() {
         "release"
@@ -168,5 +201,6 @@ fn swift_library_static_lib_dir() -> PathBuf {
         "debug"
     };
 
-    manifest_dir().join(format!("macos/.build/{debug_or_release}"))
+    let arch_dir = format!("{}-apple-macosx", swift_arch());
+    manifest_dir().join(format!("macos/.build/{arch_dir}/{debug_or_release}"))
 }

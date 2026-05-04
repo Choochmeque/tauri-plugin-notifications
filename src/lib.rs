@@ -53,7 +53,7 @@ impl<R: Runtime> NotificationsBuilder<R> {
     fn new(app: AppHandle<R>) -> Self {
         Self {
             app,
-            data: Default::default(),
+            data: NotificationData::default(),
         }
     }
 
@@ -75,7 +75,8 @@ impl<R: Runtime> NotificationsBuilder<R> {
     }
 
     /// Sets the notification identifier.
-    pub fn id(mut self, id: i32) -> Self {
+    #[must_use]
+    pub const fn id(mut self, id: i32) -> Self {
         self.data.id = id;
         self
     }
@@ -84,24 +85,28 @@ impl<R: Runtime> NotificationsBuilder<R> {
     ///
     /// If the channel does not exist, the notification won't fire.
     /// Make sure the channel exists with {@link listChannels} and {@link createChannel}.
+    #[must_use]
     pub fn channel_id(mut self, id: impl Into<String>) -> Self {
         self.data.channel_id.replace(id.into());
         self
     }
 
     /// Sets the notification title.
+    #[must_use]
     pub fn title(mut self, title: impl Into<String>) -> Self {
         self.data.title.replace(title.into());
         self
     }
 
     /// Sets the notification body.
+    #[must_use]
     pub fn body(mut self, body: impl Into<String>) -> Self {
         self.data.body.replace(body.into());
         self
     }
 
     /// Schedule this notification to fire on a later time or a fixed interval.
+    #[must_use]
     pub fn schedule(mut self, schedule: Schedule) -> Self {
         self.data.schedule.replace(schedule);
         self
@@ -110,18 +115,21 @@ impl<R: Runtime> NotificationsBuilder<R> {
     /// Multiline text.
     /// Changes the notification style to big text.
     /// Cannot be used with `inboxLines`.
+    #[must_use]
     pub fn large_body(mut self, large_body: impl Into<String>) -> Self {
         self.data.large_body.replace(large_body.into());
         self
     }
 
     /// Detail text for the notification with `largeBody`, `inboxLines` or `groupSummary`.
+    #[must_use]
     pub fn summary(mut self, summary: impl Into<String>) -> Self {
         self.data.summary.replace(summary.into());
         self
     }
 
     /// Defines an action type for this notification.
+    #[must_use]
     pub fn action_type_id(mut self, action_type_id: impl Into<String>) -> Self {
         self.data.action_type_id.replace(action_type_id.into());
         self
@@ -130,18 +138,21 @@ impl<R: Runtime> NotificationsBuilder<R> {
     /// Identifier used to group multiple notifications.
     ///
     /// <https://developer.apple.com/documentation/usernotifications/unmutablenotificationcontent/1649872-threadidentifier>
+    #[must_use]
     pub fn group(mut self, group: impl Into<String>) -> Self {
         self.data.group.replace(group.into());
         self
     }
 
     /// Instructs the system that this notification is the summary of a group on Android.
-    pub fn group_summary(mut self) -> Self {
+    #[must_use]
+    pub const fn group_summary(mut self) -> Self {
         self.data.group_summary = true;
         self
     }
 
     /// The sound resource name. Only available on mobile.
+    #[must_use]
     pub fn sound(mut self, sound: impl Into<String>) -> Self {
         self.data.sound.replace(sound.into());
         self
@@ -152,6 +163,7 @@ impl<R: Runtime> NotificationsBuilder<R> {
     /// Cannot be used with `largeBody`.
     ///
     /// Only supports up to 5 lines.
+    #[must_use]
     pub fn inbox_line(mut self, line: impl Into<String>) -> Self {
         self.data.inbox_lines.push(line.into());
         self
@@ -160,6 +172,7 @@ impl<R: Runtime> NotificationsBuilder<R> {
     /// Notification icon.
     ///
     /// On Android the icon must be placed in the app's `res/drawable` folder.
+    #[must_use]
     pub fn icon(mut self, icon: impl Into<String>) -> Self {
         self.data.icon.replace(icon.into());
         self
@@ -168,24 +181,28 @@ impl<R: Runtime> NotificationsBuilder<R> {
     /// Notification large icon (Android).
     ///
     /// The icon must be placed in the app's `res/drawable` folder.
+    #[must_use]
     pub fn large_icon(mut self, large_icon: impl Into<String>) -> Self {
         self.data.large_icon.replace(large_icon.into());
         self
     }
 
     /// Icon color on Android.
+    #[must_use]
     pub fn icon_color(mut self, icon_color: impl Into<String>) -> Self {
         self.data.icon_color.replace(icon_color.into());
         self
     }
 
     /// Append an attachment to the notification.
+    #[must_use]
     pub fn attachment(mut self, attachment: Attachment) -> Self {
         self.data.attachments.push(attachment);
         self
     }
 
     /// Adds an extra payload to store in the notification.
+    #[must_use]
     pub fn extra(mut self, key: impl Into<String>, value: impl Serialize) -> Self {
         if let Ok(value) = serde_json::to_value(value) {
             self.data.extra.insert(key.into(), value);
@@ -198,19 +215,22 @@ impl<R: Runtime> NotificationsBuilder<R> {
     /// An application service must manage the dismissal of the notification.
     /// It is typically used to indicate a background task that is pending (e.g. a file download)
     /// or the user is engaged with (e.g. playing music).
-    pub fn ongoing(mut self) -> Self {
+    #[must_use]
+    pub const fn ongoing(mut self) -> Self {
         self.data.ongoing = true;
         self
     }
 
     /// Automatically cancel the notification when the user clicks on it.
-    pub fn auto_cancel(mut self) -> Self {
+    #[must_use]
+    pub const fn auto_cancel(mut self) -> Self {
         self.data.auto_cancel = true;
         self
     }
 
     /// Changes the notification presentation to be silent on iOS (no badge, no sound, not listed).
-    pub fn silent(mut self) -> Self {
+    #[must_use]
+    pub const fn silent(mut self) -> Self {
         self.data.silent = true;
         self
     }
@@ -228,6 +248,7 @@ impl<R: Runtime, T: Manager<R>> crate::NotificationsExt<R> for T {
 }
 
 /// Initializes the plugin.
+#[must_use]
 pub fn init<R: Runtime>() -> TauriPlugin<R> {
     Builder::new("notifications")
         .invoke_handler(tauri::generate_handler![
