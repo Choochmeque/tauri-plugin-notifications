@@ -4,7 +4,7 @@ use tauri::{
     AppHandle, Runtime,
 };
 
-use crate::models::*;
+use crate::models::{ActionType, ActiveNotification, PendingNotification};
 
 use std::{collections::HashMap, sync::Arc};
 
@@ -12,9 +12,9 @@ pub use ffi::NotificationPlugin;
 
 /// Validation checks for macOS notifications functionality.
 ///
-/// UserNotifications requires the app to run from a signed .app bundle.
+/// `UserNotifications` requires the app to run from a signed .app bundle.
 /// During development with `tauri dev`, the binary runs
-/// directly without a bundle, causing UserNotifications calls to fail silently or crash.
+/// directly without a bundle, causing `UserNotifications` calls to fail silently or crash.
 mod validation {
     /// Ensures the app is running from a .app bundle.
     pub fn require_bundle() -> crate::Result<()> {
@@ -141,6 +141,8 @@ impl ParseFfiVoidResponse for Result<i32, ffi::FFIResult> {
 }
 
 /// Called by Swift via FFI when transaction updates occur.
+// Owned strings come straight from the Swift bridge.
+#[allow(clippy::needless_pass_by_value)]
 fn bridge_trigger(event: String, payload: String) -> Result<(), ffi::FFIResult> {
     crate::listeners::trigger(&event, payload)
         .map_err(|e| ffi::FFIResult::Err(format!("Failed to trigger event '{event}': {e}")))
@@ -165,7 +167,7 @@ impl<R: Runtime> crate::NotificationsBuilder<R> {
         self.plugin
             .show(
                 serde_json::to_string(&self.data)
-                    .map_err(|e| crate::error::PluginInvokeError::CannotSerializePayload(e))?,
+                    .map_err(crate::error::PluginInvokeError::CannotSerializePayload)?,
             )
             .await
             .parse_void()
@@ -236,7 +238,7 @@ impl<R: Runtime> Notifications<R> {
         self.plugin
             .registerActionTypes(
                 serde_json::to_string(&args)
-                    .map_err(|e| crate::error::PluginInvokeError::CannotSerializePayload(e))?,
+                    .map_err(crate::error::PluginInvokeError::CannotSerializePayload)?,
             )
             .parse_void()
     }
@@ -259,7 +261,7 @@ impl<R: Runtime> Notifications<R> {
         self.plugin
             .removeActive(
                 serde_json::to_string(&args)
-                    .map_err(|e| crate::error::PluginInvokeError::CannotSerializePayload(e))?,
+                    .map_err(crate::error::PluginInvokeError::CannotSerializePayload)?,
             )
             .parse_void()
     }
@@ -291,7 +293,7 @@ impl<R: Runtime> Notifications<R> {
         self.plugin
             .cancel(
                 serde_json::to_string(&args)
-                    .map_err(|e| crate::error::PluginInvokeError::CannotSerializePayload(e))?,
+                    .map_err(crate::error::PluginInvokeError::CannotSerializePayload)?,
             )
             .parse_void()
     }
@@ -313,7 +315,7 @@ impl<R: Runtime> Notifications<R> {
         self.plugin
             .setClickListenerActive(
                 serde_json::to_string(&args)
-                    .map_err(|e| crate::error::PluginInvokeError::CannotSerializePayload(e))?,
+                    .map_err(crate::error::PluginInvokeError::CannotSerializePayload)?,
             )
             .parse_void()
     }

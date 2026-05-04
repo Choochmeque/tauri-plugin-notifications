@@ -4,7 +4,11 @@ use tauri::{
     AppHandle, Runtime,
 };
 
-use crate::models::*;
+#[cfg(feature = "push-notifications")]
+use crate::models::PushNotificationResponse;
+use crate::models::{
+    ActionType, ActiveNotification, Channel, PendingNotification, PermissionResponse,
+};
 
 use std::collections::HashMap;
 
@@ -15,6 +19,8 @@ const PLUGIN_IDENTIFIER: &str = "app.tauri.notification";
 tauri::ios_plugin_binding!(init_plugin_notification);
 
 // initializes the Kotlin or Swift plugin classes
+// `PluginApi` is consumed by the framework's register helpers.
+#[allow(clippy::needless_pass_by_value)]
 pub fn init<R: Runtime, C: DeserializeOwned>(
     _app: &AppHandle<R>,
     api: PluginApi<R, C>,
@@ -157,7 +163,7 @@ impl<R: Runtime> Notifications<R> {
             .map_err(Into::into)
     }
 
-    #[allow(unused_variables)]
+    #[allow(unused_variables, clippy::needless_pass_by_value)]
     pub fn create_channel(&self, channel: Channel) -> crate::Result<()> {
         #[cfg(target_os = "android")]
         return self
@@ -170,7 +176,7 @@ impl<R: Runtime> Notifications<R> {
         )));
     }
 
-    #[allow(unused_variables)]
+    #[allow(unused_variables, clippy::needless_pass_by_value)]
     pub fn delete_channel(&self, id: impl Into<String>) -> crate::Result<()> {
         #[cfg(target_os = "android")]
         {

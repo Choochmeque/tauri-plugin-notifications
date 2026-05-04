@@ -62,7 +62,7 @@ impl<R: Runtime> NotificationsBuilder<R> {
         Self {
             app,
             plugin,
-            data: Default::default(),
+            data: NotificationData::default(),
         }
     }
 
@@ -70,7 +70,7 @@ impl<R: Runtime> NotificationsBuilder<R> {
     fn new(handle: PluginHandle<R>) -> Self {
         Self {
             handle,
-            data: Default::default(),
+            data: NotificationData::default(),
         }
     }
 
