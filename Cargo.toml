@@ -43,5 +43,5 @@ swift-bridge-build = "0.1"
 
 [dev-dependencies]
 color-backtrace = "0.7"
-ctor = "0.10"
+ctor = "1.0"
 maplit = "1"
