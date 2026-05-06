@@ -30,11 +30,13 @@ impl Attachment {
         Self { id: id.into(), url }
     }
 
+    #[must_use]
     pub fn id(&self) -> &str {
         &self.id
     }
 
-    pub fn url(&self) -> &Url {
+    #[must_use]
+    pub const fn url(&self) -> &Url {
         &self.url
     }
 }
@@ -374,10 +376,12 @@ impl ActionType {
         }
     }
 
+    #[must_use]
     pub fn id(&self) -> &str {
         &self.id
     }
 
+    #[must_use]
     pub fn actions(&self) -> &[Action] {
         &self.actions
     }
@@ -416,15 +420,18 @@ impl Action {
         }
     }
 
+    #[must_use]
     pub fn id(&self) -> &str {
         &self.id
     }
 
+    #[must_use]
     pub fn title(&self) -> &str {
         &self.title
     }
 
-    pub fn foreground(&self) -> bool {
+    #[must_use]
+    pub const fn foreground(&self) -> bool {
         self.foreground
     }
 }
