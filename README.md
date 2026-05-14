@@ -59,9 +59,9 @@ tauri-plugin-notifications = { version = "0.4", features = ["push-notifications"
 
 This enables:
 - Firebase Cloud Messaging support on Android
-- APNs (Apple Push Notification service) support on iOS
+- APNs (Apple Push Notification service) support on iOS and macOS
 
-**Note:** Push notifications are currently supported on mobile platforms (iOS and Android) only. macOS and Windows support is not yet available.
+**Note:** Push notifications are currently supported on iOS, Android, and macOS. Windows support is not yet available.
 
 Without this feature enabled:
 - Firebase dependencies are not included in Android builds
