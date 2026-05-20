@@ -613,7 +613,7 @@ async function removeActive(
  * @returns A promise indicating the success or failure of the operation.
  */
 async function removeAllActive(): Promise<void> {
-  await invoke("plugin:notifications|remove_active", { notifications: [] });
+  await invoke("plugin:notifications|remove_all");
 }
 
 /**
