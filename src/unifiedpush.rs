@@ -37,12 +37,8 @@ fn io_err(msg: impl Into<String>) -> crate::Error {
     default_path = "/org/unifiedpush/Distributor"
 )]
 trait Distributor {
-    fn register(
-        &self,
-        connector: &str,
-        token: &str,
-        vapid: &str,
-    ) -> zbus::Result<(String, String)>;
+    fn register(&self, connector: &str, token: &str, vapid: &str)
+        -> zbus::Result<(String, String)>;
 
     fn unregister(&self, token: &str) -> zbus::Result<()>;
 }
@@ -174,7 +170,11 @@ impl UnifiedPushState {
             .map_err(|e| io_err(format!("Invalid distributor name '{distributor}': {e}")))?
             .build()
             .await
-            .map_err(|e| io_err(format!("Failed to connect to distributor '{distributor}': {e}")))?;
+            .map_err(|e| {
+                io_err(format!(
+                    "Failed to connect to distributor '{distributor}': {e}"
+                ))
+            })?;
 
         let (tx, rx) = oneshot::channel();
         {
@@ -200,30 +200,24 @@ impl UnifiedPushState {
             }
             Err(e) => {
                 self.pending.lock().await.remove(&client_token);
-                return Err(io_err(format!(
-                    "Distributor Register call failed: {e}"
-                )));
+                return Err(io_err(format!("Distributor Register call failed: {e}")));
             }
         }
 
-        let endpoint = match tokio::time::timeout(
-            Duration::from_secs(REGISTER_TIMEOUT_SECS),
-            rx,
-        )
-        .await
-        {
-            Ok(Ok(Ok(endpoint))) => endpoint,
-            Ok(Ok(Err(reason))) => {
-                return Err(io_err(format!("Registration failed: {reason}")));
-            }
-            Ok(Err(_)) => {
-                return Err(io_err("Registration callback channel closed".to_string()));
-            }
-            Err(_) => {
-                self.pending.lock().await.remove(&client_token);
-                return Err(io_err(ERR_REGISTER_TIMEOUT.to_string()));
-            }
-        };
+        let endpoint =
+            match tokio::time::timeout(Duration::from_secs(REGISTER_TIMEOUT_SECS), rx).await {
+                Ok(Ok(Ok(endpoint))) => endpoint,
+                Ok(Ok(Err(reason))) => {
+                    return Err(io_err(format!("Registration failed: {reason}")));
+                }
+                Ok(Err(_)) => {
+                    return Err(io_err("Registration callback channel closed".to_string()));
+                }
+                Err(_) => {
+                    self.pending.lock().await.remove(&client_token);
+                    return Err(io_err(ERR_REGISTER_TIMEOUT.to_string()));
+                }
+            };
 
         *self.active.write().await = Some(ActiveRegistration {
             client_token,
@@ -281,7 +275,8 @@ impl ConnectorService {
         let Some(state) = self.state.upgrade() else {
             return;
         };
-        if let Some(tx) = state.pending.lock().await.remove(&token) {
+        let waiter = state.pending.lock().await.remove(&token);
+        if let Some(tx) = waiter {
             let _ = tx.send(Ok(endpoint));
         }
     }
@@ -300,7 +295,8 @@ impl ConnectorService {
         let Some(state) = self.state.upgrade() else {
             return;
         };
-        if let Some(tx) = state.pending.lock().await.remove(&token) {
+        let waiter = state.pending.lock().await.remove(&token);
+        if let Some(tx) = waiter {
             let _ = tx.send(Err(reason));
         }
     }
@@ -364,10 +360,7 @@ fn parse_message_payload(bytes: &[u8]) -> ParsedPayload {
             .or_else(|| value.get("message"))
             .and_then(|v| v.as_str())
             .map(String::from);
-        let extra = value
-            .get("data")
-            .or_else(|| value.get("extra"))
-            .cloned();
+        let extra = value.get("data").or_else(|| value.get("extra")).cloned();
         return ParsedPayload { title, body, extra };
     }
 

@@ -25,8 +25,7 @@ pub fn init<R: Runtime, C: DeserializeOwned>(
 pub struct Notifications<R: Runtime> {
     app: AppHandle<R>,
     #[cfg(all(target_os = "linux", feature = "push-notifications"))]
-    unifiedpush:
-        tokio::sync::OnceCell<std::sync::Arc<crate::unifiedpush::UnifiedPushState>>,
+    unifiedpush: tokio::sync::OnceCell<std::sync::Arc<crate::unifiedpush::UnifiedPushState>>,
 }
 
 #[cfg(all(target_os = "linux", feature = "push-notifications"))]
