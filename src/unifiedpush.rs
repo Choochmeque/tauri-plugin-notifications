@@ -89,14 +89,36 @@ impl UnifiedPushState {
             .await
             .map_err(|e| io_err(format!("Failed to register connector object: {e}")))?;
 
-        connection
-            .request_name(connector_bus_name.as_str())
+        let reply = connection
+            .request_name_with_flags(
+                connector_bus_name.as_str(),
+                zbus::fdo::RequestNameFlags::DoNotQueue
+                    | zbus::fdo::RequestNameFlags::ReplaceExisting
+                    | zbus::fdo::RequestNameFlags::AllowReplacement,
+            )
             .await
             .map_err(|e| {
                 io_err(format!(
                     "Failed to request connector bus name '{connector_bus_name}': {e}"
                 ))
             })?;
+
+        match reply {
+            zbus::fdo::RequestNameReply::PrimaryOwner
+            | zbus::fdo::RequestNameReply::AlreadyOwner => {
+                log::info!("UnifiedPush connector listening on D-Bus name '{connector_bus_name}'");
+            }
+            zbus::fdo::RequestNameReply::InQueue => {
+                return Err(io_err(format!(
+                    "Bus name '{connector_bus_name}' is held by another process; queued instead of becoming primary owner"
+                )));
+            }
+            zbus::fdo::RequestNameReply::Exists => {
+                return Err(io_err(format!(
+                    "Bus name '{connector_bus_name}' is already held by another process and cannot be replaced"
+                )));
+            }
+        }
 
         Ok(state)
     }
