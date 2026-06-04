@@ -49,6 +49,15 @@ struct ActiveRegistration {
     distributor: String,
 }
 
+/// Callback used to display an incoming push as a desktop toast. Provided
+/// by the cross-platform layer at construction time so this module doesn't
+/// have to know about `Notifications<R>` (avoids making `UnifiedPushState`
+/// generic over `Runtime`). The callback is responsible for calling
+/// `notify_rust::Notification::show()` AND inserting the resulting handle
+/// into the shared `active` map so push toasts show up in
+/// `Notifications::active()` and can be cancelled like local ones.
+pub type PushDisplayer = Arc<dyn Fn(Option<String>, Option<String>) + Send + Sync + 'static>;
+
 pub struct UnifiedPushState {
     connection: zbus::Connection,
     connector_bus_name: String,
@@ -56,10 +65,17 @@ pub struct UnifiedPushState {
     token: RwLock<Option<String>>,
     active: RwLock<Option<ActiveRegistration>>,
     pending: Mutex<HashMap<String, oneshot::Sender<Result<String, String>>>>,
+    /// `None` means "don't display a toast for incoming pushes" — the JS
+    /// listener still fires. Practically always `Some` when constructed from
+    /// `desktop.rs`.
+    displayer: Option<PushDisplayer>,
 }
 
 impl UnifiedPushState {
-    pub async fn new<R: Runtime>(app: &AppHandle<R>) -> crate::Result<Arc<Self>> {
+    pub async fn new<R: Runtime>(
+        app: &AppHandle<R>,
+        displayer: Option<PushDisplayer>,
+    ) -> crate::Result<Arc<Self>> {
         let connector_bus_name = app.config().identifier.clone();
         if connector_bus_name.is_empty() {
             return Err(io_err(
@@ -78,6 +94,7 @@ impl UnifiedPushState {
             token: RwLock::new(None),
             active: RwLock::new(None),
             pending: Mutex::new(HashMap::new()),
+            displayer,
         });
 
         let connector = ConnectorService {
@@ -331,7 +348,7 @@ impl ConnectorService {
     }
 }
 
-fn handle_message(_state: &UnifiedPushState, _token: &str, message: &[u8], _id: &str) {
+fn handle_message(state: &UnifiedPushState, _token: &str, message: &[u8], _id: &str) {
     let parsed = parse_message_payload(message);
 
     let payload = json!({
@@ -345,28 +362,14 @@ fn handle_message(_state: &UnifiedPushState, _token: &str, message: &[u8], _id: 
         log::warn!("Failed to dispatch push notification to listeners: {e}");
     }
 
-    #[cfg(feature = "notify-rust")]
-    show_toast(&parsed);
-}
-
-#[cfg(feature = "notify-rust")]
-fn show_toast(parsed: &ParsedPayload) {
-    let mut notification = notify_rust::Notification::new();
-    if let Some(title) = parsed.title.as_deref() {
-        notification.summary(title);
+    // Route the toast display through the displayer callback supplied by
+    // `desktop.rs`. That path uses the same `notify-rust + active map`
+    // pipeline as local notifications, so incoming pushes show up in
+    // `Notifications::active()` and can be cancelled like any other
+    // notification.
+    if let Some(displayer) = state.displayer.as_ref() {
+        displayer(parsed.title, parsed.body);
     }
-    if let Some(body) = parsed.body.as_deref() {
-        notification.body(body);
-    }
-    notification.auto_icon();
-    // Leak the handle to keep the D-Bus connection alive — see the note in
-    // `desktop.rs::imp::Notification::show` for the rationale.
-    tauri::async_runtime::spawn_blocking(move || match notification.show() {
-        Ok(handle) => {
-            std::mem::forget(handle);
-        }
-        Err(e) => log::warn!("Failed to show push notification toast: {e}"),
-    });
 }
 
 #[derive(Debug, Default, PartialEq, Eq)]

@@ -99,8 +99,66 @@ impl<R: Runtime> Notifications<R> {
         &self,
     ) -> crate::Result<&std::sync::Arc<crate::unifiedpush::UnifiedPushState>> {
         self.unifiedpush
-            .get_or_try_init(|| crate::unifiedpush::UnifiedPushState::new(&self.app))
+            .get_or_try_init(|| {
+                let displayer = Self::build_push_displayer(self.app.clone());
+                crate::unifiedpush::UnifiedPushState::new(&self.app, Some(displayer))
+            })
             .await
+    }
+
+    /// Builds the `PushDisplayer` callback handed to `UnifiedPushState`. The
+    /// callback runs `notify_rust::Notification::show()` on a blocking thread
+    /// and routes the resulting handle into the same `active` map that local
+    /// notifications use, so push toasts:
+    ///   * Stay visible (handle is held → D-Bus connection stays alive →
+    ///     daemons don't dismiss-on-disconnect).
+    ///   * Show up in [`Notifications::active`] alongside local notifications.
+    ///   * Can be cancelled via the existing `cancel`/`cancel_all` methods
+    ///     (caller id is `0` because UnifiedPush messages don't carry one).
+    fn build_push_displayer(app: AppHandle<R>) -> crate::unifiedpush::PushDisplayer {
+        std::sync::Arc::new(move |title: Option<String>, body: Option<String>| {
+            let app = app.clone();
+            let identifier = app.config().identifier.clone();
+            tauri::async_runtime::spawn_blocking(move || {
+                let notification = match imp::build_notification(
+                    title.as_deref(),
+                    body.as_deref(),
+                    None,
+                    &identifier,
+                ) {
+                    Ok(n) => n,
+                    Err(e) => {
+                        log::warn!("Failed to build push notification: {e}");
+                        return;
+                    }
+                };
+                match notification.show() {
+                    Ok(handle) => {
+                        use std::sync::atomic::Ordering;
+                        use tauri::Manager;
+                        let state = app.state::<Notifications<R>>();
+                        let entry_id = state.active_counter.fetch_add(1, Ordering::Relaxed);
+                        let entry = ActiveEntry {
+                            caller_id: 0,
+                            handle,
+                            title,
+                            body,
+                        };
+                        let lock = state.active.lock();
+                        match lock {
+                            Ok(mut active) => {
+                                active.insert(entry_id, entry);
+                            }
+                            Err(poisoned) => {
+                                log::warn!("active notifications mutex was poisoned; recovering");
+                                poisoned.into_inner().insert(entry_id, entry);
+                            }
+                        }
+                    }
+                    Err(e) => log::warn!("Failed to show push notification toast: {e}"),
+                }
+            });
+        })
     }
 }
 
