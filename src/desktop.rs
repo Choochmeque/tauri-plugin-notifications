@@ -206,41 +206,44 @@ impl<R: Runtime> crate::NotificationsBuilder<R> {
             })?;
 
         match join_result {
+            #[cfg(target_os = "linux")]
             Ok(handle) => {
-                #[cfg(target_os = "linux")]
-                {
-                    use std::sync::atomic::Ordering;
-                    use tauri::Manager;
-                    let state = app.state::<Notifications<R>>();
-                    let entry_id = state.active_counter.fetch_add(1, Ordering::Relaxed);
-                    let entry = ActiveEntry {
-                        caller_id,
-                        handle,
-                        title,
-                        body,
-                    };
-                    // Take the lock into a binding so its `MutexGuard`
-                    // temporary doesn't outlive `state` in the `match` arms.
-                    let lock_result = state.active.lock();
-                    match lock_result {
-                        Ok(mut active) => {
-                            active.insert(entry_id, entry);
-                        }
-                        Err(poisoned) => {
-                            log::warn!("active notifications mutex was poisoned; recovering");
-                            poisoned.into_inner().insert(entry_id, entry);
-                        }
+                use std::sync::atomic::Ordering;
+                use tauri::Manager;
+                let state = app.state::<Notifications<R>>();
+                let entry_id = state.active_counter.fetch_add(1, Ordering::Relaxed);
+                let entry = ActiveEntry {
+                    caller_id,
+                    handle,
+                    title,
+                    body,
+                };
+                // Take the lock into a binding so its `MutexGuard` temporary
+                // doesn't outlive `state` in the `match` arms.
+                let lock_result = state.active.lock();
+                match lock_result {
+                    Ok(mut active) => {
+                        active.insert(entry_id, entry);
+                    }
+                    Err(poisoned) => {
+                        log::warn!("active notifications mutex was poisoned; recovering");
+                        poisoned.into_inner().insert(entry_id, entry);
                     }
                 }
-                // macOS: the handle is dropped (daemon doesn't dismiss on
-                // disconnect, so this is safe). Windows: handle is `()` —
-                // nothing to track. The explicit discards keep both cases
-                // free of unused-variable / used-underscore-binding lints.
-                #[cfg(not(target_os = "linux"))]
-                {
-                    let _ = handle;
-                    let _ = (caller_id, title, body, app);
-                }
+            }
+            // macOS: drop the `NotificationHandle` here. Daemon doesn't
+            // dismiss popups on sender disconnect, so no leak workaround
+            // needed.
+            #[cfg(target_os = "macos")]
+            Ok(_) => {
+                let _ = (caller_id, title, body, app);
+            }
+            // Windows: `Notification::show()` returns `Result<()>`. The
+            // explicit unit pattern keeps clippy's `ignored_unit_patterns`
+            // happy.
+            #[cfg(target_os = "windows")]
+            Ok(()) => {
+                let _ = (caller_id, title, body, app);
             }
             Err(e) => log::warn!("Failed to show notification: {e}"),
         }
