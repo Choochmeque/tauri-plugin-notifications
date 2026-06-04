@@ -74,18 +74,27 @@ impl<R: Runtime> Notifications<R> {
     /// removes them from the active map, and dispatches `handle.close()` on
     /// the blocking pool so the command call returns quickly.
     fn close_by_caller_ids(&self, caller_ids: &[i32]) -> crate::Result<()> {
-        let to_close: Vec<ActiveEntry> = {
+        let mut to_close: Vec<ActiveEntry> = Vec::new();
+        {
             let mut active = self.active.lock().map_err(active_lock_err)?;
-            let entry_ids: Vec<u64> = active
-                .iter()
-                .filter(|(_, entry)| caller_ids.contains(&entry.caller_id))
-                .map(|(k, _)| *k)
-                .collect();
-            entry_ids
+            // Move the map out, partition entries into "close" vs "keep" in
+            // one pass, then put the kept ones back. Avoids the borrow-
+            // checker dance of iter-then-remove (which would need a
+            // throwaway `Vec<u64>` of keys) without holding the lock any
+            // longer than necessary.
+            let kept: std::collections::HashMap<u64, ActiveEntry> = std::mem::take(&mut *active)
                 .into_iter()
-                .filter_map(|k| active.remove(&k))
-                .collect()
-        };
+                .filter_map(|(k, entry)| {
+                    if caller_ids.contains(&entry.caller_id) {
+                        to_close.push(entry);
+                        None
+                    } else {
+                        Some((k, entry))
+                    }
+                })
+                .collect();
+            *active = kept;
+        }
         for entry in to_close {
             tauri::async_runtime::spawn_blocking(move || entry.handle.close());
         }
@@ -114,7 +123,7 @@ impl<R: Runtime> Notifications<R> {
     ///     daemons don't dismiss-on-disconnect).
     ///   * Show up in [`Notifications::active`] alongside local notifications.
     ///   * Can be cancelled via the existing `cancel`/`cancel_all` methods
-    ///     (caller id is `0` because UnifiedPush messages don't carry one).
+    ///     (caller id is `0` because `UnifiedPush` messages don't carry one).
     fn build_push_displayer(app: AppHandle<R>) -> crate::unifiedpush::PushDisplayer {
         std::sync::Arc::new(move |title: Option<String>, body: Option<String>| {
             let app = app.clone();
@@ -136,7 +145,7 @@ impl<R: Runtime> Notifications<R> {
                     Ok(handle) => {
                         use std::sync::atomic::Ordering;
                         use tauri::Manager;
-                        let state = app.state::<Notifications<R>>();
+                        let state = app.state::<Self>();
                         let entry_id = state.active_counter.fetch_add(1, Ordering::Relaxed);
                         let entry = ActiveEntry {
                             caller_id: 0,
@@ -197,38 +206,37 @@ impl<R: Runtime> crate::NotificationsBuilder<R> {
             })?;
 
         match join_result {
-            Ok(_handle) => {
-                #[cfg(target_os = "linux")]
-                {
-                    use std::sync::atomic::Ordering;
-                    use tauri::Manager;
-                    let state = app.state::<Notifications<R>>();
-                    let entry_id = state.active_counter.fetch_add(1, Ordering::Relaxed);
-                    let entry = ActiveEntry {
-                        caller_id,
-                        handle: _handle,
-                        title,
-                        body,
-                    };
-                    // Take the lock into a binding so its `MutexGuard`
-                    // temporary doesn't outlive `state` in the `match`
-                    // arms.
-                    let lock_result = state.active.lock();
-                    match lock_result {
-                        Ok(mut active) => {
-                            active.insert(entry_id, entry);
-                        }
-                        Err(poisoned) => {
-                            log::warn!("active notifications mutex was poisoned; recovering");
-                            poisoned.into_inner().insert(entry_id, entry);
-                        }
+            #[cfg(target_os = "linux")]
+            Ok(handle) => {
+                use std::sync::atomic::Ordering;
+                use tauri::Manager;
+                let state = app.state::<Notifications<R>>();
+                let entry_id = state.active_counter.fetch_add(1, Ordering::Relaxed);
+                let entry = ActiveEntry {
+                    caller_id,
+                    handle,
+                    title,
+                    body,
+                };
+                // Take the lock into a binding so its `MutexGuard` temporary
+                // doesn't outlive `state` in the `match` arms.
+                let lock_result = state.active.lock();
+                match lock_result {
+                    Ok(mut active) => {
+                        active.insert(entry_id, entry);
+                    }
+                    Err(poisoned) => {
+                        log::warn!("active notifications mutex was poisoned; recovering");
+                        poisoned.into_inner().insert(entry_id, entry);
                     }
                 }
-                // Windows's notify-rust handle is `()` — nothing to track.
-                #[cfg(not(target_os = "linux"))]
-                {
-                    let _ = (caller_id, title, body, app);
-                }
+            }
+            // macOS / Windows: the handle (if any) is dropped here. macOS's
+            // daemon doesn't dismiss on disconnect, and Windows's handle is
+            // `()` — nothing to track in either case.
+            #[cfg(not(target_os = "linux"))]
+            Ok(_) => {
+                let _ = (caller_id, title, body, app);
             }
             Err(e) => log::warn!("Failed to show notification: {e}"),
         }
