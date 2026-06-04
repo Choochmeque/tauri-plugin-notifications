@@ -495,8 +495,10 @@ async function unregisterForPushNotifications(): Promise<void> {
  * Lists currently running UnifiedPush distributors by D-Bus bus name
  * (e.g. `org.unifiedpush.Distributor.ntfy`).
  *
- * **Linux / UnifiedPush only.** Throws on other platforms because the
- * underlying Tauri command is not registered.
+ * **Linux only, and only when the plugin was built with the
+ * `push-notifications` Rust feature** (the Tauri commands are gated behind
+ * `#[cfg(all(target_os = "linux", feature = "push-notifications"))]`).
+ * Throws elsewhere because the command isn't registered.
  *
  * Returns an empty array when no UnifiedPush distributor is installed —
  * this is the signal to prompt the user to install one
@@ -522,7 +524,9 @@ async function listDistributors(): Promise<string[]> {
  * Pins the UnifiedPush distributor used for the next
  * {@link registerForPushNotifications} call.
  *
- * **Linux / UnifiedPush only.** Throws on other platforms.
+ * **Linux only, and only when the plugin was built with the
+ * `push-notifications` Rust feature.** Throws elsewhere because the
+ * underlying Tauri command isn't registered.
  *
  * **Must be called before {@link registerForPushNotifications}.** Calling
  * this after a successful register has no effect on the existing endpoint
@@ -552,7 +556,9 @@ async function setDistributor(name: string): Promise<void> {
  * Sets the UnifiedPush client token used on subsequent
  * {@link registerForPushNotifications} calls.
  *
- * **Linux / UnifiedPush only.** Throws on other platforms.
+ * **Linux only, and only when the plugin was built with the
+ * `push-notifications` Rust feature.** Throws elsewhere because the
+ * underlying Tauri command isn't registered.
  *
  * **Must be called before {@link registerForPushNotifications}.** Calling
  * this after a successful register has no effect on the existing endpoint

@@ -245,7 +245,15 @@ impl<R: Runtime> crate::NotificationsBuilder<R> {
             Ok(()) => {
                 let _ = (caller_id, title, body, app);
             }
-            Err(e) => log::warn!("Failed to show notification: {e}"),
+            // Propagate the underlying `notify-rust` failure (missing
+            // notification daemon, D-Bus permission denied, etc.) instead of
+            // swallowing it — matches the mobile/macOS behavior and lets JS
+            // callers handle delivery failures.
+            Err(e) => {
+                return Err(crate::Error::Io(std::io::Error::other(format!(
+                    "Failed to show notification: {e}"
+                ))));
+            }
         }
 
         Ok(())

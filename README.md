@@ -707,6 +707,8 @@ Replace `Name` with your Tauri app's identifier (the `identifier` field from `ta
 
 The plugin does **not** install this file for you — it's a packaging/deployment decision. Distros and packagers typically install it from the `.deb` / `.rpm` / Flatpak manifest.
 
+**Important caveat about cold-start delivery:** the plugin's UnifiedPush connector (the D-Bus service that owns your app identifier) is **lazily initialized** on the first call to `listDistributors()`, `setDistributor()`, `setToken()`, or `registerForPushNotifications()` from the JS layer. If your app is launched by D-Bus activation purely to handle a push, the distributor's method call may race the lazy init and arrive before the connector is registered — the call then fails silently. To make activation-driven delivery reliable, trigger the init eagerly in your Rust `setup()` (e.g. call `notifications.list_distributors()` once before returning), or call `listDistributors()` from JS as early as your app starts. Until you do, treat the `.service` activation as best-effort.
+
 ## Testing
 
 ### Desktop

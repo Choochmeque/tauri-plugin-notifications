@@ -61,6 +61,10 @@ pub type PushDisplayer = Arc<dyn Fn(Option<String>, Option<String>) + Send + Syn
 pub struct UnifiedPushState {
     connection: zbus::Connection,
     connector_bus_name: String,
+    /// Used as a fallback when an incoming push has no `title` field. The JS
+    /// listener's `Options.title` is typed as a required string, so emitting
+    /// `null` would surprise consumers.
+    fallback_title: String,
     selected: RwLock<Option<String>>,
     token: RwLock<Option<String>>,
     active: RwLock<Option<ActiveRegistration>>,
@@ -82,6 +86,11 @@ impl UnifiedPushState {
                 "App identifier is empty; cannot register a D-Bus connector name",
             ));
         }
+        let fallback_title = app
+            .config()
+            .product_name
+            .clone()
+            .unwrap_or_else(|| connector_bus_name.clone());
 
         let connection = zbus::Connection::session()
             .await
@@ -90,6 +99,7 @@ impl UnifiedPushState {
         let state = Arc::new(Self {
             connection: connection.clone(),
             connector_bus_name: connector_bus_name.clone(),
+            fallback_title,
             selected: RwLock::new(None),
             token: RwLock::new(None),
             active: RwLock::new(None),
@@ -196,6 +206,16 @@ impl UnifiedPushState {
     }
 
     pub async fn register(&self) -> crate::Result<String> {
+        // Reject if there's already an active registration. Otherwise the
+        // previous token would stay registered at the distributor (and keep
+        // receiving pushes) while the plugin only tracks the latest one,
+        // making `unregister` impossible for the orphaned token.
+        if self.active.read().await.is_some() {
+            return Err(io_err(
+                "Already registered; call unregister first to re-register",
+            ));
+        }
+
         let distributor = self.pick_distributor().await?;
         let client_token = self
             .token
@@ -271,7 +291,10 @@ impl UnifiedPushState {
     }
 
     pub async fn unregister(&self) -> crate::Result<()> {
-        let Some(active) = self.active.write().await.take() else {
+        // Read first (clone), only clear `self.active` after the D-Bus call
+        // succeeds. Otherwise a transient failure leaves the plugin thinking
+        // it's unregistered while the distributor still has the token.
+        let Some(active) = self.active.read().await.clone() else {
             return Ok(());
         };
 
@@ -297,6 +320,9 @@ impl UnifiedPushState {
             .await
             .map_err(|e| io_err(format!("Distributor Unregister failed: {e}")))?;
 
+        // Only clear after the distributor has acknowledged the unregister.
+        *self.active.write().await = None;
+
         Ok(())
     }
 }
@@ -314,6 +340,20 @@ impl ConnectorService {
         let Some(state) = self.state.upgrade() else {
             return;
         };
+        // Validate the token against the active registration. Without this
+        // check, any process on the session bus could call
+        // `org.unifiedpush.Connector1.Message` with an arbitrary token and
+        // trigger listener events / toasts — spoofed pushes.
+        let token_matches = state
+            .active
+            .read()
+            .await
+            .as_ref()
+            .is_some_and(|a| a.client_token == token);
+        if !token_matches {
+            log::warn!("UnifiedPush Message received for unknown token; ignoring (possible spoof)");
+            return;
+        }
         handle_message(&state, &token, &message, &id);
     }
 
@@ -351,11 +391,26 @@ impl ConnectorService {
 fn handle_message(state: &UnifiedPushState, _token: &str, message: &[u8], _id: &str) {
     let parsed = parse_message_payload(message);
 
+    // Normalize for the listener: the JS `Options` type marks `title` as a
+    // required string and `extra` as an object. Falling back to the app's
+    // product name (or identifier) for title, and wrapping non-object
+    // payloads under a `_raw` key, keeps consumers from blowing up on
+    // `null`/non-object values.
+    let title = parsed
+        .title
+        .clone()
+        .unwrap_or_else(|| state.fallback_title.clone());
+    let extra = match parsed.extra.clone() {
+        Some(JsonValue::Object(map)) => JsonValue::Object(map),
+        Some(other) => json!({ "_raw": other }),
+        None => json!({}),
+    };
+
     let payload = json!({
         "source": "push",
-        "title": parsed.title,
+        "title": title,
         "body": parsed.body,
-        "extra": parsed.extra,
+        "extra": extra,
     });
 
     if let Err(e) = crate::listeners::trigger("notification", payload.to_string()) {
@@ -366,9 +421,10 @@ fn handle_message(state: &UnifiedPushState, _token: &str, message: &[u8], _id: &
     // `desktop.rs`. That path uses the same `notify-rust + active map`
     // pipeline as local notifications, so incoming pushes show up in
     // `Notifications::active()` and can be cancelled like any other
-    // notification.
+    // notification. Pass the original (possibly None) parsed title so the
+    // desktop layer can decide whether to fall back to the app identifier.
     if let Some(displayer) = state.displayer.as_ref() {
-        displayer(parsed.title, parsed.body);
+        displayer(Some(title), parsed.body);
     }
 }
 
