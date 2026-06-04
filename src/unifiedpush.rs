@@ -337,8 +337,9 @@ fn show_toast(parsed: &ParsedPayload) {
         notification.body(body);
     }
     notification.auto_icon();
-    tauri::async_runtime::spawn_blocking(move || {
-        let _ = notification.show();
+    tauri::async_runtime::spawn_blocking(move || match notification.show() {
+        Ok(_) => {}
+        Err(e) => log::warn!("Failed to show push notification toast: {e}"),
     });
 }
 

@@ -300,8 +300,14 @@ mod imp {
                 });
             }
 
-            tauri::async_runtime::spawn(async move {
-                let _ = notification.show();
+            // `notify_rust::Notification::show()` is sync and runs an internal
+            // blocking D-Bus call (via zbus's `block_on`). Calling it inside
+            // `async_runtime::spawn` panics with "Cannot start a runtime from
+            // within a runtime" — `spawn_blocking` parks the call on a
+            // dedicated blocking thread so the nested runtime is fine.
+            tauri::async_runtime::spawn_blocking(move || match notification.show() {
+                Ok(_) => {}
+                Err(e) => log::warn!("Failed to show notification: {e}"),
             });
 
             Ok(())
