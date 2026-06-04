@@ -337,8 +337,12 @@ fn show_toast(parsed: &ParsedPayload) {
         notification.body(body);
     }
     notification.auto_icon();
+    // Leak the handle to keep the D-Bus connection alive — see the note in
+    // `desktop.rs::imp::Notification::show` for the rationale.
     tauri::async_runtime::spawn_blocking(move || match notification.show() {
-        Ok(_) => {}
+        Ok(handle) => {
+            std::mem::forget(handle);
+        }
         Err(e) => log::warn!("Failed to show push notification toast: {e}"),
     });
 }

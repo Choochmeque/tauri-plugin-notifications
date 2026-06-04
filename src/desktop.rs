@@ -305,8 +305,16 @@ mod imp {
             // `async_runtime::spawn` panics with "Cannot start a runtime from
             // within a runtime" — `spawn_blocking` parks the call on a
             // dedicated blocking thread so the nested runtime is fine.
+            //
+            // We deliberately leak the returned `NotificationHandle` (and the
+            // D-Bus `Connection` it owns). Some Linux notification daemons
+            // (mako, swaync, some dunst configs) treat the sending client
+            // disconnecting as a cue to dismiss its open popups, which would
+            // make our notifications flash for milliseconds before vanishing.
             tauri::async_runtime::spawn_blocking(move || match notification.show() {
-                Ok(_) => {}
+                Ok(handle) => {
+                    std::mem::forget(handle);
+                }
                 Err(e) => log::warn!("Failed to show notification: {e}"),
             });
 
