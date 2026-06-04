@@ -84,4 +84,49 @@ jobs:
       - uses: actions/checkout@v6
       - uses: obi1kenobi/cargo-semver-checks-action@v2
 
-  
+  # Build the example app on every desktop OS. Catches platform-specific regressions.
+  build-demo:
+    name: build-demo (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - uses: awalsh128/cache-apt-pkgs-action@latest
+        if: matrix.os == 'ubuntu-latest'
+        with:
+          packages: libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev patchelf
+          version: "1.0"
+
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            .
+            examples/notifications-demo/src-tauri
+
+      - uses: pnpm/action-setup@v6
+        with:
+          run_install: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "20"
+          cache: "pnpm"
+
+      - name: Build plugin JS bundle
+        run: |
+          pnpm install
+          pnpm build
+
+      - name: Install demo deps
+        working-directory: examples/notifications-demo
+        run: pnpm install
+
+      # `--no-bundle` skips creating .deb/.dmg/.msi installers — we only
+      # care that the app compiles & links on each OS, not that bundlers
+      # work. `--debug` skips release-mode codegen to keep CI fast.
+      - name: Build demo
+        working-directory: examples/notifications-demo
+        run: pnpm tauri build --debug --no-bundle
