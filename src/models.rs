@@ -274,6 +274,27 @@ pub struct ActiveNotification {
 }
 
 impl ActiveNotification {
+    /// Constructs an `ActiveNotification` from the minimal set of fields the
+    /// desktop tracking layer can populate. All other fields fall back to
+    /// their defaults (the mobile/native paths fill them out fully).
+    #[must_use]
+    pub fn new(id: i32, title: Option<String>, body: Option<String>) -> Self {
+        Self {
+            id,
+            tag: None,
+            title,
+            body,
+            group: None,
+            group_summary: false,
+            data: HashMap::new(),
+            extra: HashMap::new(),
+            attachments: Vec::new(),
+            action_type_id: None,
+            schedule: None,
+            sound: None,
+        }
+    }
+
     #[must_use]
     pub const fn id(&self) -> i32 {
         self.id
