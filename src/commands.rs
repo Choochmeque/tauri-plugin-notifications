@@ -51,7 +51,7 @@ pub async fn unregister_for_push_notifications<R: Runtime>(
 ) -> Result<()> {
     #[cfg(all(desktop, target_os = "linux", feature = "push-notifications"))]
     {
-        return notification.unregister_for_push_notifications_async().await;
+        notification.unregister_for_push_notifications_async().await
     }
     #[cfg(not(all(desktop, target_os = "linux", feature = "push-notifications")))]
     {

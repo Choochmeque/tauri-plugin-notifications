@@ -487,8 +487,8 @@ async function registerForPushNotifications(): Promise<string> {
  *
  * @returns A promise resolving when unregistration is complete.
  */
-async function unregisterForPushNotifications(): Promise<string> {
-  return await invoke("plugin:notifications|unregister_for_push_notifications");
+async function unregisterForPushNotifications(): Promise<void> {
+  await invoke("plugin:notifications|unregister_for_push_notifications");
 }
 
 /**

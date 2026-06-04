@@ -84,7 +84,7 @@ impl<R: Runtime> Notifications<R> {
         #[cfg(all(target_os = "linux", feature = "push-notifications"))]
         {
             let state = self.unifiedpush_state().await?;
-            return state.register().await;
+            state.register().await
         }
         #[cfg(not(all(target_os = "linux", feature = "push-notifications")))]
         {
@@ -113,7 +113,7 @@ impl<R: Runtime> Notifications<R> {
             if let Some(state) = self.unifiedpush.get() {
                 state.unregister().await?;
             }
-            return Ok(());
+            Ok(())
         }
         #[cfg(not(all(target_os = "linux", feature = "push-notifications")))]
         {

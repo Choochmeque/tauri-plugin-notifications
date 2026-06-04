@@ -1,6 +1,6 @@
-//! UnifiedPush D-Bus integration for Linux desktop.
+//! `UnifiedPush` D-Bus integration for Linux desktop.
 //!
-//! Implements the connector side of the UnifiedPush spec
+//! Implements the connector side of the `UnifiedPush` spec
 //! (<https://unifiedpush.org/spec/dbus/>). The plugin owns a `Connection` to the
 //! session bus, exposes an `org.unifiedpush.Connector1` interface, and drives
 //! `org.unifiedpush.Distributor1` calls against the user-selected distributor.
@@ -46,7 +46,6 @@ trait Distributor {
 #[derive(Clone)]
 struct ActiveRegistration {
     client_token: String,
-    endpoint: String,
     distributor: String,
 }
 
@@ -129,7 +128,7 @@ impl UnifiedPushState {
         Ok(())
     }
 
-    /// Sets the client token used on the next `register` call. UnifiedPush
+    /// Sets the client token used on the next `register` call. `UnifiedPush`
     /// distributors derive the endpoint URL from
     /// `(connector_bus_name, client_token)`, so apps that want endpoint
     /// stability across launches should persist this token themselves and
@@ -144,7 +143,8 @@ impl UnifiedPushState {
 
     async fn pick_distributor(&self) -> crate::Result<String> {
         let distributors = self.list_distributors().await?;
-        if let Some(name) = self.selected.read().await.clone() {
+        let selected = self.selected.read().await.clone();
+        if let Some(name) = selected {
             if distributors.contains(&name) {
                 return Ok(name);
             }
@@ -179,6 +179,11 @@ impl UnifiedPushState {
         let (tx, rx) = oneshot::channel();
         {
             let mut pending = self.pending.lock().await;
+            if pending.contains_key(&client_token) {
+                return Err(io_err(
+                    "A registration is already in flight for this client token",
+                ));
+            }
             pending.insert(client_token.clone(), tx);
         }
 
@@ -221,7 +226,6 @@ impl UnifiedPushState {
 
         *self.active.write().await = Some(ActiveRegistration {
             client_token,
-            endpoint: endpoint.clone(),
             distributor,
         });
         Ok(endpoint)
@@ -264,6 +268,9 @@ struct ConnectorService {
 
 #[zbus::interface(name = "org.unifiedpush.Connector1")]
 impl ConnectorService {
+    // `async` kept for consistency with the other D-Bus methods in this interface,
+    // even though the body is currently synchronous.
+    #[allow(clippy::unused_async)]
     async fn message(&self, token: String, message: Vec<u8>, id: String) {
         let Some(state) = self.state.upgrade() else {
             return;
