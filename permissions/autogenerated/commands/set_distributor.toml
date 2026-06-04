@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-set-distributor"
+description = "Enables the set_distributor command without any pre-configured scope."
+commands.allow = ["set_distributor"]
+
+[[permission]]
+identifier = "deny-set-distributor"
+description = "Denies the set_distributor command without any pre-configured scope."
+commands.deny = ["set_distributor"]

@@ -12,7 +12,7 @@ repository = "https://github.com/Choochmeque/tauri-plugin-notifications"
 
 [features]
 default = ["notify-rust"]
-push-notifications = []
+push-notifications = ["dep:zbus", "dep:tokio", "dep:uuid"]
 notify-rust = ["dep:notify-rust"]
 
 [dependencies]
@@ -34,6 +34,13 @@ swift-bridge = { version = "0.1", features = ["async"] }
 
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 notify-rust = { version = "4.11", optional = true }
+
+# UnifiedPush stack — only relevant on desktop Linux, kept optional so non-Linux
+# builds never pull in the zbus/tokio/uuid crates.
+[target.'cfg(all(target_os = "linux", not(target_os = "android")))'.dependencies]
+zbus = { version = "5", default-features = false, features = ["tokio"], optional = true }
+tokio = { version = "1", default-features = false, features = ["sync", "macros", "time"], optional = true }
+uuid = { version = "1", default-features = false, features = ["v4", "fast-rng"], optional = true }
 
 [build-dependencies]
 tauri-plugin = { version = "2.4.0", features = ["build"] }

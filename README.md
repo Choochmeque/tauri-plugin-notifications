@@ -6,7 +6,7 @@
 
 # Tauri Plugin Notifications
 
-A Tauri v2 plugin for sending notifications on desktop and mobile platforms. Send toast notifications (brief auto-expiring OS window elements) with support for rich content, scheduling, actions, channels, and push delivery via FCM and APNs.
+A Tauri v2 plugin for sending notifications on desktop and mobile platforms. Send toast notifications (brief auto-expiring OS window elements) with support for rich content, scheduling, actions, channels, and push delivery via FCM, APNs, and UnifiedPush.
 
 ## Features
 
@@ -25,7 +25,7 @@ A Tauri v2 plugin for sending notifications on desktop and mobile platforms. Sen
 
 - **macOS**: Native notification center integration
 - **Windows**: Windows notification system
-- **Linux**: notify-rust with desktop notification support
+- **Linux**: notify-rust with desktop notification support; push notifications via UnifiedPush
 - **iOS**: User Notifications framework
 - **Android**: Android notification system with channels
 
@@ -60,8 +60,11 @@ tauri-plugin-notifications = { version = "0.4", features = ["push-notifications"
 This enables:
 - Firebase Cloud Messaging support on Android
 - APNs (Apple Push Notification service) support on iOS and macOS
+- UnifiedPush support on Linux (D-Bus distributor protocol)
 
-**Note:** Push notifications are currently supported on iOS, Android, and macOS. Windows support is not yet available.
+**Note:** Push notifications are currently supported on iOS, Android, macOS, and Linux. Windows support is not yet available.
+
+On Linux you also need a UnifiedPush *distributor* app installed (ntfy, NextPush, Conversations, etc. — see the [distributor list](https://unifiedpush.org/users/distributors/)). The plugin itself is stateless: any distributor selection or client token you set lives only for the current process. See [Linux UnifiedPush Setup](#linux-unifiedpush-setup) below for details.
 
 Without this feature enabled:
 - Firebase dependencies are not included in Android builds
@@ -448,9 +451,35 @@ Requests the permission to send notifications.
 **Returns:** `Promise<'granted' | 'denied' | 'default'>`
 
 ### `registerForPushNotifications()`
-Registers the app for push notifications (mobile only). On Android, this retrieves the FCM device token. On iOS, this requests permissions and registers for remote notifications.
+Registers the app for push notifications. On Android this retrieves the FCM device token; on iOS this requests permission and registers for remote notifications; on Linux this registers with the selected UnifiedPush distributor.
 
-**Returns:** `Promise<string>` - The device push token
+**Returns:** `Promise<string>` — a platform-specific identifier:
+- iOS: APNs device token
+- Android: FCM device token
+- Linux: UnifiedPush endpoint URL (the URL your backend POSTs payloads to)
+
+### `listDistributors()` **(Linux / UnifiedPush only)**
+Lists every running UnifiedPush distributor by its D-Bus bus name (e.g. `org.unifiedpush.Distributor.ntfy`). Returns an empty array when none is installed — that's the signal to ask the user to install one from <https://unifiedpush.org/users/distributors/>.
+
+Throws on non-Linux platforms because the underlying Tauri command isn't registered there.
+
+**Returns:** `Promise<string[]>`
+
+### `setDistributor(name: string)` **(Linux / UnifiedPush only)**
+Pins the distributor used on the next `registerForPushNotifications()` call. **Must be called before `registerForPushNotifications()`** — calling it after a successful register has no effect on the existing endpoint; to switch distributors, unregister and register again.
+
+The selection is **not persisted** across launches — if the host app wants to remember the user's choice, store it and re-apply on startup. If never called, the first entry from `listDistributors()` is used.
+
+Rejects if `name` isn't currently on the bus. Throws on non-Linux platforms.
+
+### `setToken(token: string)` **(Linux / UnifiedPush only)**
+Sets the UnifiedPush client token used on subsequent `registerForPushNotifications()` calls. **Must be called before `registerForPushNotifications()`** — calling it after a successful register has no effect on the existing endpoint.
+
+The endpoint URL the distributor returns is derived from `(app_identifier, client_token)`, so passing the same token across launches yields the same endpoint URL. The token is **not persisted** — the host app must store it and re-apply on startup if it wants endpoint stability.
+
+If never called, a fresh UUID is generated on each register call (FCM/APNs-style token rotation — the app pushes the new endpoint URL to its backend each time).
+
+Rejects if `token` is empty. Throws on non-Linux platforms.
 
 ### `sendNotification(options: Options | string)`
 Sends a notification to the user. Can be called with a simple string for the title or with a detailed options object.
@@ -558,6 +587,7 @@ Listens for notification action performed events.
 - Actions support varies by platform
 - Limited scheduling capabilities on some platforms
 - Channels not applicable (Android-specific)
+- Linux additionally supports server-driven push via UnifiedPush (see [Linux UnifiedPush Setup](#linux-unifiedpush-setup))
 
 ### iOS
 - Requires permission request
@@ -614,6 +644,70 @@ Listens for notification action performed events.
      apply(plugin = "com.google.gms.google-services")
      ```
    - The notification plugin already includes the Firebase Cloud Messaging dependency when the `push-notifications` feature is enabled
+
+### Linux UnifiedPush Setup
+
+UnifiedPush is a federated push protocol where a user-installed *distributor* app delivers messages to your app over D-Bus. The plugin implements the *connector* side and exposes the standard `registerForPushNotifications()` flow.
+
+1. **Enable the `push-notifications` feature** in your `Cargo.toml` (this pulls in the `zbus` / `tokio` / `uuid` deps on Linux).
+2. **Install a distributor**. The user picks one (or you ship one with your app):
+   - [ntfy](https://ntfy.sh/) — minimal, self-hostable, has a Linux desktop client
+   - [NextPush](https://nextpush.unifiedpush.org/) — backed by a Nextcloud server
+   - [Conversations](https://conversations.im/) — XMPP-based
+   - Full list: <https://unifiedpush.org/users/distributors/>
+3. **Register from JS**:
+   ```typescript
+   import { registerForPushNotifications, listDistributors, setDistributor, setToken } from '@choochmeque/tauri-plugin-notifications-api';
+
+   const distributors = await listDistributors();
+   if (distributors.length === 0) {
+     // prompt the user to install a distributor
+     return;
+   }
+   await setDistributor(distributors[0]);
+   const storedToken = localStorage.getItem('up-client-token') ?? crypto.randomUUID();
+   localStorage.setItem('up-client-token', storedToken);
+   await setToken(storedToken);
+   const endpoint = await registerForPushNotifications();
+   // POST `endpoint` to your backend so it can deliver pushes
+   ```
+
+#### Receiving pushes while the app is running
+
+Incoming UnifiedPush messages are handled automatically:
+
+- A system toast is shown via `notify-rust` (if that feature is enabled — it is by default).
+- The same `onNotificationReceived` listener that handles local notifications fires with `source: "push"`:
+
+  ```typescript
+  import { onNotificationReceived } from '@choochmeque/tauri-plugin-notifications-api';
+
+  const unlisten = await onNotificationReceived((n) => {
+    if (n.source === 'push') {
+      console.log('UnifiedPush message:', n.title, n.body, n.extra);
+    }
+  });
+  ```
+
+The plugin best-effort-parses the message bytes as JSON and extracts `title`, `body` (or `message`), and `data` (or `extra`). Non-JSON payloads land in `body` as a plain string. Binary payloads end up in `extra` as a `<binary N bytes>` marker.
+
+#### Receiving pushes when the app is closed (optional)
+
+UnifiedPush delivers messages by D-Bus method call on the app's bus name. If the app isn't running when a push arrives, the distributor relies on D-Bus session activation to launch it.
+
+To enable that, ship a `.service` activation file at `~/.local/share/dbus-1/services/<app-identifier>.service`:
+
+```ini
+[D-BUS Service]
+Name=com.example.MyApp
+Exec=/usr/bin/my-app
+```
+
+Replace `Name` with your Tauri app's identifier (the `identifier` field from `tauri.conf.json`) and `Exec` with the absolute path to the installed binary. Without this file, pushes are only delivered while the app is already running.
+
+The plugin does **not** install this file for you — it's a packaging/deployment decision. Distros and packagers typically install it from the `.deb` / `.rpm` / Flatpak manifest.
+
+**Important caveat about cold-start delivery:** the plugin's UnifiedPush connector (the D-Bus service that owns your app identifier) is **lazily initialized** on the first call to `listDistributors()`, `setDistributor()`, `setToken()`, or `registerForPushNotifications()` from the JS layer. If your app is launched by D-Bus activation purely to handle a push, the distributor's method call may race the lazy init and arrive before the connector is registered — the call then fails silently. To make activation-driven delivery reliable, trigger the init eagerly in your Rust `setup()` (e.g. call `notifications.list_distributors()` once before returning), or call `listDistributors()` from JS as early as your app starts. Until you do, treat the `.service` activation as best-effort.
 
 ## Testing
 

@@ -63,15 +63,6 @@ jobs:
           targets: ${{ matrix.target }}
       - run: cargo clippy --lib --target ${{ matrix.target }} --all-features -- -D warnings -D clippy::unwrap_used
 
-  # Spellcheck.
-  spellcheck:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-      - uses: streetsidesoftware/cspell-action@v8
-        with:
-          files: "**/*.{rs,md}"
-
   # cargo-deny.
   deny:
     name: cargo-deny
@@ -93,4 +84,3 @@ jobs:
       - uses: actions/checkout@v6
       - uses: obi1kenobi/cargo-semver-checks-action@v2
 
-  

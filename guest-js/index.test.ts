@@ -498,13 +498,12 @@ describe("Notification Functions", () => {
       );
     });
 
-    it("should return the result from invoke", async () => {
-      const mockResult = "unregistered";
-      mockInvoke.mockResolvedValue(mockResult);
+    it("should resolve to void regardless of the invoke return value", async () => {
+      mockInvoke.mockResolvedValue("ignored");
 
       const result = await unregisterForPushNotifications();
 
-      expect(result).toBe(mockResult);
+      expect(result).toBeUndefined();
     });
   });
 

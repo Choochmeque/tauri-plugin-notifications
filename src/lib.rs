@@ -19,6 +19,8 @@ mod desktop;
 mod macos;
 #[cfg(mobile)]
 mod mobile;
+#[cfg(all(desktop, target_os = "linux", feature = "push-notifications"))]
+mod unifiedpush;
 
 mod commands;
 mod error;
@@ -271,6 +273,12 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             listeners::register_listener,
             #[cfg(desktop)]
             listeners::remove_listener,
+            #[cfg(all(desktop, target_os = "linux", feature = "push-notifications"))]
+            commands::list_distributors,
+            #[cfg(all(desktop, target_os = "linux", feature = "push-notifications"))]
+            commands::set_distributor,
+            #[cfg(all(desktop, target_os = "linux", feature = "push-notifications"))]
+            commands::set_token,
         ])
         .setup(|app, api| {
             #[cfg(desktop)]
