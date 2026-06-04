@@ -20,10 +20,10 @@ importers:
     devDependencies:
       '@sveltejs/adapter-static':
         specifier: ^3.0.6
-        version: 3.0.10(@sveltejs/kit@2.63.0(@sveltejs/vite-plugin-svelte@7.1.2(svelte@5.56.1(@typescript-eslint/types@8.58.0))(vite@8.0.16(esbuild@0.27.2)))(svelte@5.56.1(@typescript-eslint/types@8.58.0))(typescript@5.6.3)(vite@8.0.16(esbuild@0.27.2)))
+        version: 3.0.10(@sveltejs/kit@2.63.0(@sveltejs/vite-plugin-svelte@7.1.2(svelte@5.56.1(@typescript-eslint/types@8.58.0))(vite@8.0.16(esbuild@0.27.2)))(svelte@5.56.1(@typescript-eslint/types@8.58.0))(typescript@6.0.3)(vite@8.0.16(esbuild@0.27.2)))
       '@sveltejs/kit':
         specifier: ^2.63.0
-        version: 2.63.0(@sveltejs/vite-plugin-svelte@7.1.2(svelte@5.56.1(@typescript-eslint/types@8.58.0))(vite@8.0.16(esbuild@0.27.2)))(svelte@5.56.1(@typescript-eslint/types@8.58.0))(typescript@5.6.3)(vite@8.0.16(esbuild@0.27.2))
+        version: 2.63.0(@sveltejs/vite-plugin-svelte@7.1.2(svelte@5.56.1(@typescript-eslint/types@8.58.0))(vite@8.0.16(esbuild@0.27.2)))(svelte@5.56.1(@typescript-eslint/types@8.58.0))(typescript@6.0.3)(vite@8.0.16(esbuild@0.27.2))
       '@sveltejs/vite-plugin-svelte':
         specifier: ^7.0.0
         version: 7.1.2(svelte@5.56.1(@typescript-eslint/types@8.58.0))(vite@8.0.16(esbuild@0.27.2))
@@ -35,12 +35,12 @@ importers:
         version: 5.56.1(@typescript-eslint/types@8.58.0)
       svelte-check:
         specifier: ^4.4.4
-        version: 4.6.0(picomatch@4.0.4)(svelte@5.56.1(@typescript-eslint/types@8.58.0))(typescript@5.6.3)
+        version: 4.6.0(picomatch@4.0.4)(svelte@5.56.1(@typescript-eslint/types@8.58.0))(typescript@6.0.3)
       typescript:
         specifier: ~6.0.3
         version: 6.0.3
       vite:
-        specifier: ^8.0.10
+        specifier: ^8.0.13
         version: 8.0.16(esbuild@0.27.2)
 
 packages:
@@ -935,11 +935,11 @@ snapshots:
     dependencies:
       acorn: 8.16.0
 
-  '@sveltejs/adapter-static@3.0.10(@sveltejs/kit@2.63.0(@sveltejs/vite-plugin-svelte@7.1.2(svelte@5.56.1(@typescript-eslint/types@8.58.0))(vite@8.0.16(esbuild@0.27.2)))(svelte@5.56.1(@typescript-eslint/types@8.58.0))(typescript@5.6.3)(vite@8.0.16(esbuild@0.27.2)))':
+  '@sveltejs/adapter-static@3.0.10(@sveltejs/kit@2.63.0(@sveltejs/vite-plugin-svelte@7.1.2(svelte@5.56.1(@typescript-eslint/types@8.58.0))(vite@8.0.16(esbuild@0.27.2)))(svelte@5.56.1(@typescript-eslint/types@8.58.0))(typescript@6.0.3)(vite@8.0.16(esbuild@0.27.2)))':
     dependencies:
-      '@sveltejs/kit': 2.63.0(@sveltejs/vite-plugin-svelte@7.1.2(svelte@5.56.1(@typescript-eslint/types@8.58.0))(vite@8.0.16(esbuild@0.27.2)))(svelte@5.56.1(@typescript-eslint/types@8.58.0))(typescript@5.6.3)(vite@8.0.16(esbuild@0.27.2))
+      '@sveltejs/kit': 2.63.0(@sveltejs/vite-plugin-svelte@7.1.2(svelte@5.56.1(@typescript-eslint/types@8.58.0))(vite@8.0.16(esbuild@0.27.2)))(svelte@5.56.1(@typescript-eslint/types@8.58.0))(typescript@6.0.3)(vite@8.0.16(esbuild@0.27.2))
 
-  '@sveltejs/kit@2.63.0(@sveltejs/vite-plugin-svelte@7.1.2(svelte@5.56.1(@typescript-eslint/types@8.58.0))(vite@8.0.16(esbuild@0.27.2)))(svelte@5.56.1(@typescript-eslint/types@8.58.0))(typescript@5.6.3)(vite@8.0.16(esbuild@0.27.2))':
+  '@sveltejs/kit@2.63.0(@sveltejs/vite-plugin-svelte@7.1.2(svelte@5.56.1(@typescript-eslint/types@8.58.0))(vite@8.0.16(esbuild@0.27.2)))(svelte@5.56.1(@typescript-eslint/types@8.58.0))(typescript@6.0.3)(vite@8.0.16(esbuild@0.27.2))':
     dependencies:
       '@standard-schema/spec': 1.1.0
       '@sveltejs/acorn-typescript': 1.0.10(acorn@8.16.0)
@@ -1218,7 +1218,7 @@ snapshots:
 
   source-map-js@1.2.1: {}
 
-  svelte-check@4.6.0(picomatch@4.0.4)(svelte@5.56.1(@typescript-eslint/types@8.58.0))(typescript@5.6.3):
+  svelte-check@4.6.0(picomatch@4.0.4)(svelte@5.56.1(@typescript-eslint/types@8.58.0))(typescript@6.0.3):
     dependencies:
       '@jridgewell/trace-mapping': 0.3.31
       '@sveltejs/load-config': 0.1.1
@@ -1227,7 +1227,7 @@ snapshots:
       picocolors: 1.1.1
       sade: 1.8.1
       svelte: 5.56.1(@typescript-eslint/types@8.58.0)
-      typescript: 5.6.3
+      typescript: 6.0.3
     transitivePeerDependencies:
       - picomatch
 
