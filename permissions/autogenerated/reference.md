@@ -30,6 +30,9 @@ It allows all notification related features.
 - `allow-create-channel`
 - `allow-permission-state`
 - `allow-set-click-listener-active`
+- `allow-list-distributors`
+- `allow-set-distributor`
+- `allow-set-token`
 
 ## Permission Table
 
@@ -303,6 +306,32 @@ Denies the list_channels command without any pre-configured scope.
 <tr>
 <td>
 
+`notifications:allow-list-distributors`
+
+</td>
+<td>
+
+Enables the list_distributors command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`notifications:deny-list-distributors`
+
+</td>
+<td>
+
+Denies the list_distributors command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
 `notifications:allow-notify`
 
 </td>
@@ -530,6 +559,58 @@ Enables the set_click_listener_active command without any pre-configured scope.
 <td>
 
 Denies the set_click_listener_active command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`notifications:allow-set-distributor`
+
+</td>
+<td>
+
+Enables the set_distributor command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`notifications:deny-set-distributor`
+
+</td>
+<td>
+
+Denies the set_distributor command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`notifications:allow-set-token`
+
+</td>
+<td>
+
+Enables the set_token command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`notifications:deny-set-token`
+
+</td>
+<td>
+
+Denies the set_token command without any pre-configured scope.
 
 </td>
 </tr>

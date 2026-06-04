@@ -415,6 +415,18 @@
           "markdownDescription": "Denies the list_channels command without any pre-configured scope."
         },
         {
+          "description": "Enables the list_distributors command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-list-distributors",
+          "markdownDescription": "Enables the list_distributors command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the list_distributors command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-list-distributors",
+          "markdownDescription": "Denies the list_distributors command without any pre-configured scope."
+        },
+        {
           "description": "Enables the notify command without any pre-configured scope.",
           "type": "string",
           "const": "allow-notify",
@@ -523,6 +535,30 @@
           "markdownDescription": "Denies the set_click_listener_active command without any pre-configured scope."
         },
         {
+          "description": "Enables the set_distributor command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-set-distributor",
+          "markdownDescription": "Enables the set_distributor command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the set_distributor command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-set-distributor",
+          "markdownDescription": "Denies the set_distributor command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the set_token command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-set-token",
+          "markdownDescription": "Enables the set_token command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the set_token command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-set-token",
+          "markdownDescription": "Denies the set_token command without any pre-configured scope."
+        },
+        {
           "description": "Enables the show command without any pre-configured scope.",
           "type": "string",
           "const": "allow-show",
@@ -547,10 +583,10 @@
           "markdownDescription": "Denies the unregister_for_push_notifications command without any pre-configured scope."
         },
         {
-          "description": "This permission set configures which\nnotification features are by default exposed.\n\n#### Granted Permissions\n\nIt allows all notification related features.\n\n\n#### This default permission set includes:\n\n- `allow-is-permission-granted`\n- `allow-request-permission`\n- `allow-register-for-push-notifications`\n- `allow-unregister-for-push-notifications`\n- `allow-notify`\n- `allow-register-action-types`\n- `allow-register-listener`\n- `allow-remove-listener`\n- `allow-cancel`\n- `allow-cancel-all`\n- `allow-get-pending`\n- `allow-remove-active`\n- `allow-get-active`\n- `allow-check-permissions`\n- `allow-show`\n- `allow-batch`\n- `allow-list-channels`\n- `allow-delete-channel`\n- `allow-create-channel`\n- `allow-permission-state`\n- `allow-set-click-listener-active`",
+          "description": "This permission set configures which\nnotification features are by default exposed.\n\n#### Granted Permissions\n\nIt allows all notification related features.\n\n\n#### This default permission set includes:\n\n- `allow-is-permission-granted`\n- `allow-request-permission`\n- `allow-register-for-push-notifications`\n- `allow-unregister-for-push-notifications`\n- `allow-notify`\n- `allow-register-action-types`\n- `allow-register-listener`\n- `allow-remove-listener`\n- `allow-cancel`\n- `allow-cancel-all`\n- `allow-get-pending`\n- `allow-remove-active`\n- `allow-get-active`\n- `allow-check-permissions`\n- `allow-show`\n- `allow-batch`\n- `allow-list-channels`\n- `allow-delete-channel`\n- `allow-create-channel`\n- `allow-permission-state`\n- `allow-set-click-listener-active`\n- `allow-list-distributors`\n- `allow-set-distributor`\n- `allow-set-token`",
           "type": "string",
           "const": "default",
-          "markdownDescription": "This permission set configures which\nnotification features are by default exposed.\n\n#### Granted Permissions\n\nIt allows all notification related features.\n\n\n#### This default permission set includes:\n\n- `allow-is-permission-granted`\n- `allow-request-permission`\n- `allow-register-for-push-notifications`\n- `allow-unregister-for-push-notifications`\n- `allow-notify`\n- `allow-register-action-types`\n- `allow-register-listener`\n- `allow-remove-listener`\n- `allow-cancel`\n- `allow-cancel-all`\n- `allow-get-pending`\n- `allow-remove-active`\n- `allow-get-active`\n- `allow-check-permissions`\n- `allow-show`\n- `allow-batch`\n- `allow-list-channels`\n- `allow-delete-channel`\n- `allow-create-channel`\n- `allow-permission-state`\n- `allow-set-click-listener-active`"
+          "markdownDescription": "This permission set configures which\nnotification features are by default exposed.\n\n#### Granted Permissions\n\nIt allows all notification related features.\n\n\n#### This default permission set includes:\n\n- `allow-is-permission-granted`\n- `allow-request-permission`\n- `allow-register-for-push-notifications`\n- `allow-unregister-for-push-notifications`\n- `allow-notify`\n- `allow-register-action-types`\n- `allow-register-listener`\n- `allow-remove-listener`\n- `allow-cancel`\n- `allow-cancel-all`\n- `allow-get-pending`\n- `allow-remove-active`\n- `allow-get-active`\n- `allow-check-permissions`\n- `allow-show`\n- `allow-batch`\n- `allow-list-channels`\n- `allow-delete-channel`\n- `allow-create-channel`\n- `allow-permission-state`\n- `allow-set-click-listener-active`\n- `allow-list-distributors`\n- `allow-set-distributor`\n- `allow-set-token`"
         }
       ]
     }

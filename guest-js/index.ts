@@ -442,7 +442,21 @@ async function requestPermission(): Promise<NotificationPermission> {
 }
 
 /**
- * Registers the app for push notifications (mobile).
+ * Registers the app for push notifications.
+ *
+ * Returns a platform-dependent string identifying this push registration:
+ * - **iOS**: APNs device token
+ * - **Android**: Firebase Cloud Messaging token
+ * - **Linux**: UnifiedPush endpoint URL (the URL your backend POSTs payloads to).
+ *   The host app may persist this and treat it as the new endpoint on each
+ *   launch (FCM/APNs style), or call {@link setToken} beforehand with a
+ *   stored client token to receive the same endpoint URL across launches.
+ *
+ * On Linux this requires the `push-notifications` feature and at least one
+ * UnifiedPush distributor running on the system; see the README for setup.
+ * Any {@link setDistributor} or {@link setToken} calls must happen
+ * **before** this — they only affect the next register call, and once
+ * registered the endpoint URL is fixed until you unregister.
  *
  * @example
  * ```typescript
@@ -451,17 +465,18 @@ async function requestPermission(): Promise<NotificationPermission> {
  * console.log('Push token:', token);
  * ```
  *
- * @returns A promise resolving to the device push token.
+ * @returns A promise resolving to the platform-specific push identifier.
  */
 async function registerForPushNotifications(): Promise<string> {
   return await invoke("plugin:notifications|register_for_push_notifications");
 }
 
 /**
- * Unregisters the app from push notifications (mobile).
+ * Unregisters the app from push notifications.
  *
- * This removes the device's push notification token and stops receiving
- * remote push notifications.
+ * This removes the device's push notification registration and stops
+ * receiving remote pushes. On Linux it calls `Unregister` on the active
+ * UnifiedPush distributor.
  *
  * @example
  * ```typescript
@@ -474,6 +489,100 @@ async function registerForPushNotifications(): Promise<string> {
  */
 async function unregisterForPushNotifications(): Promise<string> {
   return await invoke("plugin:notifications|unregister_for_push_notifications");
+}
+
+/**
+ * Lists currently running UnifiedPush distributors by D-Bus bus name
+ * (e.g. `org.unifiedpush.Distributor.ntfy`).
+ *
+ * **Linux / UnifiedPush only.** Throws on other platforms because the
+ * underlying Tauri command is not registered.
+ *
+ * Returns an empty array when no UnifiedPush distributor is installed —
+ * this is the signal to prompt the user to install one
+ * (https://unifiedpush.org/users/distributors/).
+ *
+ * @example
+ * ```typescript
+ * import { listDistributors } from '@choochmeque/tauri-plugin-notifications-api';
+ * const distributors = await listDistributors();
+ * if (distributors.length === 0) {
+ *   alert('Please install a UnifiedPush distributor');
+ * }
+ * ```
+ *
+ * @returns A promise resolving to the list of distributor bus names.
+ * @platform linux
+ */
+async function listDistributors(): Promise<string[]> {
+  return await invoke("plugin:notifications|list_distributors");
+}
+
+/**
+ * Pins the UnifiedPush distributor used for the next
+ * {@link registerForPushNotifications} call.
+ *
+ * **Linux / UnifiedPush only.** Throws on other platforms.
+ *
+ * **Must be called before {@link registerForPushNotifications}.** Calling
+ * this after a successful register has no effect on the existing endpoint
+ * — to switch distributors, unregister and register again.
+ *
+ * The selection lives only for the current process — it is **not persisted**
+ * across launches. If the host app wants to remember the user's choice, it
+ * must store the name itself and re-apply it via this function on startup.
+ * If never called, the first distributor returned by {@link listDistributors}
+ * is used.
+ *
+ * @example
+ * ```typescript
+ * import { setDistributor } from '@choochmeque/tauri-plugin-notifications-api';
+ * await setDistributor('org.unifiedpush.Distributor.ntfy');
+ * ```
+ *
+ * @param name The distributor bus name. Must be one of the values returned
+ *             by {@link listDistributors}; otherwise rejects.
+ * @platform linux
+ */
+async function setDistributor(name: string): Promise<void> {
+  await invoke("plugin:notifications|set_distributor", { name });
+}
+
+/**
+ * Sets the UnifiedPush client token used on subsequent
+ * {@link registerForPushNotifications} calls.
+ *
+ * **Linux / UnifiedPush only.** Throws on other platforms.
+ *
+ * **Must be called before {@link registerForPushNotifications}.** Calling
+ * this after a successful register has no effect on the existing endpoint
+ * — to get a different endpoint URL, unregister and register again.
+ *
+ * UnifiedPush distributors derive the endpoint URL from
+ * `(connector_bus_name, client_token)`, so apps that want endpoint
+ * stability across launches should persist a token (any non-empty string,
+ * usually a UUID) and call this on startup before registering. If never
+ * called, a fresh UUID is generated on each register call and the endpoint
+ * URL will be unique per launch — the same model as FCM/APNs token
+ * rotation, where the app pushes the new token to its backend each time.
+ *
+ * The token lives only for the current process — it is **not persisted**
+ * across launches.
+ *
+ * @example
+ * ```typescript
+ * import { setToken, registerForPushNotifications } from '@choochmeque/tauri-plugin-notifications-api';
+ * const storedToken = localStorage.getItem('up-client-token') ?? crypto.randomUUID();
+ * localStorage.setItem('up-client-token', storedToken);
+ * await setToken(storedToken);
+ * const endpoint = await registerForPushNotifications();
+ * ```
+ *
+ * @param token The client token. Must be non-empty.
+ * @platform linux
+ */
+async function setToken(token: string): Promise<void> {
+  await invoke("plugin:notifications|set_token", { token });
 }
 
 /**
@@ -787,6 +896,9 @@ export {
   isPermissionGranted,
   registerForPushNotifications,
   unregisterForPushNotifications,
+  listDistributors,
+  setDistributor,
+  setToken,
   registerActionTypes,
   pending,
   cancel,

@@ -33,7 +33,20 @@
     "unlisten",
     "twoweeks",
     "xcconfig",
-    "buildscript"
+    "buildscript",
+    "unifiedpush",
+    "Unifiedpush",
+    "UnifiedPush",
+    "zbus",
+    "dbus",
+    "ntfy",
+    "Nextpush",
+    "NextPush",
+    "vapid",
+    "VAPID",
+    "Connector1",
+    "Distributor1",
+    "unregistered"
   ],
   "useGitignore": true,
   "ignorePaths": [

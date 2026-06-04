@@ -23,6 +23,9 @@ const COMMANDS: &[&str] = &[
     "create_channel",
     "permission_state",
     "set_click_listener_active",
+    "list_distributors",
+    "set_distributor",
+    "set_token",
 ];
 
 fn main() {

@@ -6,6 +6,9 @@
     registerActionTypes,
     registerForPushNotifications,
     unregisterForPushNotifications,
+    listDistributors,
+    setDistributor,
+    setToken,
     pending,
     cancel,
     cancelAll,
@@ -55,6 +58,11 @@
   // Push notifications
   let pushToken = $state<string | null>(null);
   let pushRegistered = $state(false);
+
+  // UnifiedPush (Linux only)
+  let distributors = $state<string[]>([]);
+  let selectedDistributor = $state<string>("");
+  let clientToken = $state<string>("");
 
   // ============================================================================
   // UTILITY FUNCTIONS
@@ -166,6 +174,64 @@
       addLog(`❌ Unregistered from push notifications`);
     } catch (error) {
       addLog(`Error unregistering from push: ${error instanceof Error ? error.message : JSON.stringify(error)}`);
+    }
+  }
+
+  /**
+   * Refreshes the list of UnifiedPush distributors (Linux only).
+   * On other platforms this command isn't registered and will throw.
+   */
+  async function handleListDistributors() {
+    try {
+      distributors = await listDistributors();
+      if (distributors.length === 0) {
+        addLog(
+          "⚠️ No UnifiedPush distributor installed. See https://unifiedpush.org/users/distributors/",
+        );
+      } else {
+        addLog(`📡 Found ${distributors.length} distributor(s)`);
+      }
+    } catch (error) {
+      addLog(
+        `Error listing distributors (Linux-only): ${error instanceof Error ? error.message : JSON.stringify(error)}`,
+      );
+    }
+  }
+
+  /**
+   * Pins the selected distributor for the next register call.
+   */
+  async function handleSetDistributor() {
+    if (!selectedDistributor) {
+      addLog("Pick a distributor first");
+      return;
+    }
+    try {
+      await setDistributor(selectedDistributor);
+      addLog(`📡 Distributor pinned: ${selectedDistributor}`);
+    } catch (error) {
+      addLog(
+        `Error pinning distributor: ${error instanceof Error ? error.message : JSON.stringify(error)}`,
+      );
+    }
+  }
+
+  /**
+   * Sets the UnifiedPush client token. Pass the same token across launches to
+   * keep the endpoint URL stable.
+   */
+  async function handleSetToken() {
+    if (!clientToken) {
+      addLog("Enter a token first");
+      return;
+    }
+    try {
+      await setToken(clientToken);
+      addLog(`🔑 Client token set`);
+    } catch (error) {
+      addLog(
+        `Error setting token: ${error instanceof Error ? error.message : JSON.stringify(error)}`,
+      );
     }
   }
 
@@ -540,10 +606,15 @@
 
     // Register event listeners
     try {
-      // Listen for incoming notifications
+      // Listen for incoming notifications. The same callback receives BOTH
+      // local notifications (source: "local") and remote pushes from
+      // FCM/APNs/UnifiedPush (source: "push"). On Linux/UnifiedPush the
+      // plugin also auto-displays a system toast for the push — this
+      // listener is for app-level handling.
       const unlistenReceived = await onNotificationReceived((notification) => {
+        const src = notification.source ?? "?";
         addLog(
-          `📨 Notification received: ${notification.title || "No title"}`,
+          `📨 [${src}] ${notification.title || "(no title)"}: ${notification.body || ""}`,
         );
         refreshActive();
       });
@@ -666,11 +737,54 @@
             <li><strong>Android:</strong> Configure Firebase Cloud Messaging</li>
             <li><strong>iOS/macOS:</strong> Configure Apple Push Notification service</li>
             <li>
-              <strong>Linux/Windows:</strong> Push notifications are not supported
+              <strong>Linux:</strong> Install a UnifiedPush distributor — see
+              the UnifiedPush controls below
             </li>
+            <li><strong>Windows:</strong> Push notifications are not supported</li>
           </ul>
         </div>
       {/if}
+
+      <div class="info-box" style="margin-top: 1rem;">
+        <strong>🐧 UnifiedPush (Linux only)</strong>
+        <p style="margin: 0.5rem 0;">
+          Linux has no vendor push service. UnifiedPush uses a user-installed
+          distributor app (ntfy, NextPush, …) to deliver pushes over D-Bus.
+          These controls throw on other platforms.
+        </p>
+
+        <div class="button-group" style="margin-bottom: 0.5rem;">
+          <button onclick={handleListDistributors}>List Distributors</button>
+        </div>
+
+        {#if distributors.length > 0}
+          <label style="display: block; margin-bottom: 0.5rem;">
+            Distributor:
+            <select bind:value={selectedDistributor}>
+              <option value="">— pick one —</option>
+              {#each distributors as d}
+                <option value={d}>{d}</option>
+              {/each}
+            </select>
+          </label>
+          <div class="button-group" style="margin-bottom: 0.5rem;">
+            <button onclick={handleSetDistributor}>Pin Distributor</button>
+          </div>
+        {/if}
+
+        <label style="display: block; margin: 0.5rem 0;">
+          Client token (optional — for endpoint stability across launches):
+          <input
+            type="text"
+            bind:value={clientToken}
+            placeholder="e.g. a stored UUID"
+            style="width: 100%;"
+          />
+        </label>
+        <div class="button-group">
+          <button onclick={handleSetToken}>Set Token</button>
+        </div>
+      </div>
 
       <div class="code-example">
         <code>
@@ -678,7 +792,12 @@
           const token = await registerForPushNotifications();<br />
           <br />
           // Unregister<br />
-          await unregisterForPushNotifications();
+          await unregisterForPushNotifications();<br />
+          <br />
+          // Linux / UnifiedPush:<br />
+          const dists = await listDistributors();<br />
+          await setDistributor(dists[0]);<br />
+          await setToken(storedClientToken);
         </code>
       </div>
     </section>

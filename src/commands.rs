@@ -49,7 +49,43 @@ pub async fn unregister_for_push_notifications<R: Runtime>(
     _app: AppHandle<R>,
     notification: State<'_, Notifications<R>>,
 ) -> Result<()> {
-    notification.unregister_for_push_notifications()
+    #[cfg(all(desktop, target_os = "linux", feature = "push-notifications"))]
+    {
+        return notification.unregister_for_push_notifications_async().await;
+    }
+    #[cfg(not(all(desktop, target_os = "linux", feature = "push-notifications")))]
+    {
+        notification.unregister_for_push_notifications()
+    }
+}
+
+#[cfg(all(desktop, target_os = "linux", feature = "push-notifications"))]
+#[command]
+pub async fn list_distributors<R: Runtime>(
+    _app: AppHandle<R>,
+    notification: State<'_, Notifications<R>>,
+) -> Result<Vec<String>> {
+    notification.list_distributors().await
+}
+
+#[cfg(all(desktop, target_os = "linux", feature = "push-notifications"))]
+#[command]
+pub async fn set_distributor<R: Runtime>(
+    _app: AppHandle<R>,
+    notification: State<'_, Notifications<R>>,
+    name: String,
+) -> Result<()> {
+    notification.set_distributor(name).await
+}
+
+#[cfg(all(desktop, target_os = "linux", feature = "push-notifications"))]
+#[command]
+pub async fn set_token<R: Runtime>(
+    _app: AppHandle<R>,
+    notification: State<'_, Notifications<R>>,
+    token: String,
+) -> Result<()> {
+    notification.set_token(token).await
 }
 
 #[command]

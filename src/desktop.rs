@@ -12,13 +12,33 @@ pub fn init<R: Runtime, C: DeserializeOwned>(
     app: &AppHandle<R>,
     _api: PluginApi<R, C>,
 ) -> crate::Result<Notifications<R>> {
-    Ok(Notifications(app.clone()))
+    Ok(Notifications {
+        app: app.clone(),
+        #[cfg(all(target_os = "linux", feature = "push-notifications"))]
+        unifiedpush: tokio::sync::OnceCell::new(),
+    })
 }
 
 /// Access to the notification APIs.
 ///
 /// You can get an instance of this type via [`NotificationsExt`](crate::NotificationsExt)
-pub struct Notifications<R: Runtime>(AppHandle<R>);
+pub struct Notifications<R: Runtime> {
+    app: AppHandle<R>,
+    #[cfg(all(target_os = "linux", feature = "push-notifications"))]
+    unifiedpush:
+        tokio::sync::OnceCell<std::sync::Arc<crate::unifiedpush::UnifiedPushState>>,
+}
+
+#[cfg(all(target_os = "linux", feature = "push-notifications"))]
+impl<R: Runtime> Notifications<R> {
+    async fn unifiedpush_state(
+        &self,
+    ) -> crate::Result<&std::sync::Arc<crate::unifiedpush::UnifiedPushState>> {
+        self.unifiedpush
+            .get_or_try_init(|| crate::unifiedpush::UnifiedPushState::new(&self.app))
+            .await
+    }
+}
 
 // `async` and `Result` mirror the mobile/macOS plugin API so callers can `.await` and `?` uniformly.
 #[allow(clippy::unused_async, clippy::unnecessary_wraps)]
@@ -50,23 +70,81 @@ impl<R: Runtime> crate::NotificationsBuilder<R> {
 #[allow(clippy::unused_async)]
 impl<R: Runtime> Notifications<R> {
     pub fn builder(&self) -> NotificationsBuilder<R> {
-        NotificationsBuilder::new(self.0.clone())
+        NotificationsBuilder::new(self.app.clone())
     }
 
     pub async fn request_permission(&self) -> crate::Result<PermissionState> {
         Ok(PermissionState::Granted)
     }
 
+    /// On Linux with the `push-notifications` feature this registers with the
+    /// selected (or first available) `UnifiedPush` distributor and returns the
+    /// endpoint URL. Apps that need endpoint stability across launches should
+    /// call [`set_token`](Self::set_token) before this with a persisted token.
     pub async fn register_for_push_notifications(&self) -> crate::Result<String> {
+        #[cfg(all(target_os = "linux", feature = "push-notifications"))]
+        {
+            let state = self.unifiedpush_state().await?;
+            return state.register().await;
+        }
+        #[cfg(not(all(target_os = "linux", feature = "push-notifications")))]
+        {
+            Err(crate::Error::Io(std::io::Error::other(
+                "Push notifications are not supported on desktop platforms",
+            )))
+        }
+    }
+
+    /// Sync signature preserved for source compatibility — callers that need
+    /// the Linux `UnifiedPush` unregister path should use
+    /// [`unregister_for_push_notifications_async`] instead.
+    pub fn unregister_for_push_notifications(&self) -> crate::Result<()> {
         Err(crate::Error::Io(std::io::Error::other(
             "Push notifications are not supported on desktop platforms",
         )))
     }
 
-    pub fn unregister_for_push_notifications(&self) -> crate::Result<()> {
-        Err(crate::Error::Io(std::io::Error::other(
-            "Push notifications are not supported on desktop platforms",
-        )))
+    /// Async unregister used by the Tauri command bridge. On Linux with the
+    /// `push-notifications` feature this calls
+    /// `org.unifiedpush.Distributor1.Unregister` and clears the in-memory
+    /// active registration.
+    pub async fn unregister_for_push_notifications_async(&self) -> crate::Result<()> {
+        #[cfg(all(target_os = "linux", feature = "push-notifications"))]
+        {
+            if let Some(state) = self.unifiedpush.get() {
+                state.unregister().await?;
+            }
+            return Ok(());
+        }
+        #[cfg(not(all(target_os = "linux", feature = "push-notifications")))]
+        {
+            Err(crate::Error::Io(std::io::Error::other(
+                "Push notifications are not supported on desktop platforms",
+            )))
+        }
+    }
+
+    /// Lists currently running `UnifiedPush` distributors. Linux-only.
+    #[cfg(all(target_os = "linux", feature = "push-notifications"))]
+    pub async fn list_distributors(&self) -> crate::Result<Vec<String>> {
+        let state = self.unifiedpush_state().await?;
+        state.list_distributors().await
+    }
+
+    /// Pins the chosen `UnifiedPush` distributor for this process. Linux-only.
+    #[cfg(all(target_os = "linux", feature = "push-notifications"))]
+    pub async fn set_distributor(&self, name: String) -> crate::Result<()> {
+        let state = self.unifiedpush_state().await?;
+        state.set_distributor(name).await
+    }
+
+    /// Sets the `UnifiedPush` client token used on subsequent register calls.
+    /// Pass the same token across launches to keep the endpoint URL stable.
+    /// Linux-only.
+    #[cfg(all(target_os = "linux", feature = "push-notifications"))]
+    pub async fn set_token(&self, token: String) -> crate::Result<()> {
+        let state = self.unifiedpush_state().await?;
+        state.set_token(token).await
     }
 
     pub async fn permission_state(&self) -> crate::Result<PermissionState> {
