@@ -293,3 +293,29 @@ jobs:
         with:
           name: macos-coverage
           path: macos/coverage.json
+
+  test-windows:
+    name: Windows Unit Tests
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - uses: taiki-e/install-action@cargo-llvm-cov
+
+      - name: Run Windows tests with coverage
+        run: cargo llvm-cov --no-default-features --lcov --output-path coverage.lcov -- windows::tests
+
+      - name: Upload coverage to Codecov
+        if: ${{ github.actor != 'dependabot[bot]' }}
+        uses: codecov/codecov-action@v5
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+        with:
+          files: coverage.lcov
+          flags: windows
+          name: windows-coverage
