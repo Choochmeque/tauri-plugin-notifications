@@ -3,6 +3,7 @@
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 
+use nt_time::FileTime;
 use serde::de::DeserializeOwned;
 use tauri::{
     plugin::{PermissionState, PluginApi},
@@ -22,9 +23,6 @@ use windows::UI::Notifications::{
 
 use crate::error::{ErrorResponse, PluginInvokeError};
 use crate::models::*;
-
-/// Windows FILETIME epoch (January 1, 1601) offset from Unix epoch (January 1, 1970) in 100-nanosecond ticks.
-const WINDOWS_EPOCH_OFFSET_TICKS: i128 = 116_444_736_000_000_000;
 
 // Enable `?` operator for windows::core::Error
 impl From<windows::core::Error> for crate::Error {
@@ -404,21 +402,22 @@ fn schedule_to_datetime(schedule: &Schedule) -> crate::Result<DateTime> {
 
 /// Convert a Unix timestamp to Windows DateTime (FILETIME).
 fn unix_to_windows_datetime(time: time::OffsetDateTime) -> crate::Result<DateTime> {
-    let unix_nanos = time.unix_timestamp_nanos();
-    let windows_ticks = (unix_nanos / 100) + WINDOWS_EPOCH_OFFSET_TICKS;
-
-    Ok(DateTime {
-        UniversalTime: windows_ticks
-            .try_into()
-            .map_err(|_| crate::Error::Io(std::io::Error::other("Schedule date out of range")))?,
-    })
+    let ft = FileTime::try_from(time)
+        .map_err(|_| crate::Error::Io(std::io::Error::other("Schedule date out of range")))?;
+    let raw: i64 = ft
+        .to_raw()
+        .try_into()
+        .map_err(|_| crate::Error::Io(std::io::Error::other("Schedule date out of range")))?;
+    Ok(DateTime { UniversalTime: raw })
 }
 
 /// Convert Windows DateTime (FILETIME) back to Unix timestamp.
 fn windows_datetime_to_unix(dt: DateTime) -> crate::Result<time::OffsetDateTime> {
-    let windows_ticks = dt.UniversalTime as i128;
-    let unix_nanos = (windows_ticks - WINDOWS_EPOCH_OFFSET_TICKS) * 100;
-    time::OffsetDateTime::from_unix_timestamp_nanos(unix_nanos)
+    let raw: u64 = dt
+        .UniversalTime
+        .try_into()
+        .map_err(|_| crate::Error::Io(std::io::Error::other("DateTime out of range")))?;
+    time::OffsetDateTime::try_from(FileTime::new(raw))
         .map_err(|_| crate::Error::Io(std::io::Error::other("DateTime out of range")))
 }
 
@@ -566,15 +565,11 @@ impl<R: Runtime> Notifications<R> {
 
             // Convert Windows DateTime back to Schedule::At
             let schedule = notification.DeliveryTime().ok().and_then(|dt| {
-                let windows_ticks = dt.UniversalTime;
-                let unix_nanos = (windows_ticks as i128 - WINDOWS_EPOCH_OFFSET_TICKS) * 100;
-                time::OffsetDateTime::from_unix_timestamp_nanos(unix_nanos)
-                    .ok()
-                    .map(|date| Schedule::At {
-                        date,
-                        repeating: false,
-                        allow_while_idle: false,
-                    })
+                windows_datetime_to_unix(dt).ok().map(|date| Schedule::At {
+                    date,
+                    repeating: false,
+                    allow_while_idle: false,
+                })
             });
 
             // PendingNotification requires schedule (not Option), skip if we can't extract it
@@ -659,14 +654,9 @@ mod tests {
 
     // ==================== Time Conversion Tests ====================
 
-    #[test]
-    fn test_windows_epoch_offset() {
-        // Windows FILETIME: January 1, 1601 -> Unix: January 1, 1970
-        // Difference: 134,774 days in 100-nanosecond ticks
-        let expected_days = 134_774i128;
-        let ticks_per_day = 24 * 60 * 60 * 10_000_000i128;
-        assert_eq!(WINDOWS_EPOCH_OFFSET_TICKS, expected_days * ticks_per_day);
-    }
+    /// Windows FILETIME epoch (1601-01-01) offset from Unix epoch (1970-01-01),
+    /// in 100-nanosecond ticks. Used only as a test reference value.
+    const WINDOWS_EPOCH_OFFSET_TICKS: i128 = 116_444_736_000_000_000;
 
     #[test]
     fn test_unix_to_windows_datetime_epoch() {

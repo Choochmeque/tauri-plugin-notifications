@@ -51,6 +51,7 @@ windows = { version = "0.61", features = [
     "Networking_PushNotifications",
     "UI_Notifications",
 ] }
+nt-time = "0.15"
 
 [build-dependencies]
 tauri-plugin = { version = "2", features = ["build"] }
