@@ -402,7 +402,7 @@ fn schedule_to_datetime(schedule: &Schedule) -> crate::Result<DateTime> {
 
 /// Convert a Unix timestamp to Windows DateTime (FILETIME).
 fn unix_to_windows_datetime(time: time::OffsetDateTime) -> crate::Result<DateTime> {
-    let ft = FileTime::try_from(time)
+    let ft = FileTime::try_from(time.to_utc())
         .map_err(|_| crate::Error::Io(std::io::Error::other("Schedule date out of range")))?;
     let raw: i64 = ft
         .to_raw()
@@ -417,8 +417,9 @@ fn windows_datetime_to_unix(dt: DateTime) -> crate::Result<time::OffsetDateTime>
         .UniversalTime
         .try_into()
         .map_err(|_| crate::Error::Io(std::io::Error::other("DateTime out of range")))?;
-    time::OffsetDateTime::try_from(FileTime::new(raw))
-        .map_err(|_| crate::Error::Io(std::io::Error::other("DateTime out of range")))
+    let utc = time::UtcDateTime::try_from(FileTime::new(raw))
+        .map_err(|_| crate::Error::Io(std::io::Error::other("DateTime out of range")))?;
+    Ok(utc.into())
 }
 
 pub struct Notifications<R: Runtime> {
