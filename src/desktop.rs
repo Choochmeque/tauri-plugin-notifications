@@ -406,6 +406,12 @@ impl<R: Runtime> Notifications<R> {
         }
     }
 
+    pub fn remove_all_active(&self) -> crate::Result<()> {
+        Err(crate::Error::Io(std::io::Error::other(
+            "Removing active notifications is not supported with notify-rust",
+        )))
+    }
+
     /// Same semantics as [`remove_active`](Self::remove_active) on Linux;
     /// macOS / Windows: unsupported.
     // Existing public signature; switching to `&[i32]` would be breaking.

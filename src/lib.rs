@@ -21,6 +21,8 @@ mod macos;
 mod mobile;
 #[cfg(all(desktop, target_os = "linux", feature = "push-notifications"))]
 mod unifiedpush;
+#[cfg(all(target_os = "windows", not(feature = "notify-rust")))]
+mod windows;
 
 mod commands;
 mod error;
@@ -36,6 +38,8 @@ pub use desktop::Notifications;
 pub use macos::Notifications;
 #[cfg(mobile)]
 pub use mobile::Notifications;
+#[cfg(all(target_os = "windows", not(feature = "notify-rust")))]
+pub use windows::Notifications;
 
 /// The notification builder.
 #[derive(Debug)]
@@ -45,6 +49,8 @@ pub struct NotificationsBuilder<R: Runtime> {
     app: AppHandle<R>,
     #[cfg(all(target_os = "macos", not(feature = "notify-rust")))]
     plugin: std::sync::Arc<macos::NotificationPlugin>,
+    #[cfg(all(target_os = "windows", not(feature = "notify-rust")))]
+    plugin: std::sync::Arc<windows::WindowsPlugin>,
     #[cfg(mobile)]
     handle: PluginHandle<R>,
     pub(crate) data: NotificationData,
@@ -65,6 +71,15 @@ impl<R: Runtime> NotificationsBuilder<R> {
             app,
             plugin,
             data: NotificationData::default(),
+        }
+    }
+
+    #[cfg(all(target_os = "windows", not(feature = "notify-rust")))]
+    fn new(app: AppHandle<R>, plugin: std::sync::Arc<windows::WindowsPlugin>) -> Self {
+        Self {
+            app,
+            plugin,
+            data: Default::default(),
         }
     }
 
@@ -264,6 +279,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             commands::get_active,
             commands::set_click_listener_active,
             commands::remove_active,
+            commands::remove_all,
             commands::cancel,
             commands::cancel_all,
             commands::create_channel,
@@ -289,6 +305,8 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             let notification = desktop::init(app, api)?;
             #[cfg(all(target_os = "macos", not(feature = "notify-rust")))]
             let notification = macos::init(app, api)?;
+            #[cfg(all(target_os = "windows", not(feature = "notify-rust")))]
+            let notification = windows::init(app, api)?;
             app.manage(notification);
             Ok(())
         })

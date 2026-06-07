@@ -23,6 +23,9 @@ tauri-plugin-opener = "2"
 tauri-plugin-notifications = { path = "../../../", features = ["push-notifications"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-env_logger = "0.11"
 log = "0.4"
 
+# Logging output
+env_logger = { version = "0.11", default-features = false, features = [
+    "humantime",
+] }
