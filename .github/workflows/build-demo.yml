@@ -1,6 +1,9 @@
 name: Build Demo
 
-on: [pull_request, push]
+on:
+  pull_request:
+  push:
+    branches: ['**']
 
 jobs:
   # Build the example app on every desktop OS. Catches platform-specific

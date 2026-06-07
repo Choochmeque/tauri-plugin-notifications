@@ -1,6 +1,9 @@
 name: Checks
 
-on: [ pull_request, push ]
+on:
+  pull_request:
+  push:
+    branches: ['**']
 
 jobs:
   # Code formatting.
