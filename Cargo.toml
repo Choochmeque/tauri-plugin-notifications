@@ -50,6 +50,7 @@ uuid = { version = "1", default-features = false, features = ["v4", "fast-rng"],
 
 [target.'cfg(target_os = "windows")'.dependencies]
 windows = { version = "0.61", features = [
+    "ApplicationModel",
     "Data_Xml_Dom",
     "Foundation",
     "Networking_PushNotifications",

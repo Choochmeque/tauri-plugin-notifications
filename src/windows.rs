@@ -10,6 +10,7 @@ use tauri::{
     AppHandle, Runtime,
 };
 use windows::core::{Interface, HSTRING};
+use windows::ApplicationModel::Package;
 use windows::Data::Xml::Dom::XmlDocument;
 use windows::Foundation::{DateTime, TypedEventHandler};
 #[cfg(feature = "push-notifications")]
@@ -20,6 +21,19 @@ use windows::UI::Notifications::{
     NotificationSetting, ScheduledToastNotification, ToastActivatedEventArgs, ToastNotification,
     ToastNotificationManager, ToastNotifier,
 };
+
+/// True when the current process has MSIX package identity.
+///
+/// WinRT notification APIs split into two flavors: no-arg variants that use the
+/// package's default AUMID (only valid for packaged apps), and `*WithId`
+/// variants that take an explicit AUMID (only valid for unpackaged apps whose
+/// AUMID is registered via a Start Menu shortcut). Passing an arbitrary string
+/// to the WithId variants from inside an MSIX returns ERROR_NOT_FOUND because
+/// the real AUMID is `<PackageFamilyName>!<Application Id>` and the family-name
+/// hash is install-time only.
+fn is_packaged() -> bool {
+    Package::Current().is_ok()
+}
 
 use crate::error::{ErrorResponse, PluginInvokeError};
 use crate::models::*;
@@ -38,6 +52,7 @@ impl From<windows::core::Error> for crate::Error {
 /// Shared plugin state wrapped in Arc for thread-safe access.
 pub struct WindowsPlugin {
     app_id: String,
+    packaged: bool,
     notifier: ToastNotifier,
     action_types: RwLock<HashMap<String, ActionType>>,
     click_listener_active: RwLock<bool>,
@@ -49,6 +64,7 @@ impl std::fmt::Debug for WindowsPlugin {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("WindowsPlugin")
             .field("app_id", &self.app_id)
+            .field("packaged", &self.packaged)
             .finish_non_exhaustive()
     }
 }
@@ -134,10 +150,16 @@ pub fn init<R: Runtime, C: DeserializeOwned>(
     _api: PluginApi<R, C>,
 ) -> crate::Result<Notifications<R>> {
     let app_id = app.config().identifier.clone();
-    let notifier = ToastNotificationManager::CreateToastNotifierWithId(&HSTRING::from(&app_id))?;
+    let packaged = is_packaged();
+    let notifier = if packaged {
+        ToastNotificationManager::CreateToastNotifier()?
+    } else {
+        ToastNotificationManager::CreateToastNotifierWithId(&HSTRING::from(&app_id))?
+    };
 
     let plugin = Arc::new(WindowsPlugin {
         app_id,
+        packaged,
         notifier,
         action_types: RwLock::new(HashMap::new()),
         click_listener_active: RwLock::new(false),
@@ -470,12 +492,14 @@ impl<R: Runtime> Notifications<R> {
         let history = ToastNotificationManager::History()?;
         let app_id = &self.plugin.app_id;
         for id in notifications {
+            let tag = HSTRING::from(id.to_string());
             // Use app-scoped removal with empty group (consistent with GetHistoryWithId usage)
-            if let Err(e) = history.RemoveGroupedTagWithId(
-                &HSTRING::from(id.to_string()),
-                &HSTRING::new(),
-                &HSTRING::from(app_id),
-            ) {
+            let res = if self.plugin.packaged {
+                history.RemoveGroupedTag(&tag, &HSTRING::new())
+            } else {
+                history.RemoveGroupedTagWithId(&tag, &HSTRING::new(), &HSTRING::from(app_id))
+            };
+            if let Err(e) = res {
                 log::error!("Failed to remove notification {id}: {e}");
             }
         }
@@ -484,8 +508,11 @@ impl<R: Runtime> Notifications<R> {
 
     pub async fn active(&self) -> crate::Result<Vec<ActiveNotification>> {
         let history = ToastNotificationManager::History()?;
-        let app_id = &self.plugin.app_id;
-        let notifications = history.GetHistoryWithId(&HSTRING::from(app_id))?;
+        let notifications = if self.plugin.packaged {
+            history.GetHistory()?
+        } else {
+            history.GetHistoryWithId(&HSTRING::from(&self.plugin.app_id))?
+        };
 
         let mut result = Vec::new();
         for i in 0..notifications.Size()? {
@@ -533,8 +560,11 @@ impl<R: Runtime> Notifications<R> {
 
     pub fn remove_all_active(&self) -> crate::Result<()> {
         let history = ToastNotificationManager::History()?;
-        let app_id = &self.plugin.app_id;
-        history.ClearWithId(&HSTRING::from(app_id))?;
+        if self.plugin.packaged {
+            history.Clear()?;
+        } else {
+            history.ClearWithId(&HSTRING::from(&self.plugin.app_id))?;
+        }
         Ok(())
     }
 
