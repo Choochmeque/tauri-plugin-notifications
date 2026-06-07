@@ -13,7 +13,7 @@ import app.tauri.annotation.InvokeArg
 import app.tauri.plugin.Invoke
 import com.fasterxml.jackson.annotation.JsonValue
 
-enum class Importance(@get:JsonValue val value: Int) {
+enum class Importance(@JsonValue val value: Int) {
   None(0),
   Min(1),
   Low(2),
@@ -21,7 +21,7 @@ enum class Importance(@get:JsonValue val value: Int) {
   High(4);
 }
 
-enum class Visibility(@get:JsonValue val value: Int) {
+enum class Visibility(@JsonValue val value: Int) {
   Secret(-1),
   Private(0),
   Public(1);
