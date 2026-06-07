@@ -42,7 +42,7 @@ jobs:
         run: npm install -g npm@latest
 
       # Install dependencies
-      - run: pnpm install
+      - run: pnpm install --frozen-lockfile
 
       # Ensure the tag matches package.json version
       - name: Verify version matches tag
@@ -56,8 +56,9 @@ jobs:
         run: |
           # If you want supply-chain provenance (npm >=9.5, Node >=20)
           npm config set provenance true
-          # Public package:
-          pnpm publish --access public --no-git-checks
+          # Force `latest` so prereleases become the default install
+          # too — npm v11 otherwise refuses to publish prereleases without --tag.
+          pnpm publish --access public --no-git-checks --tag latest
 
   publish-crate:
     name: Publish to crates.io (cargo)
