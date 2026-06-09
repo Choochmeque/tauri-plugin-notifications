@@ -20,8 +20,10 @@ pub struct PluginConfig {
     pub windows: WindowsConfig,
 }
 
-/// Windows-only plugin config. Currently carries the toast activator CLSID
-/// used by `INotificationActivationCallback` registration; absent value means
+/// Windows-only plugin config.
+///
+/// Currently carries the toast activator CLSID used by
+/// `INotificationActivationCallback` registration; absent value means
 /// COM-based activation is disabled and the plugin falls back to in-process
 /// `Activated` events only.
 #[cfg(target_os = "windows")]
