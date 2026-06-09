@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "tauri:windows:build": "tauri-windows-bundle build"
   },
   "license": "MIT",
   "dependencies": {
@@ -25,6 +26,7 @@
     "svelte": "^5.56.1",
     "svelte-check": "^4.4.4",
     "typescript": "~6.0.3",
-    "vite": "^8.0.13"
+    "vite": "^8.0.13",
+    "@choochmeque/tauri-windows-bundle": "^0.1.20"
   }
 }

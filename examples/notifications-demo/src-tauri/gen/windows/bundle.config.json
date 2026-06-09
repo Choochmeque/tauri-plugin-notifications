@@ -1,0 +1,26 @@
+{
+  "publisher": "CN=YourCompany",
+  "publisherDisplayName": "Your Company Name",
+  "capabilities": {
+    "general": [
+      "internetClient"
+    ]
+  },
+  "extensions": {
+    "shareTarget": false,
+    "fileAssociations": [],
+    "protocolHandlers": [],
+    "toastActivation": {
+      "activationType": "foreground",
+      "clsid": "{757B33CB-099E-4AA9-8741-314D2B54B59D}"
+    }
+  },
+  "signing": {
+    "pfx": null,
+    "pfxPassword": null
+  },
+  "resourceIndex": {
+    "enabled": false,
+    "keepConfig": false
+  }
+}

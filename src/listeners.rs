@@ -10,6 +10,10 @@
 use std::collections::HashMap;
 use std::sync::{OnceLock, RwLock};
 
+#[cfg(all(target_os = "windows", not(feature = "notify-rust")))]
+use tauri::Manager;
+use tauri::{AppHandle, Runtime};
+
 use crate::error::{ErrorResponse, PluginInvokeError};
 
 type ChannelMap = HashMap<u32, tauri::ipc::Channel<serde_json::Value>>;
@@ -66,14 +70,21 @@ pub fn trigger(event: &str, payload: String) -> crate::Result<()> {
 }
 
 /// Register a channel to receive events for the given event name.
+///
+/// On Windows, subscribing to `notificationClicked` synchronously drains any
+/// cold-start activation payload buffered by the COM activator before the JS
+/// listener was up. That makes the `push-listener.tsx` contract ("subscribing
+/// flushes the buffered tap") work without the app calling any extra command.
 // Tauri commands receive serde-deserialized owned values.
 #[allow(clippy::needless_pass_by_value)]
 #[tauri::command]
-pub fn register_listener(
+pub fn register_listener<R: Runtime>(
+    app: AppHandle<R>,
     event: String,
     handler: tauri::ipc::Channel<serde_json::Value>,
 ) -> crate::Result<()> {
     let listeners = LISTENERS.get_or_init(|| RwLock::new(HashMap::new()));
+    let should_drain_clicks = event == "notificationClicked";
     {
         let mut guard = listeners.write().map_err(|e| {
             crate::Error::from(PluginInvokeError::InvokeRejected(ErrorResponse {
@@ -87,6 +98,14 @@ pub fn register_listener(
             .or_default()
             .insert(handler.id(), handler);
     }
+    #[cfg(all(target_os = "windows", not(feature = "notify-rust")))]
+    if should_drain_clicks {
+        if let Some(notif) = app.try_state::<crate::Notifications<R>>() {
+            notif.drain_pending_clicks();
+        }
+    }
+    #[cfg(not(all(target_os = "windows", not(feature = "notify-rust"))))]
+    let _ = (app, should_drain_clicks);
     Ok(())
 }
 

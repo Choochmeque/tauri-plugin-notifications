@@ -55,7 +55,17 @@ windows = { version = "0.61", features = [
     "Foundation",
     "Networking_PushNotifications",
     "UI_Notifications",
+    "Win32_Foundation",
+    "Win32_System_Com",
+    "Win32_UI_Notifications",
 ] }
+# The `#[implement]` macro from `windows::core::implement` emits `::windows_core::*`
+# absolute paths, so `windows-core` must be a direct dependency, not just
+# transitive through `windows`.
+windows-core = "0.61"
+# Used to parse user-supplied CLSID strings (accepts braced, unbraced, and
+# hyphen-less forms) before converting to `windows::core::GUID` via raw bits.
+uuid = { version = "1", default-features = false }
 nt-time = "0.15"
 
 [build-dependencies]
