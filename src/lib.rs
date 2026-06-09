@@ -293,8 +293,8 @@ impl<R: Runtime, T: Manager<R>> crate::NotificationsExt<R> for T {
 
 /// Initializes the plugin.
 #[must_use]
-pub fn init<R: Runtime>() -> TauriPlugin<R, PluginConfig> {
-    Builder::<R, PluginConfig>::new("notifications")
+pub fn init<R: Runtime>() -> TauriPlugin<R, Option<PluginConfig>> {
+    Builder::<R, Option<PluginConfig>>::new("notifications")
         .invoke_handler(tauri::generate_handler![
             commands::notify,
             commands::request_permission,
@@ -327,7 +327,11 @@ pub fn init<R: Runtime>() -> TauriPlugin<R, PluginConfig> {
             #[cfg(desktop)]
             listeners::init();
             #[cfg(all(target_os = "windows", not(feature = "notify-rust")))]
-            let windows_config = api.config().windows.clone();
+            let windows_config = api
+                .config()
+                .as_ref()
+                .map(|c| c.windows.clone())
+                .unwrap_or_default();
             #[cfg(mobile)]
             let notification = mobile::init(app, api)?;
             #[cfg(all(desktop, any(feature = "notify-rust", target_os = "linux")))]
