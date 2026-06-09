@@ -123,10 +123,13 @@ impl std::fmt::Debug for WindowsPlugin {
     }
 }
 
-/// Build the activation payload JSON consumed by both the in-process
-/// `ToastNotification.Activated` handler and the COM activator. Kept here so
-/// warm and cold paths emit byte-identical event shapes — the JS side can't
-/// distinguish them.
+/// Build the `actionPerformed` payload for the COM activator (cold-start /
+/// Action Center activations). The warm in-process `ToastNotification.Activated`
+/// handler emits the same shape but populates `notification` with the originating
+/// `ActiveNotification`; the cold path can't because Windows hands the activator
+/// only `invokedArgs` + text inputs, with no reference back to the originating
+/// notification. Consumers that need the notification body should treat
+/// `notification == null` as the cold-start signal.
 fn activation_payload(invoked_args: &str, inputs: &HashMap<String, String>) -> serde_json::Value {
     let action_id = if invoked_args.is_empty() {
         "tap"
@@ -170,13 +173,18 @@ impl INotificationActivationCallback_Impl for ToastActivator_Impl {
         let _ = crate::listeners::trigger("actionPerformed", action_payload.to_string());
 
         if invoked.is_empty() {
+            // Cold-start payload shape differs from the in-process Activated path:
+            // here `id`/`data` are null/empty because Windows hands the activator
+            // no reference back to the originating notification. Consumers can
+            // distinguish via `id == null`.
             let click_payload = serde_json::json!({ "id": serde_json::Value::Null, "data": {} });
-            // Best-effort live emit; if no listeners are subscribed yet (cold
-            // start), the payload also goes onto the buffer below for drain
-            // when the JS side mounts.
-            let _ = crate::listeners::trigger("notificationClicked", click_payload.to_string());
 
-            if let Some(plugin) = self.plugin.upgrade() {
+            // Deliver live OR buffer — never both. Buffering when a listener is
+            // already subscribed causes duplicate events on the next re-subscribe
+            // (hot reload, route change).
+            if crate::listeners::has_listeners("notificationClicked") {
+                let _ = crate::listeners::trigger("notificationClicked", click_payload.to_string());
+            } else if let Some(plugin) = self.plugin.upgrade() {
                 if let Ok(mut buf) = plugin.pending_clicks.write() {
                     buf.push(click_payload);
                 }

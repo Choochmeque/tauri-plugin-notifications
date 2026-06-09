@@ -26,6 +26,21 @@ pub fn init() {
     let _ = LISTENERS.get_or_init(|| RwLock::new(HashMap::new()));
 }
 
+/// Returns `true` if at least one channel is subscribed for `event`. Used by
+/// the Windows COM activator to decide whether to deliver a click payload live
+/// or buffer it for a later subscriber — buffering when a live listener already
+/// exists causes duplicate events on re-subscription (e.g. hot reload).
+#[cfg(all(target_os = "windows", not(feature = "notify-rust")))]
+pub fn has_listeners(event: &str) -> bool {
+    let Some(listeners) = LISTENERS.get() else {
+        return false;
+    };
+    let Ok(guard) = listeners.read() else {
+        return false;
+    };
+    guard.get(event).is_some_and(|c| !c.is_empty())
+}
+
 /// Trigger an event to all registered listeners for the given event name.
 ///
 /// Called by platform-specific code when notification events occur.
