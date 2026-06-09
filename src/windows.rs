@@ -1,7 +1,8 @@
 //! Windows implementation for notifications plugin using native Windows Toast API.
 
 use std::collections::HashMap;
-use std::sync::{Arc, RwLock};
+use std::ffi::c_void;
+use std::sync::{Arc, RwLock, Weak};
 
 use nt_time::FileTime;
 use serde::de::DeserializeOwned;
@@ -9,7 +10,7 @@ use tauri::{
     plugin::{PermissionState, PluginApi},
     AppHandle, Runtime,
 };
-use windows::core::{Interface, HSTRING};
+use windows::core::{implement, Interface, Ref, GUID, HSTRING, PCWSTR};
 use windows::ApplicationModel::Package;
 use windows::Data::Xml::Dom::XmlDocument;
 use windows::Foundation::{DateTime, TypedEventHandler};
@@ -17,10 +18,23 @@ use windows::Foundation::{DateTime, TypedEventHandler};
 use windows::Networking::PushNotifications::{
     PushNotificationChannel, PushNotificationChannelManager,
 };
+use windows::Win32::Foundation::{BOOL, CLASS_E_NOAGGREGATION, S_FALSE, S_OK};
+use windows::Win32::System::Com::{
+    CoInitializeEx, CoRegisterClassObject, IClassFactory, IClassFactory_Impl, CLSCTX_LOCAL_SERVER,
+    COINIT_APARTMENTTHREADED, REGCLS_MULTIPLEUSE,
+};
+use windows::Win32::UI::Notifications::{
+    INotificationActivationCallback, INotificationActivationCallback_Impl,
+    NOTIFICATION_USER_INPUT_DATA,
+};
 use windows::UI::Notifications::{
     NotificationSetting, ScheduledToastNotification, ToastActivatedEventArgs, ToastNotification,
     ToastNotificationManager, ToastNotifier,
 };
+
+use crate::error::{ErrorResponse, PluginInvokeError};
+use crate::models::*;
+use crate::WindowsConfig;
 
 /// True when the current process has MSIX package identity.
 ///
@@ -35,8 +49,17 @@ fn is_packaged() -> bool {
     Package::Current().is_ok()
 }
 
-use crate::error::{ErrorResponse, PluginInvokeError};
-use crate::models::*;
+/// Accept both `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx` and the braced
+/// `{xxxxxxxx-...}` forms so the manifest CLSID and the `tauri.conf.json`
+/// CLSID can use either convention without drift causing parse failures.
+fn parse_clsid(raw: &str) -> windows::core::Result<GUID> {
+    let trimmed = raw.trim();
+    let inner = trimmed
+        .strip_prefix('{')
+        .and_then(|s| s.strip_suffix('}'))
+        .unwrap_or(trimmed);
+    GUID::try_from(inner)
+}
 
 // Enable `?` operator for windows::core::Error
 impl From<windows::core::Error> for crate::Error {
@@ -56,8 +79,39 @@ pub struct WindowsPlugin {
     notifier: ToastNotifier,
     action_types: RwLock<HashMap<String, ActionType>>,
     click_listener_active: RwLock<bool>,
+    /// Cold-start activation payloads queued before any JS listener has
+    /// subscribed. Drained synchronously the first time a `notificationClicked`
+    /// listener registers (see `crate::listeners::register_listener`).
+    pending_clicks: RwLock<Vec<serde_json::Value>>,
+    /// `CoRegisterClassObject` cookie. Kept for the process lifetime — no
+    /// explicit `CoRevokeClassObject` on shutdown; the OS reclaims it on exit.
+    /// `None` when COM activator wasn't registered (unpackaged or no CLSID in
+    /// config).
+    _com_cookie: RwLock<Option<u32>>,
     #[cfg(feature = "push-notifications")]
     push_channel: RwLock<Option<PushNotificationChannel>>,
+}
+
+/// COM activator that receives toast activations from Action Center, including
+/// the cold-start case where Windows launches the exe via the manifest's
+/// `windows.toastNotificationActivation` extension.
+///
+/// Wired up by `init()` only when the process has MSIX package identity AND
+/// the plugin config carries a valid `toast_activator_clsid`. The callback
+/// fires on a COM RPC worker thread (not the Tauri main thread), so all
+/// downstream emissions must be thread-safe — `crate::listeners::trigger`
+/// already is.
+#[implement(INotificationActivationCallback)]
+struct ToastActivator {
+    plugin: Weak<WindowsPlugin>,
+}
+
+/// Out-of-proc COM activator pattern requires a class factory; `CoRegisterClassObject`
+/// takes an `IUnknown` that must implement `IClassFactory`, not the activator
+/// instance directly. There is no shortcut for the toast activator path.
+#[implement(IClassFactory)]
+struct ToastActivatorFactory {
+    plugin: Weak<WindowsPlugin>,
 }
 
 impl std::fmt::Debug for WindowsPlugin {
@@ -66,6 +120,91 @@ impl std::fmt::Debug for WindowsPlugin {
             .field("app_id", &self.app_id)
             .field("packaged", &self.packaged)
             .finish_non_exhaustive()
+    }
+}
+
+/// Build the activation payload JSON consumed by both the in-process
+/// `ToastNotification.Activated` handler and the COM activator. Kept here so
+/// warm and cold paths emit byte-identical event shapes — the JS side can't
+/// distinguish them.
+fn activation_payload(invoked_args: &str, inputs: &HashMap<String, String>) -> serde_json::Value {
+    let action_id = if invoked_args.is_empty() {
+        "tap"
+    } else {
+        invoked_args
+    };
+    let input_value = inputs
+        .values()
+        .next()
+        .cloned()
+        .map_or(serde_json::Value::Null, serde_json::Value::String);
+    serde_json::json!({
+        "actionId": action_id,
+        "inputValue": input_value,
+        "notification": serde_json::Value::Null,
+    })
+}
+
+impl INotificationActivationCallback_Impl for ToastActivator_Impl {
+    fn Activate(
+        &self,
+        _appusermodelid: &PCWSTR,
+        invokedargs: &PCWSTR,
+        data: *const NOTIFICATION_USER_INPUT_DATA,
+        count: u32,
+    ) -> windows::core::Result<()> {
+        let invoked = unsafe { invokedargs.to_string() }.unwrap_or_default();
+        let mut inputs: HashMap<String, String> = HashMap::new();
+        if count > 0 && !data.is_null() {
+            let slice = unsafe { std::slice::from_raw_parts(data, count as usize) };
+            for entry in slice {
+                let k = unsafe { entry.Key.to_string() }.unwrap_or_default();
+                let v = unsafe { entry.Value.to_string() }.unwrap_or_default();
+                if !k.is_empty() {
+                    inputs.insert(k, v);
+                }
+            }
+        }
+
+        let action_payload = activation_payload(&invoked, &inputs);
+        let _ = crate::listeners::trigger("actionPerformed", action_payload.to_string());
+
+        if invoked.is_empty() {
+            let click_payload = serde_json::json!({ "id": serde_json::Value::Null, "data": {} });
+            // Best-effort live emit; if no listeners are subscribed yet (cold
+            // start), the payload also goes onto the buffer below for drain
+            // when the JS side mounts.
+            let _ = crate::listeners::trigger("notificationClicked", click_payload.to_string());
+
+            if let Some(plugin) = self.plugin.upgrade() {
+                if let Ok(mut buf) = plugin.pending_clicks.write() {
+                    buf.push(click_payload);
+                }
+            }
+        }
+        Ok(())
+    }
+}
+
+impl IClassFactory_Impl for ToastActivatorFactory_Impl {
+    fn CreateInstance(
+        &self,
+        punkouter: Ref<'_, windows::core::IUnknown>,
+        riid: *const GUID,
+        ppvobject: *mut *mut c_void,
+    ) -> windows::core::Result<()> {
+        if punkouter.is_some() {
+            return Err(CLASS_E_NOAGGREGATION.into());
+        }
+        let activator = ToastActivator {
+            plugin: self.plugin.clone(),
+        };
+        let interface: INotificationActivationCallback = activator.into();
+        unsafe { interface.query(riid, ppvobject).ok() }
+    }
+
+    fn LockServer(&self, _flock: BOOL) -> windows::core::Result<()> {
+        Ok(())
     }
 }
 
@@ -99,6 +238,25 @@ impl WindowsPlugin {
             .write()
             .map_err(|_| crate::Error::Io(std::io::Error::other("Lock poisoned")))? = active;
         Ok(())
+    }
+
+    /// Drain queued cold-start click payloads through the listener bus. Called
+    /// when a `notificationClicked` listener subscribes (see
+    /// `crate::listeners::register_listener`). Idempotent: subsequent calls
+    /// with an empty buffer are a no-op.
+    pub fn drain_pending_clicks(&self) {
+        let drained: Vec<serde_json::Value> = match self.pending_clicks.write() {
+            Ok(mut buf) => std::mem::take(&mut *buf),
+            Err(e) => {
+                log::error!("pending_clicks lock poisoned during drain: {e}");
+                return;
+            }
+        };
+        for payload in drained {
+            if let Err(e) = crate::listeners::trigger("notificationClicked", payload.to_string()) {
+                log::error!("Failed to dispatch buffered click: {e}");
+            }
+        }
     }
 
     fn open_push_channel(&self) -> crate::Result<String> {
@@ -148,6 +306,7 @@ impl WindowsPlugin {
 pub fn init<R: Runtime, C: DeserializeOwned>(
     app: &AppHandle<R>,
     _api: PluginApi<R, C>,
+    windows_config: WindowsConfig,
 ) -> crate::Result<Notifications<R>> {
     let app_id = app.config().identifier.clone();
     let packaged = is_packaged();
@@ -163,14 +322,66 @@ pub fn init<R: Runtime, C: DeserializeOwned>(
         notifier,
         action_types: RwLock::new(HashMap::new()),
         click_listener_active: RwLock::new(false),
+        pending_clicks: RwLock::new(Vec::new()),
+        _com_cookie: RwLock::new(None),
         #[cfg(feature = "push-notifications")]
         push_channel: RwLock::new(None),
     });
+
+    if packaged {
+        if let Some(clsid_str) = windows_config.toast_activator_clsid.as_deref() {
+            match register_toast_activator(&plugin, clsid_str) {
+                Ok(cookie) => {
+                    if let Ok(mut slot) = plugin._com_cookie.write() {
+                        *slot = Some(cookie);
+                    }
+                    log::info!("Toast activator registered (clsid={clsid_str}, cookie={cookie})");
+                }
+                Err(e) => {
+                    log::error!(
+                        "Failed to register toast activator (clsid={clsid_str}): {e}; \
+                         Action Center clicks will fall back to shortcut launch without payload"
+                    );
+                }
+            }
+        }
+    }
 
     Ok(Notifications {
         app: app.clone(),
         plugin,
     })
+}
+
+/// Initialize COM for the current thread (apartment-threaded) and register a
+/// `ToastActivatorFactory` for the given CLSID. Returns the
+/// `CoRegisterClassObject` cookie on success.
+///
+/// `CoInitializeEx` is idempotent for the same apartment model: `S_OK` on
+/// first call, `S_FALSE` on subsequent calls. `RPC_E_CHANGED_MODE` means
+/// another component already initialized this thread as MTA — surfaced as an
+/// error so the caller logs and skips registration.
+fn register_toast_activator(
+    plugin: &Arc<WindowsPlugin>,
+    clsid_str: &str,
+) -> windows::core::Result<u32> {
+    let clsid = parse_clsid(clsid_str)?;
+    let hr = unsafe { CoInitializeEx(None, COINIT_APARTMENTTHREADED) };
+    if hr != S_OK && hr != S_FALSE {
+        return Err(hr.into());
+    }
+    let factory = ToastActivatorFactory {
+        plugin: Arc::downgrade(plugin),
+    };
+    let factory_interface: IClassFactory = factory.into();
+    unsafe {
+        CoRegisterClassObject(
+            &clsid,
+            &factory_interface,
+            CLSCTX_LOCAL_SERVER,
+            REGCLS_MULTIPLEUSE,
+        )
+    }
 }
 
 impl<R: Runtime> crate::NotificationsBuilder<R> {
@@ -453,6 +664,15 @@ pub struct Notifications<R: Runtime> {
 impl<R: Runtime> Notifications<R> {
     pub fn builder(&self) -> crate::NotificationsBuilder<R> {
         crate::NotificationsBuilder::new(self.app.clone(), self.plugin.clone())
+    }
+
+    /// Drain any cold-start activation payloads queued before the JS
+    /// `notificationClicked` listener subscribed. Invoked by
+    /// `crate::listeners::register_listener` on first subscription so the
+    /// `push-listener.tsx` contract ("subscribing flushes the buffered tap")
+    /// holds without the app having to call any extra command.
+    pub fn drain_pending_clicks(&self) {
+        self.plugin.drain_pending_clicks();
     }
 
     pub async fn request_permission(&self) -> crate::Result<PermissionState> {

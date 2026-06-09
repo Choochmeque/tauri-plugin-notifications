@@ -1,6 +1,6 @@
 //! Send message notifications (brief auto-expiring OS window element) to your user. Can also be used with the Notification Web API.
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 #[cfg(mobile)]
 use tauri::plugin::PluginHandle;
 #[cfg(desktop)]
@@ -9,6 +9,31 @@ use tauri::{
     plugin::{Builder, TauriPlugin},
     Manager, Runtime,
 };
+
+/// Top-level plugin config deserialized from the `plugins.notifications` block
+/// in `tauri.conf.json`. Optional in its entirety — apps without a config block
+/// get `PluginConfig::default()`.
+#[derive(Debug, Default, Clone, Deserialize)]
+#[serde(default, rename_all = "camelCase")]
+pub struct PluginConfig {
+    #[cfg(target_os = "windows")]
+    pub windows: WindowsConfig,
+}
+
+/// Windows-only plugin config. Currently carries the toast activator CLSID
+/// used by `INotificationActivationCallback` registration; absent value means
+/// COM-based activation is disabled and the plugin falls back to in-process
+/// `Activated` events only.
+#[cfg(target_os = "windows")]
+#[derive(Debug, Default, Clone, Deserialize)]
+#[serde(default, rename_all = "camelCase")]
+pub struct WindowsConfig {
+    /// Toast activator CLSID. Must match the GUID declared in the MSIX
+    /// manifest's `<desktop:ToastNotificationActivation ToastActivatorCLSID>`
+    /// and `<com:Class Id>` entries. Accepts the `xxxxxxxx-xxxx-...` form
+    /// with or without surrounding braces.
+    pub toast_activator_clsid: Option<String>,
+}
 
 pub use models::*;
 pub use tauri::plugin::PermissionState;
@@ -266,8 +291,8 @@ impl<R: Runtime, T: Manager<R>> crate::NotificationsExt<R> for T {
 
 /// Initializes the plugin.
 #[must_use]
-pub fn init<R: Runtime>() -> TauriPlugin<R> {
-    Builder::new("notifications")
+pub fn init<R: Runtime>() -> TauriPlugin<R, PluginConfig> {
+    Builder::<R, PluginConfig>::new("notifications")
         .invoke_handler(tauri::generate_handler![
             commands::notify,
             commands::request_permission,
@@ -299,6 +324,8 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
         .setup(|app, api| {
             #[cfg(desktop)]
             listeners::init();
+            #[cfg(all(target_os = "windows", not(feature = "notify-rust")))]
+            let windows_config = api.config().windows.clone();
             #[cfg(mobile)]
             let notification = mobile::init(app, api)?;
             #[cfg(all(desktop, any(feature = "notify-rust", target_os = "linux")))]
@@ -306,7 +333,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             #[cfg(all(target_os = "macos", not(feature = "notify-rust")))]
             let notification = macos::init(app, api)?;
             #[cfg(all(target_os = "windows", not(feature = "notify-rust")))]
-            let notification = windows::init(app, api)?;
+            let notification = windows::init(app, api, windows_config)?;
             app.manage(notification);
             Ok(())
         })
