@@ -123,29 +123,66 @@ impl std::fmt::Debug for WindowsPlugin {
     }
 }
 
-/// Build the `actionPerformed` payload for the COM activator (cold-start /
-/// Action Center activations). The warm in-process `ToastNotification.Activated`
-/// handler emits the same shape but populates `notification` with the originating
-/// `ActiveNotification`; the cold path can't because Windows hands the activator
-/// only `invokedArgs` + text inputs, with no reference back to the originating
-/// notification. Consumers that need the notification body should treat
-/// `notification == null` as the cold-start signal.
-fn activation_payload(invoked_args: &str, inputs: &HashMap<String, String>) -> serde_json::Value {
-    let action_id = if invoked_args.is_empty() {
-        "tap"
-    } else {
-        invoked_args
-    };
+/// Result of decoding a toast activation's `Arguments` string.
+///
+/// `build_toast_xml` encodes notification id + extras as JSON into the toast's
+/// `launch=` attribute; foreground taps deliver that JSON in `Arguments`,
+/// button activations deliver the action's `arguments=` (a plain string). This
+/// struct lets the warm (in-process) and cold (COM) paths share decoding so
+/// the event shapes the JS layer sees are byte-identical.
+struct DecodedActivation {
+    /// `notificationClicked` payload — `Some` for foreground taps, `None` for
+    /// button activations.
+    click: Option<serde_json::Value>,
+    /// `actionPerformed` payload — always populated.
+    action: serde_json::Value,
+}
+
+fn decode_activation(invoked_args: &str, inputs: &HashMap<String, String>) -> DecodedActivation {
     let input_value = inputs
         .values()
         .next()
         .cloned()
         .map_or(serde_json::Value::Null, serde_json::Value::String);
-    serde_json::json!({
-        "actionId": action_id,
-        "inputValue": input_value,
-        "notification": serde_json::Value::Null,
-    })
+
+    let parsed: Option<serde_json::Value> = serde_json::from_str::<serde_json::Value>(invoked_args)
+        .ok()
+        .filter(serde_json::Value::is_object);
+
+    if let Some(launch) = parsed {
+        let action = serde_json::json!({
+            "actionId": "tap",
+            "inputValue": input_value,
+            "notification": launch.clone(),
+        });
+        DecodedActivation {
+            click: Some(launch),
+            action,
+        }
+    } else if invoked_args.is_empty() {
+        // Legacy path: toasts produced before `launch=` was set, or a tap with
+        // no extras. Emit a click with no payload so subscribers still fire.
+        let action = serde_json::json!({
+            "actionId": "tap",
+            "inputValue": input_value,
+            "notification": serde_json::Value::Null,
+        });
+        DecodedActivation {
+            click: Some(serde_json::json!({ "id": serde_json::Value::Null, "data": {} })),
+            action,
+        }
+    } else {
+        // Button activation — `invoked_args` is the action's `arguments=`.
+        let action = serde_json::json!({
+            "actionId": invoked_args,
+            "inputValue": input_value,
+            "notification": serde_json::Value::Null,
+        });
+        DecodedActivation {
+            click: None,
+            action,
+        }
+    }
 }
 
 impl INotificationActivationCallback_Impl for ToastActivator_Impl {
@@ -169,16 +206,10 @@ impl INotificationActivationCallback_Impl for ToastActivator_Impl {
             }
         }
 
-        let action_payload = activation_payload(&invoked, &inputs);
-        let _ = crate::listeners::trigger("actionPerformed", action_payload.to_string());
+        let decoded = decode_activation(&invoked, &inputs);
+        let _ = crate::listeners::trigger("actionPerformed", decoded.action.to_string());
 
-        if invoked.is_empty() {
-            // Cold-start payload shape differs from the in-process Activated path:
-            // here `id`/`data` are null/empty because Windows hands the activator
-            // no reference back to the originating notification. Consumers can
-            // distinguish via `id == null`.
-            let click_payload = serde_json::json!({ "id": serde_json::Value::Null, "data": {} });
-
+        if let Some(click_payload) = decoded.click {
             // Deliver live OR buffer — never both. Buffering when a listener is
             // already subscribed causes duplicate events on the next re-subscribe
             // (hot reload, route change).
@@ -404,6 +435,19 @@ impl<R: Runtime> crate::NotificationsBuilder<R> {
         let toast = doc.CreateElement(&HSTRING::from("toast"))?;
         doc.AppendChild(&toast)?;
 
+        // Encode notification id + extras into `launch=` so the click payload
+        // survives a cold-start activation (the COM `Activate` callback only
+        // receives the launch string; the in-process `Activated` handler
+        // delivers the same string in `ToastActivatedEventArgs.Arguments`).
+        let launch = serde_json::json!({
+            "id": self.data.id,
+            "data": self.data.extra,
+        });
+        toast.SetAttribute(
+            &HSTRING::from("launch"),
+            &HSTRING::from(launch.to_string().as_str()),
+        )?;
+
         // Create <visual><binding template="ToastGeneric">
         let visual = doc.CreateElement(&HSTRING::from("visual"))?;
         let binding = doc.CreateElement(&HSTRING::from("binding"))?;
@@ -550,7 +594,17 @@ impl<R: Runtime> crate::NotificationsBuilder<R> {
                                     .map(|s| s.to_string_lossy())
                                     .unwrap_or_default();
 
-                                let action_id = if arguments.is_empty() {
+                                // Foreground tap: empty `Arguments` (legacy
+                                // toasts without `launch=`) or the JSON object
+                                // we wrote into `launch=`. Anything else is a
+                                // button activation whose `arguments=` we
+                                // surface as the action id.
+                                let is_tap = arguments.is_empty()
+                                    || serde_json::from_str::<serde_json::Value>(&arguments)
+                                        .ok()
+                                        .is_some_and(|v| v.is_object());
+
+                                let action_id = if is_tap {
                                     "tap".to_string()
                                 } else {
                                     arguments.to_string()
@@ -568,7 +622,7 @@ impl<R: Runtime> crate::NotificationsBuilder<R> {
                                     log::error!("Failed to trigger actionPerformed: {e}");
                                 }
 
-                                if arguments.is_empty() {
+                                if is_tap {
                                     let click_payload = serde_json::json!({
                                         "id": notification.id,
                                         "data": notification.extra,
