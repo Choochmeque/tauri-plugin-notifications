@@ -10,7 +10,9 @@
 use std::collections::HashMap;
 use std::sync::{OnceLock, RwLock};
 
-use tauri::{AppHandle, Manager, Runtime};
+#[cfg(all(target_os = "windows", not(feature = "notify-rust")))]
+use tauri::Manager;
+use tauri::{AppHandle, Runtime};
 
 use crate::error::{ErrorResponse, PluginInvokeError};
 
