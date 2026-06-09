@@ -59,6 +59,10 @@ windows = { version = "0.61", features = [
     "Win32_System_Com",
     "Win32_UI_Notifications",
 ] }
+# The `#[implement]` macro from `windows::core::implement` emits `::windows_core::*`
+# absolute paths, so `windows-core` must be a direct dependency, not just
+# transitive through `windows`.
+windows-core = "0.61"
 nt-time = "0.15"
 
 [build-dependencies]

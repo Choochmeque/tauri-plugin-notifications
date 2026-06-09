@@ -10,7 +10,7 @@ use tauri::{
     plugin::{PermissionState, PluginApi},
     AppHandle, Runtime,
 };
-use windows::core::{implement, Interface, Ref, GUID, HSTRING, PCWSTR};
+use windows::core::{implement, Interface, Ref, BOOL, GUID, HSTRING, PCWSTR};
 use windows::ApplicationModel::Package;
 use windows::Data::Xml::Dom::XmlDocument;
 use windows::Foundation::{DateTime, TypedEventHandler};
@@ -18,7 +18,7 @@ use windows::Foundation::{DateTime, TypedEventHandler};
 use windows::Networking::PushNotifications::{
     PushNotificationChannel, PushNotificationChannelManager,
 };
-use windows::Win32::Foundation::{BOOL, CLASS_E_NOAGGREGATION, S_FALSE, S_OK};
+use windows::Win32::Foundation::{CLASS_E_NOAGGREGATION, S_FALSE, S_OK};
 use windows::Win32::System::Com::{
     CoInitializeEx, CoRegisterClassObject, IClassFactory, IClassFactory_Impl, CLSCTX_LOCAL_SERVER,
     COINIT_APARTMENTTHREADED, REGCLS_MULTIPLEUSE,
@@ -193,7 +193,7 @@ impl IClassFactory_Impl for ToastActivatorFactory_Impl {
         riid: *const GUID,
         ppvobject: *mut *mut c_void,
     ) -> windows::core::Result<()> {
-        if punkouter.is_some() {
+        if !punkouter.is_null() {
             return Err(CLASS_E_NOAGGREGATION.into());
         }
         let activator = ToastActivator {
