@@ -18,7 +18,7 @@ use windows::Foundation::{DateTime, TypedEventHandler};
 use windows::Networking::PushNotifications::{
     PushNotificationChannel, PushNotificationChannelManager,
 };
-use windows::Win32::Foundation::{CLASS_E_NOAGGREGATION, S_FALSE, S_OK};
+use windows::Win32::Foundation::{CLASS_E_NOAGGREGATION, E_INVALIDARG, S_FALSE, S_OK};
 use windows::Win32::System::Com::{
     CoInitializeEx, CoRegisterClassObject, IClassFactory, IClassFactory_Impl, CLSCTX_LOCAL_SERVER,
     COINIT_APARTMENTTHREADED, REGCLS_MULTIPLEUSE,
@@ -49,16 +49,16 @@ fn is_packaged() -> bool {
     Package::Current().is_ok()
 }
 
-/// Accept both `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx` and the braced
-/// `{xxxxxxxx-...}` forms so the manifest CLSID and the `tauri.conf.json`
-/// CLSID can use either convention without drift causing parse failures.
+/// Accept any well-formed UUID string and reinterpret its bytes as a `GUID`.
+///
+/// Delegating to `uuid::Uuid::parse_str` lets the manifest CLSID and the
+/// `tauri.conf.json` CLSID use either braced (`{xxxxxxxx-…}`), unbraced
+/// (`xxxxxxxx-…`), or simple (32 hex chars, no hyphens) conventions without
+/// drift causing parse failures.
 fn parse_clsid(raw: &str) -> windows::core::Result<GUID> {
-    let trimmed = raw.trim();
-    let inner = trimmed
-        .strip_prefix('{')
-        .and_then(|s| s.strip_suffix('}'))
-        .unwrap_or(trimmed);
-    GUID::try_from(inner)
+    let parsed = uuid::Uuid::parse_str(raw.trim())
+        .map_err(|e| windows::core::Error::new(E_INVALIDARG, format!("{e}")))?;
+    Ok(GUID::from_u128(parsed.as_u128()))
 }
 
 // Enable `?` operator for windows::core::Error
