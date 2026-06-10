@@ -35,8 +35,13 @@ func makeNotificationContent(_ notification: Notification) throws -> UNNotificat
 
   var userInfo: [AnyHashable: Any] = [:]
 
+  // Spread `extra` directly into userInfo at the top level — matches the
+  // APNs convention so the click handler can read keys from one shape
+  // (whether the notification came from local schedule or remote push).
   if let extra = notification.extra {
-    userInfo["__EXTRA__"] = extra
+    for (key, value) in extra {
+      userInfo[key] = value
+    }
   }
 
   content.userInfo = userInfo

@@ -830,10 +830,8 @@ final class NotificationContentTests: XCTestCase {
 
         let content = try makeNotificationContent(notification)
 
-        let extra = content.userInfo["__EXTRA__"] as? [String: String]
-        XCTAssertNotNil(extra)
-        XCTAssertEqual(extra?["key1"], "value1")
-        XCTAssertEqual(extra?["key2"], "value2")
+        XCTAssertEqual(content.userInfo["key1"] as? String, "value1")
+        XCTAssertEqual(content.userInfo["key2"] as? String, "value2")
     }
 
     func testMakeNotificationContentWithActionType() throws {
