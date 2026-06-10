@@ -9,6 +9,25 @@ import android.service.notification.StatusBarNotification
 import androidx.annotation.RequiresApi
 import app.tauri.annotation.InvokeArg
 import app.tauri.plugin.JSObject
+import com.fasterxml.jackson.core.JsonParser
+import com.fasterxml.jackson.databind.DeserializationContext
+import com.fasterxml.jackson.databind.JsonDeserializer
+import com.fasterxml.jackson.databind.JsonNode
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize
+
+/**
+ * Jackson can't reflect into `JSObject` (zero bean properties), so loading a
+ * persisted notification with non-empty `extra` throws
+ * `UnrecognizedPropertyException` on the first dynamic key. This deserializer
+ * re-parses the JSON subtree through `JSObject`'s own JSON constructor, which
+ * accepts arbitrary keys.
+ */
+class JSObjectDeserializer : JsonDeserializer<JSObject>() {
+  override fun deserialize(p: JsonParser, ctxt: DeserializationContext): JSObject {
+    val node: JsonNode = p.readValueAsTree()
+    return JSObject(node.toString())
+  }
+}
 
 @InvokeArg
 class Notification {
@@ -27,6 +46,7 @@ class Notification {
   var isGroupSummary = false
   var isOngoing = false
   var isAutoCancel = false
+  @JsonDeserialize(using = JSObjectDeserializer::class)
   var extra: JSObject? = null
   var attachments: List<NotificationAttachment>? = null
   var schedule: NotificationSchedule? = null
@@ -129,6 +149,7 @@ class PendingNotification {
   var title: String? = null
   var body: String? = null
   var schedule: NotificationSchedule? = null
+  @JsonDeserialize(using = JSObjectDeserializer::class)
   var extra: JSObject? = null
 }
 
