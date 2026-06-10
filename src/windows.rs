@@ -49,6 +49,76 @@ fn is_packaged() -> bool {
     Package::Current().is_ok()
 }
 
+/// Resolve a user-supplied image string into a URI scheme Windows toast
+/// notifications can actually load.
+///
+/// Microsoft's toast schema only accepts `http(s)://`, `ms-appx:///`,
+/// `ms-appdata:///local/`, and `file:///` for `<image src>`. Anything else
+/// (Android resource names like `ic_notify`, bare relative paths,
+/// `data:` URIs) makes Windows reject the toast XML and surface the
+/// "New notification" placeholder instead of the real title/body.
+///
+/// Mapping:
+/// - already-valid URI scheme → pass through
+/// - absolute filesystem path → promote to `file:///`
+/// - bare name + packaged → `ms-appx:///resources/<name>` (Tauri's
+///   `bundle.resources` convention)
+/// - bare name + unpackaged → resolve via Tauri's `PathResolver`, promote
+///   to `file:///`
+/// - anything else → `None` (caller drops the image, toast keeps rendering)
+fn resolve_toast_image_src<R: Runtime>(
+    app: &AppHandle<R>,
+    input: &str,
+    packaged: bool,
+) -> Option<String> {
+    let lower = input.to_ascii_lowercase();
+    if lower.starts_with("http://")
+        || lower.starts_with("https://")
+        || lower.starts_with("ms-appx://")
+        || lower.starts_with("ms-appdata://")
+        || lower.starts_with("file://")
+    {
+        return Some(input.to_string());
+    }
+    if lower.starts_with("data:") {
+        log::warn!(
+            "Ignoring notification image data: URI: Windows toast schema doesn't \
+             accept inline base64; write the bytes to a file and pass a file:/// URI"
+        );
+        return None;
+    }
+    let path = std::path::Path::new(input);
+    if path.is_absolute() {
+        return Some(path_to_file_uri(path));
+    }
+    if packaged {
+        let trimmed = input.trim_start_matches('/');
+        return Some(format!("ms-appx:///resources/{trimmed}"));
+    }
+    use tauri::path::BaseDirectory;
+    if let Ok(resolved) = app.path().resolve(input, BaseDirectory::Resource) {
+        if resolved.exists() {
+            return Some(path_to_file_uri(&resolved));
+        }
+    }
+    log::warn!(
+        "Ignoring notification image {input:?}: not a supported URI scheme, not an \
+         absolute path, and not resolvable as a Tauri resource"
+    );
+    None
+}
+
+/// Convert a filesystem path to a `file:///` URI Windows accepts (forward
+/// slashes, no backslashes — required even on Windows).
+fn path_to_file_uri(path: &std::path::Path) -> String {
+    let normalized = path.display().to_string().replace('\\', "/");
+    if normalized.starts_with('/') {
+        format!("file://{normalized}")
+    } else {
+        format!("file:///{normalized}")
+    }
+}
+
 /// Accept any well-formed UUID string and reinterpret its bytes as a `GUID`.
 ///
 /// Delegating to `uuid::Uuid::parse_str` lets the manifest CLSID and the
@@ -472,28 +542,35 @@ impl<R: Runtime> crate::NotificationsBuilder<R> {
             binding.AppendChild(&text)?;
         }
 
-        // Add icon if specified
+        // Add icon if specified. Drop silently when the user-supplied string
+        // can't be coerced into a Windows-accepted URI scheme — otherwise the
+        // whole toast falls back to "New notification".
         if let Some(icon) = &self.data.icon {
-            let image = doc.CreateElement(&HSTRING::from("image"))?;
-            image.SetAttribute(
-                &HSTRING::from("placement"),
-                &HSTRING::from("appLogoOverride"),
-            )?;
-            image.SetAttribute(&HSTRING::from("src"), &HSTRING::from(icon.as_str()))?;
-            binding.AppendChild(&image)?;
+            if let Some(src) = resolve_toast_image_src(&self.app, icon, self.plugin.packaged) {
+                let image = doc.CreateElement(&HSTRING::from("image"))?;
+                image.SetAttribute(
+                    &HSTRING::from("placement"),
+                    &HSTRING::from("appLogoOverride"),
+                )?;
+                image.SetAttribute(&HSTRING::from("src"), &HSTRING::from(src.as_str()))?;
+                binding.AppendChild(&image)?;
+            }
         }
 
-        // Add attachments as images
-        for (i, attachment) in self.data.attachments.iter().enumerate() {
+        // Add attachments as images. Same URI resolution applies.
+        let mut hero_slot_taken = false;
+        for attachment in self.data.attachments.iter() {
+            let Some(src) =
+                resolve_toast_image_src(&self.app, attachment.url().as_str(), self.plugin.packaged)
+            else {
+                continue;
+            };
             let image = doc.CreateElement(&HSTRING::from("image"))?;
-            // First attachment as hero image, rest as inline
-            if i == 0 {
+            if !hero_slot_taken {
                 image.SetAttribute(&HSTRING::from("placement"), &HSTRING::from("hero"))?;
+                hero_slot_taken = true;
             }
-            image.SetAttribute(
-                &HSTRING::from("src"),
-                &HSTRING::from(attachment.url().as_str()),
-            )?;
+            image.SetAttribute(&HSTRING::from("src"), &HSTRING::from(src.as_str()))?;
             binding.AppendChild(&image)?;
         }
 
