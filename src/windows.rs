@@ -8,7 +8,7 @@ use nt_time::FileTime;
 use serde::de::DeserializeOwned;
 use tauri::{
     plugin::{PermissionState, PluginApi},
-    AppHandle, Runtime,
+    AppHandle, Manager, Runtime,
 };
 use windows::core::{implement, Interface, Ref, BOOL, GUID, HSTRING, PCWSTR};
 use windows::ApplicationModel::Package;
