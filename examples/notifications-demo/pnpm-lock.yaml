@@ -19,14 +19,14 @@ importers:
         version: 2.5.4
     devDependencies:
       '@choochmeque/tauri-windows-bundle':
-        specifier: ^0.1.20
-        version: 0.1.21
+        specifier: ^0.1.23
+        version: 0.1.23
       '@sveltejs/adapter-static':
         specifier: ^3.0.6
-        version: 3.0.10(@sveltejs/kit@2.64.0(@sveltejs/vite-plugin-svelte@7.1.2(svelte@5.56.3(@typescript-eslint/types@8.58.0))(vite@8.0.16(esbuild@0.27.2)))(svelte@5.56.3(@typescript-eslint/types@8.58.0))(typescript@6.0.3)(vite@8.0.16(esbuild@0.27.2)))
+        version: 3.0.10(@sveltejs/kit@2.65.1(@sveltejs/vite-plugin-svelte@7.1.2(svelte@5.56.3(@typescript-eslint/types@8.58.0))(vite@8.0.16(esbuild@0.27.2)))(svelte@5.56.3(@typescript-eslint/types@8.58.0))(typescript@6.0.3)(vite@8.0.16(esbuild@0.27.2)))
       '@sveltejs/kit':
         specifier: ^2.64.0
-        version: 2.64.0(@sveltejs/vite-plugin-svelte@7.1.2(svelte@5.56.3(@typescript-eslint/types@8.58.0))(vite@8.0.16(esbuild@0.27.2)))(svelte@5.56.3(@typescript-eslint/types@8.58.0))(typescript@6.0.3)(vite@8.0.16(esbuild@0.27.2))
+        version: 2.65.1(@sveltejs/vite-plugin-svelte@7.1.2(svelte@5.56.3(@typescript-eslint/types@8.58.0))(vite@8.0.16(esbuild@0.27.2)))(svelte@5.56.3(@typescript-eslint/types@8.58.0))(typescript@6.0.3)(vite@8.0.16(esbuild@0.27.2))
       '@sveltejs/vite-plugin-svelte':
         specifier: ^7.0.0
         version: 7.1.2(svelte@5.56.3(@typescript-eslint/types@8.58.0))(vite@8.0.16(esbuild@0.27.2))
@@ -51,8 +51,8 @@ packages:
   '@choochmeque/tauri-plugin-notifications-api@file:../..':
     resolution: {directory: ../.., type: directory}
 
-  '@choochmeque/tauri-windows-bundle@0.1.21':
-    resolution: {integrity: sha512-z5DuRUhokC64NvT3bFyEzPuxJiZ1xc3yUzF0S3HoUzhQpnivzjU13EIgEfC4f8USmu95V9sgBApOkl7GOIiYvA==}
+  '@choochmeque/tauri-windows-bundle@0.1.23':
+    resolution: {integrity: sha512-Mk4pN6rBjfOCr/Zros6fCHR09omHS7griCPMizDrEY2Qg15o4u8GXosXbFdewUbDKlPb0VleKSdiy9ukj7PDiA==}
     hasBin: true
 
   '@emnapi/core@1.10.0':
@@ -353,8 +353,8 @@ packages:
     peerDependencies:
       '@sveltejs/kit': ^2.0.0
 
-  '@sveltejs/kit@2.64.0':
-    resolution: {integrity: sha512-24MXA/xyugUqJd09DD4v4bLd4k7FaYhdBck/pTXiu3XFtDBcwXYpJc1SO1+lqdjkNBUo1r4eek5FS7cfzBQUmA==}
+  '@sveltejs/kit@2.65.1':
+    resolution: {integrity: sha512-Sa1rFYYqBB+zv3rIxAg/CsFskR/x4aj5BY/hvLxBd9r/mqbipxM945As1K3PqsDicJAyekPR0BlWoVIiw2OHYg==}
     engines: {node: '>=18.13'}
     hasBin: true
     peerDependencies:
@@ -968,7 +968,7 @@ snapshots:
     dependencies:
       '@tauri-apps/api': 2.11.0
 
-  '@choochmeque/tauri-windows-bundle@0.1.21':
+  '@choochmeque/tauri-windows-bundle@0.1.23':
     dependencies:
       commander: 15.0.0
       glob: 13.0.6
@@ -1158,11 +1158,11 @@ snapshots:
     dependencies:
       acorn: 8.16.0
 
-  '@sveltejs/adapter-static@3.0.10(@sveltejs/kit@2.64.0(@sveltejs/vite-plugin-svelte@7.1.2(svelte@5.56.3(@typescript-eslint/types@8.58.0))(vite@8.0.16(esbuild@0.27.2)))(svelte@5.56.3(@typescript-eslint/types@8.58.0))(typescript@6.0.3)(vite@8.0.16(esbuild@0.27.2)))':
+  '@sveltejs/adapter-static@3.0.10(@sveltejs/kit@2.65.1(@sveltejs/vite-plugin-svelte@7.1.2(svelte@5.56.3(@typescript-eslint/types@8.58.0))(vite@8.0.16(esbuild@0.27.2)))(svelte@5.56.3(@typescript-eslint/types@8.58.0))(typescript@6.0.3)(vite@8.0.16(esbuild@0.27.2)))':
     dependencies:
-      '@sveltejs/kit': 2.64.0(@sveltejs/vite-plugin-svelte@7.1.2(svelte@5.56.3(@typescript-eslint/types@8.58.0))(vite@8.0.16(esbuild@0.27.2)))(svelte@5.56.3(@typescript-eslint/types@8.58.0))(typescript@6.0.3)(vite@8.0.16(esbuild@0.27.2))
+      '@sveltejs/kit': 2.65.1(@sveltejs/vite-plugin-svelte@7.1.2(svelte@5.56.3(@typescript-eslint/types@8.58.0))(vite@8.0.16(esbuild@0.27.2)))(svelte@5.56.3(@typescript-eslint/types@8.58.0))(typescript@6.0.3)(vite@8.0.16(esbuild@0.27.2))
 
-  '@sveltejs/kit@2.64.0(@sveltejs/vite-plugin-svelte@7.1.2(svelte@5.56.3(@typescript-eslint/types@8.58.0))(vite@8.0.16(esbuild@0.27.2)))(svelte@5.56.3(@typescript-eslint/types@8.58.0))(typescript@6.0.3)(vite@8.0.16(esbuild@0.27.2))':
+  '@sveltejs/kit@2.65.1(@sveltejs/vite-plugin-svelte@7.1.2(svelte@5.56.3(@typescript-eslint/types@8.58.0))(vite@8.0.16(esbuild@0.27.2)))(svelte@5.56.3(@typescript-eslint/types@8.58.0))(typescript@6.0.3)(vite@8.0.16(esbuild@0.27.2))':
     dependencies:
       '@standard-schema/spec': 1.1.0
       '@sveltejs/acorn-typescript': 1.0.10(acorn@8.16.0)
