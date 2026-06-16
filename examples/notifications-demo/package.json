@@ -27,6 +27,6 @@
     "svelte-check": "^4.4.4",
     "typescript": "~6.0.3",
     "vite": "^8.0.13",
-    "@choochmeque/tauri-windows-bundle": "^0.1.20"
+    "@choochmeque/tauri-windows-bundle": "^0.1.23"
   }
 }
