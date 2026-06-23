@@ -598,7 +598,7 @@ mod android {
         }
 
         #[must_use]
-        pub fn visibility(mut self, visibility: Visibility) -> Self {
+        pub const fn visibility(mut self, visibility: Visibility) -> Self {
             self.0.visibility.replace(visibility);
             self
         }

@@ -3674,6 +3674,7 @@ dependencies = [
  "url",
  "uuid",
  "windows",
+ "windows-core 0.61.2",
  "zbus",
 ]
 

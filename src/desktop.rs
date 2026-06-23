@@ -13,9 +13,10 @@ use crate::NotificationsBuilder;
 /// `active`/`cancel` for the caller-supplied id.
 ///
 /// macOS / Windows: `notify_rust::NotificationHandle` on those platforms
-/// either has no `close()` method (macOS) or isn't returned at all
-/// (Windows's `show()` returns `Result<()>`), so we don't track there and
-/// the active-list / cancel methods stay as the existing stubs.
+/// doesn't expose a useful `close()` (macOS daemon doesn't dismiss on
+/// sender disconnect; Windows's handle is a thin wrapper without close
+/// semantics), so we don't track there and the active-list / cancel
+/// methods stay as the existing stubs.
 #[cfg(target_os = "linux")]
 struct ActiveEntry {
     caller_id: i32,
@@ -231,18 +232,11 @@ impl<R: Runtime> crate::NotificationsBuilder<R> {
                     }
                 }
             }
-            // macOS: drop the `NotificationHandle` here. Daemon doesn't
-            // dismiss popups on sender disconnect, so no leak workaround
-            // needed.
-            #[cfg(target_os = "macos")]
+            // macOS / Windows: drop the `NotificationHandle`. Neither
+            // platform's daemon dismisses popups on sender disconnect, so
+            // there's nothing to keep alive.
+            #[cfg(any(target_os = "macos", target_os = "windows"))]
             Ok(_) => {
-                let _ = (caller_id, title, body, app);
-            }
-            // Windows: `Notification::show()` returns `Result<()>`. The
-            // explicit unit pattern keeps clippy's `ignored_unit_patterns`
-            // happy.
-            #[cfg(target_os = "windows")]
-            Ok(()) => {
                 let _ = (caller_id, title, body, app);
             }
             // Propagate the underlying `notify-rust` failure (missing

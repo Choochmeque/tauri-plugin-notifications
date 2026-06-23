@@ -151,7 +151,7 @@ impl<R: Runtime> NotificationsBuilder<R> {
 
     /// Schedule this notification to fire on a later time or a fixed interval.
     #[must_use]
-    pub fn schedule(mut self, schedule: Schedule) -> Self {
+    pub const fn schedule(mut self, schedule: Schedule) -> Self {
         self.data.schedule.replace(schedule);
         self
     }
