@@ -1,13 +1,13 @@
 //! Send message notifications (brief auto-expiring OS window element) to your user. Can also be used with the Notification Web API.
 
 use serde::{Deserialize, Serialize};
-#[cfg(mobile)]
-use tauri::plugin::PluginHandle;
 #[cfg(desktop)]
 use tauri::AppHandle;
+#[cfg(mobile)]
+use tauri::plugin::PluginHandle;
 use tauri::{
-    plugin::{Builder, TauriPlugin},
     Manager, Runtime,
+    plugin::{Builder, TauriPlugin},
 };
 
 /// Top-level plugin config deserialized from the `plugins.notifications` block

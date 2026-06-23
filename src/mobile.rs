@@ -1,7 +1,7 @@
 use serde::de::DeserializeOwned;
 use tauri::{
-    plugin::{PermissionState, PluginApi, PluginHandle},
     AppHandle, Runtime,
+    plugin::{PermissionState, PluginApi, PluginHandle},
 };
 
 #[cfg(feature = "push-notifications")]

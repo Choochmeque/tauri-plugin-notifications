@@ -13,9 +13,9 @@ use std::collections::HashMap;
 use std::sync::{Arc, Weak};
 use std::time::Duration;
 
-use serde_json::{json, Value as JsonValue};
+use serde_json::{Value as JsonValue, json};
 use tauri::{AppHandle, Runtime};
-use tokio::sync::{oneshot, Mutex, RwLock};
+use tokio::sync::{Mutex, RwLock, oneshot};
 
 const DISTRIBUTOR_PREFIX: &str = "org.unifiedpush.Distributor.";
 const CONNECTOR_PATH: &str = "/org/unifiedpush/Connector";
@@ -38,7 +38,7 @@ fn io_err(msg: impl Into<String>) -> crate::Error {
 )]
 trait Distributor {
     fn register(&self, connector: &str, token: &str, vapid: &str)
-        -> zbus::Result<(String, String)>;
+    -> zbus::Result<(String, String)>;
 
     fn unregister(&self, token: &str) -> zbus::Result<()>;
 }

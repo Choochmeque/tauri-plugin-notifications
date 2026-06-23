@@ -7,10 +7,9 @@ use std::sync::{Arc, RwLock, Weak};
 use nt_time::FileTime;
 use serde::de::DeserializeOwned;
 use tauri::{
-    plugin::{PermissionState, PluginApi},
     AppHandle, Manager, Runtime,
+    plugin::{PermissionState, PluginApi},
 };
-use windows::core::{implement, Interface, Ref, BOOL, GUID, HSTRING, PCWSTR};
 use windows::ApplicationModel::Package;
 use windows::Data::Xml::Dom::XmlDocument;
 use windows::Foundation::{DateTime, TypedEventHandler};
@@ -18,23 +17,24 @@ use windows::Foundation::{DateTime, TypedEventHandler};
 use windows::Networking::PushNotifications::{
     PushNotificationChannel, PushNotificationChannelManager,
 };
+use windows::UI::Notifications::{
+    NotificationSetting, ScheduledToastNotification, ToastActivatedEventArgs, ToastNotification,
+    ToastNotificationManager, ToastNotifier,
+};
 use windows::Win32::Foundation::{CLASS_E_NOAGGREGATION, E_INVALIDARG, S_FALSE, S_OK};
 use windows::Win32::System::Com::{
-    CoInitializeEx, CoRegisterClassObject, IClassFactory, IClassFactory_Impl, CLSCTX_LOCAL_SERVER,
-    COINIT_APARTMENTTHREADED, REGCLS_MULTIPLEUSE,
+    CLSCTX_LOCAL_SERVER, COINIT_APARTMENTTHREADED, CoInitializeEx, CoRegisterClassObject,
+    IClassFactory, IClassFactory_Impl, REGCLS_MULTIPLEUSE,
 };
 use windows::Win32::UI::Notifications::{
     INotificationActivationCallback, INotificationActivationCallback_Impl,
     NOTIFICATION_USER_INPUT_DATA,
 };
-use windows::UI::Notifications::{
-    NotificationSetting, ScheduledToastNotification, ToastActivatedEventArgs, ToastNotification,
-    ToastNotificationManager, ToastNotifier,
-};
+use windows::core::{BOOL, GUID, HSTRING, Interface, PCWSTR, Ref, implement};
 
+use crate::WindowsConfig;
 use crate::error::{ErrorResponse, PluginInvokeError};
 use crate::models::*;
-use crate::WindowsConfig;
 
 /// True when the current process has MSIX package identity.
 ///
@@ -1254,11 +1254,12 @@ mod tests {
             .expect("Failed to set silent attribute");
         toast.AppendChild(&audio).expect("Failed to append audio");
 
-        assert!(doc
-            .GetXml()
-            .expect("Failed to get XML")
-            .to_string_lossy()
-            .contains("silent"));
+        assert!(
+            doc.GetXml()
+                .expect("Failed to get XML")
+                .to_string_lossy()
+                .contains("silent")
+        );
     }
 
     // ==================== Action Types Tests ====================

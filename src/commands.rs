@@ -3,7 +3,7 @@
 #![allow(clippy::needless_pass_by_value)]
 
 use serde::Deserialize;
-use tauri::{command, plugin::PermissionState, AppHandle, Runtime, State};
+use tauri::{AppHandle, Runtime, State, command, plugin::PermissionState};
 
 use crate::{NotificationData, Notifications, Result};
 
