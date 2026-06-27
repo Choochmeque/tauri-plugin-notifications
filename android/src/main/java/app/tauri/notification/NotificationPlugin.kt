@@ -93,6 +93,15 @@ class NotificationPlugin(private val activity: Activity): Plugin(activity) {
   private var hasClickedListener = false
   private var pendingNotificationClick: JSObject? = null
 
+  // onNewIntent can fire before load() during a cold start triggered
+  // by a notification tap (Android delivers the launch intent via
+  // both onCreate's activity.intent AND onNewIntent in certain launch
+  // modes; if Tauri's PluginManager hasn't called load() yet,
+  // `manager` is uninitialized and the original code crashed with
+  // `lateinit property manager has not been initialized`). Buffer the
+  // intent and drain in load() instead.
+  private var pendingIntent: Intent? = null
+
   companion object {
     var instance: NotificationPlugin? = null
 
@@ -151,10 +160,27 @@ class NotificationPlugin(private val activity: Activity): Plugin(activity) {
     intent?.let {
       onIntent(it)
     }
+    // Drain any intent that arrived via onNewIntent before load() ran.
+    pendingIntent?.let {
+      pendingIntent = null
+      // Skip if onIntent(activity.intent) above already handled the
+      // same intent — comparing by reference is the cheapest dedup
+      // (Tauri's TauriActivity calls setIntent() in onNewIntent, so
+      // activity.intent points at the same Intent instance).
+      if (it !== intent) onIntent(it)
+    }
   }
 
   override fun onNewIntent(intent: Intent) {
     super.onNewIntent(intent)
+    if (!::manager.isInitialized) {
+      Logger.debug(
+        Logger.tags(TAG),
+        "onNewIntent fired before plugin load(); buffering until init"
+      )
+      pendingIntent = intent
+      return
+    }
     onIntent(intent)
   }
 
