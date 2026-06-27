@@ -536,7 +536,12 @@ impl<R: Runtime> crate::NotificationsBuilder<R> {
             binding.AppendChild(&text)?;
         }
 
-        if let Some(large_body) = &self.data.large_body {
+        // Skip when identical to `body`: WinRT renders each `<text>` on its
+        // own line, so duplicating it just shows the same string twice in the
+        // expanded view (issue #231).
+        if let Some(large_body) = &self.data.large_body
+            && self.data.body.as_ref() != Some(large_body)
+        {
             let text = doc.CreateElement(&HSTRING::from("text"))?;
             text.SetInnerText(&HSTRING::from(large_body.as_str()))?;
             binding.AppendChild(&text)?;
