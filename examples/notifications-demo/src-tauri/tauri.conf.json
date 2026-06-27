@@ -39,7 +39,7 @@
       "icons/icon.ico"
     ],
     "iOS": {
-      "minimumSystemVersion": "15.0"
+      "minimumSystemVersion": "15.4"
     },
     "macOS": {
       "minimumSystemVersion": "13.0"
