@@ -1,4 +1,4 @@
-// swift-tools-version:5.5
+// swift-tools-version:5.7
 
 import PackageDescription
 import Foundation
@@ -17,8 +17,8 @@ if enablePushNotifications {
 let package = Package(
   name: "tauri-plugin-notifications",
   platforms: [
-    .macOS(.v10_13),
-    .iOS(.v13),
+    .macOS(.v13),
+    .iOS(.v15),
   ],
   products: [
     // Products define the executables and libraries a package produces, and make them visible to other packages.
