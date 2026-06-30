@@ -113,6 +113,16 @@ fn compile_swift() {
 
     cmd.current_dir(&swift_package_dir)
         .arg("build")
+        // Build into OUT_DIR (under target/) instead of the default `.build`
+        // inside the crate source. Source-tree writes don't survive a clean
+        // registry re-extraction / cache restore, which leaves cargo's
+        // fingerprint saying "built" while the linked artifact is gone.
+        .args([
+            "--scratch-path",
+            swift_build_dir()
+                .to_str()
+                .expect("Swift build path must be valid UTF-8"),
+        ])
         .args(["--triple", &target_triple])
         .args([
             "-Xswiftc",
@@ -156,6 +166,19 @@ fn swift_bridge_out_dir() -> PathBuf {
 fn manifest_dir() -> PathBuf {
     let manifest_dir = std::env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR must be set");
     PathBuf::from(manifest_dir)
+}
+
+#[cfg(target_os = "macos")]
+fn out_dir() -> PathBuf {
+    let out_dir = std::env::var("OUT_DIR").expect("OUT_DIR must be set");
+    PathBuf::from(out_dir)
+}
+
+/// `SwiftPM` scratch (build) directory, under `OUT_DIR` so it lives in `target/`
+/// and is covered by cargo's fingerprint and any build cache.
+#[cfg(target_os = "macos")]
+fn swift_build_dir() -> PathBuf {
+    out_dir().join("swift-build")
 }
 
 #[cfg(target_os = "macos")]
@@ -206,5 +229,5 @@ fn swift_library_static_lib_dir() -> PathBuf {
     };
 
     let arch_dir = format!("{}-apple-macosx", swift_arch());
-    manifest_dir().join(format!("macos/.build/{arch_dir}/{debug_or_release}"))
+    swift_build_dir().join(format!("{arch_dir}/{debug_or_release}"))
 }
