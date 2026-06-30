@@ -86,13 +86,14 @@ jobs:
       - run: cp google-services.placeholder.json google-services.json
         working-directory: examples/notifications-demo/src-tauri/gen/android/app
       # `cargo-ndk` (used internally by `tauri android build`) needs
-      # `NDK_HOME` / `ANDROID_NDK_HOME`; setup-android only sets
-      # `ANDROID_NDK_LATEST_HOME`, so plumb it through.
+      # `NDK_HOME` / `ANDROID_NDK_HOME`. The runner image exposes
+      # `ANDROID_NDK_LATEST_HOME` only as a shell variable (not in the
+      # Actions expression context), so forward it at runtime.
       - working-directory: examples/notifications-demo
-        env:
-          NDK_HOME: ${{ env.ANDROID_NDK_LATEST_HOME }}
-          ANDROID_NDK_HOME: ${{ env.ANDROID_NDK_LATEST_HOME }}
-        run: pnpm tauri android build --debug --apk --target aarch64
+        run: |
+          export NDK_HOME="$ANDROID_NDK_LATEST_HOME"
+          export ANDROID_NDK_HOME="$ANDROID_NDK_LATEST_HOME"
+          pnpm tauri android build --debug --apk --target aarch64
 
   ios:
     name: build-demo (ios)
