@@ -207,7 +207,7 @@ jobs:
           cd ios
           xcodebuild test \
             -scheme tauri-plugin-notifications \
-            -destination 'platform=iOS Simulator,name=iPhone 16,OS=latest' \
+            -destination 'platform=iOS Simulator,name=iPhone 17,OS=latest' \
             -enableCodeCoverage YES \
             -resultBundlePath TestResults.xcresult
 
