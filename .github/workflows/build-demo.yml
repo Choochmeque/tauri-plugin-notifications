@@ -35,7 +35,7 @@ jobs:
           run_install: false
       - uses: actions/setup-node@v6
         with:
-          node-version: "20"
+          node-version: "24"
           cache: "pnpm"
 
       - name: Build plugin JS bundle
@@ -73,7 +73,7 @@ jobs:
           run_install: false
       - uses: actions/setup-node@v6
         with:
-          node-version: "20"
+          node-version: "24"
           cache: "pnpm"
       - run: pnpm install && pnpm build
       - working-directory: examples/notifications-demo
@@ -100,6 +100,21 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v7
+
+      - name: Select Xcode 26.5
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: "26.5"
+
+      - name: Remove MetalToolchain (Tauri + Xcode 26 fix)
+        run: |
+          for i in 1 2 3; do
+            sudo xcodebuild -downloadComponent MetalToolchain && break
+            echo "Attempt $i failed; sleeping 15s and retrying"
+            sleep 15
+          done || echo "MetalToolchain catalog fetch still failing; continuing in case the asset is already on disk"
+          sudo xcodebuild -deleteComponent MetalToolchain
+
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: aarch64-apple-ios-sim
@@ -109,7 +124,7 @@ jobs:
           run_install: false
       - uses: actions/setup-node@v6
         with:
-          node-version: "20"
+          node-version: "24"
           cache: "pnpm"
       - run: pnpm install && pnpm build
       - working-directory: examples/notifications-demo
