@@ -91,12 +91,12 @@ fn main() {
             swift_bridge_build::parse_bridges(bridges)
                 .write_all_concatenated(swift_bridge_out_dir(), env!("CARGO_PKG_NAME"));
 
-            compile_swift();
+            let swift_library_dir = compile_swift();
 
             println!("cargo:rustc-link-lib=static=tauri-plugin-notifications");
             println!(
                 "cargo:rustc-link-search={}",
-                swift_library_static_lib_dir()
+                swift_library_dir
                     .to_str()
                     .expect("Swift library path must be valid UTF-8")
             );
@@ -105,7 +105,46 @@ fn main() {
 }
 
 #[cfg(target_os = "macos")]
-fn compile_swift() {
+fn compile_swift() -> PathBuf {
+    let mut cmd = swift_build_command();
+
+    let output = cmd.output().expect("Failed to run swift build command");
+
+    assert!(
+        output.status.success(),
+        r"
+Swift build failed for target: {}
+Stderr: {}
+Stdout: {}
+",
+        swift_target_triple(),
+        String::from_utf8(output.stderr).expect("Stderr must be valid UTF-8"),
+        String::from_utf8(output.stdout).expect("Stdout must be valid UTF-8"),
+    );
+
+    let output = swift_build_command()
+        .arg("--show-bin-path")
+        .output()
+        .expect("Failed to query Swift build output path");
+
+    assert!(
+        output.status.success(),
+        r"
+Failed to query Swift build output path for target: {}
+Stderr: {}
+Stdout: {}
+",
+        swift_target_triple(),
+        String::from_utf8_lossy(&output.stderr),
+        String::from_utf8_lossy(&output.stdout),
+    );
+
+    let path = String::from_utf8(output.stdout).expect("Swift build path must be valid UTF-8");
+    PathBuf::from(path.trim())
+}
+
+#[cfg(target_os = "macos")]
+fn swift_build_command() -> Command {
     let swift_package_dir = manifest_dir().join("macos");
     let target_triple = swift_target_triple();
 
@@ -135,26 +174,14 @@ fn compile_swift() {
         ]);
 
     if is_release_build() {
-        cmd.args(["-c", "release"]);
+        cmd.args(["-c", "release"])
+            // swift-bridge's generated @_cdecl functions are internal, so
+            // optimized Swift builds otherwise strip the Rust entry points.
+            // https://github.com/chinedufn/swift-bridge/issues/166
+            .args(["-Xswiftc", "-enable-testing"]);
     }
 
-    let exit_status = cmd
-        .spawn()
-        .expect("Failed to spawn swift build command")
-        .wait_with_output()
-        .expect("Failed to wait for swift build output");
-
-    assert!(
-        exit_status.status.success(),
-        r"
-Swift build failed for target: {}
-Stderr: {}
-Stdout: {}
-",
-        target_triple,
-        String::from_utf8(exit_status.stderr).expect("Stderr must be valid UTF-8"),
-        String::from_utf8(exit_status.stdout).expect("Stdout must be valid UTF-8"),
-    );
+    cmd
 }
 
 #[cfg(target_os = "macos")]
@@ -218,16 +245,4 @@ fn macos_deployment_target() -> String {
 #[cfg(target_os = "macos")]
 fn swift_target_triple() -> String {
     format!("{}-apple-macosx{}", swift_arch(), macos_deployment_target())
-}
-
-#[cfg(target_os = "macos")]
-fn swift_library_static_lib_dir() -> PathBuf {
-    let debug_or_release = if is_release_build() {
-        "release"
-    } else {
-        "debug"
-    };
-
-    let arch_dir = format!("{}-apple-macosx", swift_arch());
-    swift_build_dir().join(format!("{arch_dir}/{debug_or_release}"))
 }
