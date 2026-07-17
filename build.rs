@@ -118,8 +118,8 @@ Stderr: {}
 Stdout: {}
 ",
         swift_target_triple(),
-        String::from_utf8(output.stderr).expect("Stderr must be valid UTF-8"),
-        String::from_utf8(output.stdout).expect("Stdout must be valid UTF-8"),
+        String::from_utf8_lossy(&output.stderr),
+        String::from_utf8_lossy(&output.stdout),
     );
 
     let output = swift_build_command()
