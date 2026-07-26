@@ -1,6 +1,7 @@
 import java.util.Properties
 import java.io.FileInputStream
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.jetbrains.kotlin.gradle.plugin.getKotlinPluginVersion
 
 plugins {
     id("com.android.library")
@@ -65,6 +66,12 @@ android {
     }
 }
 
+configurations.all {
+    resolutionStrategy {
+        force("org.jetbrains.kotlin:kotlin-stdlib:${getKotlinPluginVersion()}")
+    }
+}
+
 dependencies {
     implementation("androidx.core:core-ktx:1.17.0")
     implementation("androidx.appcompat:appcompat:1.7.1")
@@ -73,6 +80,8 @@ dependencies {
 
     implementation(platform("com.google.firebase:firebase-bom:34.16.0"))
     implementation("com.google.firebase:firebase-messaging-ktx:24.1.2")
+    implementation("org.unifiedpush.android:connector:3.3.3")
+    implementation("org.unifiedpush.android:embedded-fcm-distributor:3.0.0")
     testImplementation("junit:junit:4.13.2")
     testImplementation("io.mockk:mockk-android:1.14.11")
     testImplementation("io.mockk:mockk-agent:1.14.11")

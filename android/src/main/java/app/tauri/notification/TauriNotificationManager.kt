@@ -291,7 +291,8 @@ class TauriNotificationManager(
       Intent(context, activity.javaClass)
     } else {
       val packageName = context.packageName
-      context.packageManager.getLaunchIntentForPackage(packageName)!!
+      context.packageManager.getLaunchIntentForPackage(packageName)
+        ?: Intent(Intent.ACTION_MAIN).setPackage(packageName)
     }
     intent.action = Intent.ACTION_MAIN
     intent.addCategory(Intent.CATEGORY_LAUNCHER)
@@ -466,6 +467,7 @@ class NotificationDismissReceiver : BroadcastReceiver() {
       val notificationStorage = NotificationStorage(context, ObjectMapper())
       notificationStorage.deleteNotification(intExtra.toString())
     }
+    NotificationPlugin.instance?.onNotificationDismissed(intExtra)
   }
 }
 

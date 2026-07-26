@@ -359,6 +359,27 @@ interface ActiveNotification {
   sound?: string;
 }
 
+/** Data received when an action is performed on a notification. */
+interface ActionPerformedData {
+  /** Identifier of the selected action, or `tap`/`dismiss` for system actions. */
+  actionId: string;
+  /** Text entered for an action with `input: true`. */
+  inputValue?: string;
+  /** The notification, including its action type and extra metadata. */
+  notification: ActionNotification;
+}
+
+/** Notification data included with an action result. Platform-specific fields are optional. */
+interface ActionNotification {
+  /** Numeric local notification ID, or -1 when a provider notification has no numeric ID. */
+  id: number;
+  title?: string;
+  body?: string;
+  actionTypeId?: string;
+  extra?: Record<string, unknown>;
+  source?: "local" | "push";
+}
+
 /**
  * The importance level of a notification channel (Android).
  */
@@ -441,34 +462,32 @@ async function requestPermission(): Promise<NotificationPermission> {
   return await invoke("plugin:notifications|request_permission");
 }
 
+interface PushRegistration {
+  deviceToken: string;
+  p256dh?: string;
+  auth?: string;
+  instance?: string;
+}
+
+type PushProvider = "auto" | "fcm" | "unifiedpush";
+
 /**
  * Registers the app for push notifications.
  *
- * Returns a platform-dependent string identifying this push registration:
- * - **iOS**: APNs device token
- * - **Android**: Firebase Cloud Messaging token
- * - **Linux**: UnifiedPush endpoint URL (the URL your backend POSTs payloads to).
- *   The host app may persist this and treat it as the new endpoint on each
- *   launch (FCM/APNs style), or call {@link setToken} beforehand with a
- *   stored client token to receive the same endpoint URL across launches.
+ * `deviceToken` is the APNs token on iOS and the UnifiedPush endpoint URL on
+ * Android/Linux. Pass a base64url VAPID public key to register against a Web
+ * Push distributor; `p256dh` and `auth` are then set on the result.
  *
- * On Linux this requires the `push-notifications` feature and at least one
- * UnifiedPush distributor running on the system; see the README for setup.
- * Any {@link setDistributor} or {@link setToken} calls must happen
- * **before** this — they only affect the next register call, and once
- * registered the endpoint URL is fixed until you unregister.
- *
- * @example
- * ```typescript
- * import { registerForPushNotifications } from '@choochmeque/tauri-plugin-notifications-api';
- * const token = await registerForPushNotifications();
- * console.log('Push token:', token);
- * ```
- *
- * @returns A promise resolving to the platform-specific push identifier.
+ * @returns A promise resolving to the {@link PushRegistration}.
  */
-async function registerForPushNotifications(): Promise<string> {
-  return await invoke("plugin:notifications|register_for_push_notifications");
+async function registerForPushNotifications(
+  vapid?: string,
+  provider: PushProvider = "auto",
+): Promise<PushRegistration> {
+  return await invoke("plugin:notifications|register_for_push_notifications", {
+    vapid,
+    provider,
+  });
 }
 
 /**
@@ -818,13 +837,62 @@ async function onNotificationReceived(
  * // unlisten();
  * ```
  *
- * @param cb - Callback function to handle notification actions.
+ * @param cb - Callback function to handle notification action results.
  * @returns A promise resolving to a function that removes the listener.
  */
 async function onAction(
-  cb: (notification: Options) => void,
+  cb: (action: ActionPerformedData) => void,
 ): Promise<PluginListener> {
-  return await addPluginListener("notifications", "actionPerformed", cb);
+  const listener = await addPluginListener(
+    "notifications",
+    "actionPerformed",
+    cb,
+  );
+  try {
+    await withActionListenerLock(async () => {
+      if (actionListenerCount === 0) {
+        await invoke("plugin:notifications|set_action_listener_active", {
+          active: true,
+        });
+      }
+      actionListenerCount += 1;
+    });
+  } catch (error) {
+    await listener.unregister();
+    throw error;
+  }
+
+  let unregistered = false;
+  return {
+    unregister: async () => {
+      if (unregistered) return;
+      await withActionListenerLock(async () => {
+        if (actionListenerCount > 1) {
+          actionListenerCount -= 1;
+          return;
+        }
+        // Keep the final listener until native deactivation succeeds.
+        await invoke("plugin:notifications|set_action_listener_active", {
+          active: false,
+        });
+        actionListenerCount = 0;
+      });
+      unregistered = true;
+      await listener.unregister();
+    },
+  } as PluginListener;
+}
+
+let actionListenerCount = 0;
+let actionListenerLock = Promise.resolve();
+
+function withActionListenerLock<T>(operation: () => Promise<T>): Promise<T> {
+  const result = actionListenerLock.then(operation, operation);
+  actionListenerLock = result.then(
+    () => undefined,
+    () => undefined,
+  );
+  return result;
 }
 
 /**
@@ -892,6 +960,10 @@ export type {
   Channel,
   ScheduleInterval,
   NotificationClickedData,
+  ActionPerformedData,
+  ActionNotification,
+  PushRegistration,
+  PushProvider,
 };
 
 export {

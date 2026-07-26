@@ -40,8 +40,18 @@ pub async fn request_permission<R: Runtime>(
 pub async fn register_for_push_notifications<R: Runtime>(
     _app: AppHandle<R>,
     notification: State<'_, Notifications<R>>,
-) -> Result<String> {
-    notification.register_for_push_notifications().await
+    vapid: Option<String>,
+    provider: Option<String>,
+) -> Result<crate::models::PushNotificationResponse> {
+    #[cfg(mobile)]
+    return notification
+        .register_for_push_notifications(vapid, provider)
+        .await;
+    #[cfg(desktop)]
+    {
+        let _ = provider;
+        notification.register_for_push_notifications(vapid).await
+    }
 }
 
 #[command]
@@ -59,7 +69,10 @@ pub async fn unregister_for_push_notifications<R: Runtime>(
     }
 }
 
-#[cfg(all(desktop, target_os = "linux", feature = "push-notifications"))]
+#[cfg(all(
+    feature = "push-notifications",
+    any(all(desktop, target_os = "linux"), target_os = "android")
+))]
 #[command]
 pub async fn list_distributors<R: Runtime>(
     _app: AppHandle<R>,
@@ -68,7 +81,10 @@ pub async fn list_distributors<R: Runtime>(
     notification.list_distributors().await
 }
 
-#[cfg(all(desktop, target_os = "linux", feature = "push-notifications"))]
+#[cfg(all(
+    feature = "push-notifications",
+    any(all(desktop, target_os = "linux"), target_os = "android")
+))]
 #[command]
 pub async fn set_distributor<R: Runtime>(
     _app: AppHandle<R>,
@@ -78,7 +94,10 @@ pub async fn set_distributor<R: Runtime>(
     notification.set_distributor(name).await
 }
 
-#[cfg(all(desktop, target_os = "linux", feature = "push-notifications"))]
+#[cfg(all(
+    feature = "push-notifications",
+    any(all(desktop, target_os = "linux"), target_os = "android")
+))]
 #[command]
 pub async fn set_token<R: Runtime>(
     _app: AppHandle<R>,
@@ -131,6 +150,15 @@ pub fn set_click_listener_active<R: Runtime>(
     active: bool,
 ) -> Result<()> {
     notification.set_click_listener_active(active)
+}
+
+#[command]
+pub fn set_action_listener_active<R: Runtime>(
+    _app: AppHandle<R>,
+    notification: State<'_, Notifications<R>>,
+    active: bool,
+) -> Result<()> {
+    notification.set_action_listener_active(active)
 }
 
 #[command]

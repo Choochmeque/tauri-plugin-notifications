@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-set-action-listener-active"
+description = "Enables the set_action_listener_active command without any pre-configured scope."
+commands.allow = ["set_action_listener_active"]
+
+[[permission]]
+identifier = "deny-set-action-listener-active"
+description = "Denies the set_action_listener_active command without any pre-configured scope."
+commands.deny = ["set_action_listener_active"]

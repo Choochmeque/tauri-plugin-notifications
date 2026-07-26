@@ -4,10 +4,9 @@ use tauri::{
     plugin::{PermissionState, PluginApi, PluginHandle},
 };
 
-#[cfg(feature = "push-notifications")]
-use crate::models::PushNotificationResponse;
 use crate::models::{
     ActionType, ActiveNotification, Channel, PendingNotification, PermissionResponse,
+    PushNotificationResponse,
 };
 
 use std::collections::HashMap;
@@ -60,20 +59,32 @@ impl<R: Runtime> Notifications<R> {
             .map_err(Into::into)
     }
 
-    pub async fn register_for_push_notifications(&self) -> crate::Result<String> {
+    pub async fn register_for_push_notifications(
+        &self,
+        vapid: Option<String>,
+        provider: Option<String>,
+    ) -> crate::Result<PushNotificationResponse> {
         #[cfg(feature = "push-notifications")]
         {
+            #[derive(serde::Serialize)]
+            #[serde(rename_all = "camelCase")]
+            struct RegisterArgs {
+                #[serde(skip_serializing_if = "Option::is_none")]
+                vapid: Option<String>,
+                #[serde(skip_serializing_if = "Option::is_none")]
+                provider: Option<String>,
+            }
             self.0
                 .run_mobile_plugin_async::<PushNotificationResponse>(
                     "registerForPushNotifications",
-                    (),
+                    RegisterArgs { vapid, provider },
                 )
                 .await
-                .map(|r| r.device_token)
                 .map_err(Into::into)
         }
         #[cfg(not(feature = "push-notifications"))]
         {
+            let _ = (vapid, provider);
             Err(crate::Error::Io(std::io::Error::other(
                 "Push notifications feature is not enabled",
             )))
@@ -93,6 +104,35 @@ impl<R: Runtime> Notifications<R> {
                 "Push notifications feature is not enabled",
             )))
         }
+    }
+
+    #[cfg(all(target_os = "android", feature = "push-notifications"))]
+    pub async fn list_distributors(&self) -> crate::Result<Vec<String>> {
+        self.0
+            .run_mobile_plugin_async::<crate::models::DistributorsResponse>("listDistributors", ())
+            .await
+            .map(|r| r.distributors)
+            .map_err(Into::into)
+    }
+
+    #[cfg(all(target_os = "android", feature = "push-notifications"))]
+    pub async fn set_distributor(&self, name: String) -> crate::Result<()> {
+        let mut args = HashMap::new();
+        args.insert("distributor", name);
+        self.0
+            .run_mobile_plugin_async::<()>("setDistributor", args)
+            .await
+            .map_err(Into::into)
+    }
+
+    #[cfg(all(target_os = "android", feature = "push-notifications"))]
+    pub async fn set_token(&self, token: String) -> crate::Result<()> {
+        let mut args = HashMap::new();
+        args.insert("token", token);
+        self.0
+            .run_mobile_plugin_async::<()>("setToken", args)
+            .await
+            .map_err(Into::into)
     }
 
     pub async fn permission_state(&self) -> crate::Result<PermissionState> {
@@ -211,6 +251,16 @@ impl<R: Runtime> Notifications<R> {
         args.insert("active", active);
         self.0
             .run_mobile_plugin("setClickListenerActive", args)
+            .map_err(Into::into)
+    }
+
+    /// Set action listener active state.
+    /// Used internally to queue action results until JS is ready.
+    pub fn set_action_listener_active(&self, active: bool) -> crate::Result<()> {
+        let mut args = HashMap::new();
+        args.insert("active", active);
+        self.0
+            .run_mobile_plugin("setActionListenerActive", args)
             .map_err(Into::into)
     }
 }

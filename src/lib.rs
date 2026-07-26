@@ -16,6 +16,11 @@ use tauri::{
 #[derive(Debug, Default, Clone, Deserialize)]
 #[serde(default, rename_all = "camelCase")]
 pub struct PluginConfig {
+    /// Notification action categories registered during native plugin startup.
+    /// This is required for provider-rendered iOS notifications whose
+    /// `aps.category` is received before JavaScript initializes.
+    #[serde(default)]
+    pub action_types: Vec<ActionType>,
     #[cfg(target_os = "windows")]
     pub windows: WindowsConfig,
 }
@@ -305,6 +310,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R, Option<PluginConfig>> {
             commands::get_pending,
             commands::get_active,
             commands::set_click_listener_active,
+            commands::set_action_listener_active,
             commands::remove_active,
             commands::remove_all,
             commands::cancel,
@@ -316,11 +322,20 @@ pub fn init<R: Runtime>() -> TauriPlugin<R, Option<PluginConfig>> {
             listeners::register_listener,
             #[cfg(desktop)]
             listeners::remove_listener,
-            #[cfg(all(desktop, target_os = "linux", feature = "push-notifications"))]
+            #[cfg(all(
+                feature = "push-notifications",
+                any(all(desktop, target_os = "linux"), target_os = "android")
+            ))]
             commands::list_distributors,
-            #[cfg(all(desktop, target_os = "linux", feature = "push-notifications"))]
+            #[cfg(all(
+                feature = "push-notifications",
+                any(all(desktop, target_os = "linux"), target_os = "android")
+            ))]
             commands::set_distributor,
-            #[cfg(all(desktop, target_os = "linux", feature = "push-notifications"))]
+            #[cfg(all(
+                feature = "push-notifications",
+                any(all(desktop, target_os = "linux"), target_os = "android")
+            ))]
             commands::set_token,
         ])
         .setup(|app, api| {

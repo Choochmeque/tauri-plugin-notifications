@@ -11,11 +11,34 @@ pub struct PermissionResponse {
     pub permission_state: PermissionState,
 }
 
-#[cfg(feature = "push-notifications")]
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PushNotificationResponse {
     pub device_token: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub p256dh: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub auth: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub instance: Option<String>,
+}
+
+impl PushNotificationResponse {
+    #[must_use]
+    pub const fn from_token(device_token: String) -> Self {
+        Self {
+            device_token,
+            p256dh: None,
+            auth: None,
+            instance: None,
+        }
+    }
+}
+
+#[cfg(all(target_os = "android", feature = "push-notifications"))]
+#[derive(Debug, Deserialize)]
+pub struct DistributorsResponse {
+    pub distributors: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
