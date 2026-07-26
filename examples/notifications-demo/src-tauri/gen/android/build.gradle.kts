@@ -15,6 +15,11 @@ allprojects {
         google()
         mavenCentral()
     }
+    configurations.all {
+        resolutionStrategy {
+            force("org.jetbrains.kotlin:kotlin-stdlib:2.1.21")
+        }
+    }
 }
 
 tasks.register("clean").configure {

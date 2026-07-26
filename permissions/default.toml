@@ -33,6 +33,7 @@ permissions = [
   "allow-create-channel",
   "allow-permission-state",
   "allow-set-click-listener-active",
+  "allow-set-action-listener-active",
   "allow-list-distributors",
   "allow-set-distributor",
   "allow-set-token",

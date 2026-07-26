@@ -31,6 +31,7 @@ It allows all notification related features.
 - `allow-create-channel`
 - `allow-permission-state`
 - `allow-set-click-listener-active`
+- `allow-set-action-listener-active`
 - `allow-list-distributors`
 - `allow-set-distributor`
 - `allow-set-token`
@@ -560,6 +561,32 @@ Enables the request_permission command without any pre-configured scope.
 <td>
 
 Denies the request_permission command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`notifications:allow-set-action-listener-active`
+
+</td>
+<td>
+
+Enables the set_action_listener_active command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`notifications:deny-set-action-listener-active`
+
+</td>
+<td>
+
+Denies the set_action_listener_active command without any pre-configured scope.
 
 </td>
 </tr>

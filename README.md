@@ -246,6 +246,10 @@ await sendNotification({
 
 #### Interactive Notifications with Actions
 
+For provider-rendered iOS notifications, configure action types in the Tauri
+`plugins.notifications.actionTypes` config so categories are registered before
+APNs delivers a notification. The provider's `aps.category` must match `id`.
+
 ```typescript
 import {
   sendNotification,
@@ -284,8 +288,9 @@ await sendNotification({
 });
 
 // Listen for action events
-const unlisten = await onAction((notification) => {
-  console.log('Action performed on notification:', notification);
+const unlisten = await onAction(({ actionId, inputValue, notification }) => {
+  console.log('Action:', actionId, 'reply:', inputValue);
+  console.log('Routing metadata:', notification.extra);
 });
 
 // Stop listening

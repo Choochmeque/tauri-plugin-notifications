@@ -149,6 +149,7 @@ pub struct WindowsPlugin {
     notifier: ToastNotifier,
     action_types: RwLock<HashMap<String, ActionType>>,
     click_listener_active: RwLock<bool>,
+    action_listener_active: RwLock<bool>,
     /// Cold-start activation payloads queued before any JS listener has
     /// subscribed. Drained synchronously the first time a `notificationClicked`
     /// listener registers (see `crate::listeners::register_listener`).
@@ -349,6 +350,25 @@ impl WindowsPlugin {
         Ok(())
     }
 
+    fn is_action_listener_active(&self) -> crate::Result<bool> {
+        Ok(*self
+            .action_listener_active
+            .read()
+            .map_err(|_| crate::Error::Io(std::io::Error::other("Lock poisoned")))?)
+    }
+
+    fn set_action_listener(&self, active: bool) -> crate::Result<()> {
+        *self
+            .action_listener_active
+            .write()
+            .map_err(|_| crate::Error::Io(std::io::Error::other("Lock poisoned")))? = active;
+        Ok(())
+    }
+
+    fn is_activation_listener_active(&self) -> crate::Result<bool> {
+        Ok(self.is_click_listener_active()? || self.is_action_listener_active()?)
+    }
+
     /// Drain queued cold-start click payloads through the listener bus. Called
     /// when a `notificationClicked` listener subscribes (see
     /// `crate::listeners::register_listener`). Idempotent: subsequent calls
@@ -431,6 +451,7 @@ pub fn init<R: Runtime, C: DeserializeOwned>(
         notifier,
         action_types: RwLock::new(HashMap::new()),
         click_listener_active: RwLock::new(false),
+        action_listener_active: RwLock::new(false),
         pending_clicks: RwLock::new(Vec::new()),
         _com_cookie: RwLock::new(None),
         #[cfg(feature = "push-notifications")]
@@ -650,7 +671,7 @@ impl<R: Runtime> crate::NotificationsBuilder<R> {
                 toast.SetGroup(g)?;
             }
 
-            if self.plugin.is_click_listener_active()? {
+            if self.plugin.is_activation_listener_active()? {
                 let notification = ActiveNotification {
                     id: self.data.id,
                     tag: Some(self.data.id.to_string()),
@@ -825,8 +846,13 @@ impl<R: Runtime> Notifications<R> {
         self.permission_state().await
     }
 
-    pub async fn register_for_push_notifications(&self) -> crate::Result<String> {
-        self.plugin.open_push_channel()
+    pub async fn register_for_push_notifications(
+        &self,
+        _vapid: Option<String>,
+    ) -> crate::Result<PushNotificationResponse> {
+        self.plugin
+            .open_push_channel()
+            .map(PushNotificationResponse::from_token)
     }
 
     pub fn unregister_for_push_notifications(&self) -> crate::Result<()> {
@@ -855,13 +881,27 @@ impl<R: Runtime> Notifications<R> {
     pub fn remove_active(&self, notifications: Vec<i32>) -> crate::Result<()> {
         let history = ToastNotificationManager::History()?;
         let app_id = &self.plugin.app_id;
+
+        // Removal needs the same (tag, group) pair used at show time.
+        let delivered = if self.plugin.packaged {
+            history.GetHistory()?
+        } else {
+            history.GetHistoryWithId(&HSTRING::from(app_id))?
+        };
+        let mut groups: HashMap<String, HSTRING> = HashMap::new();
+        for i in 0..delivered.Size()? {
+            let notification = delivered.GetAt(i)?;
+            let tag = notification.Tag()?.to_string_lossy();
+            groups.insert(tag, notification.Group().unwrap_or_default());
+        }
+
         for id in notifications {
             let tag = HSTRING::from(id.to_string());
-            // Use app-scoped removal with empty group (consistent with GetHistoryWithId usage)
+            let group = groups.get(&id.to_string()).cloned().unwrap_or_default();
             let res = if self.plugin.packaged {
-                history.RemoveGroupedTag(&tag, &HSTRING::new())
+                history.RemoveGroupedTag(&tag, &group)
             } else {
-                history.RemoveGroupedTagWithId(&tag, &HSTRING::new(), &HSTRING::from(app_id))
+                history.RemoveGroupedTagWithId(&tag, &group, &HSTRING::from(app_id))
             };
             if let Err(e) = res {
                 log::error!("Failed to remove notification {id}: {e}");
@@ -1015,6 +1055,10 @@ impl<R: Runtime> Notifications<R> {
 
     pub fn set_click_listener_active(&self, active: bool) -> crate::Result<()> {
         self.plugin.set_click_listener(active)
+    }
+
+    pub fn set_action_listener_active(&self, active: bool) -> crate::Result<()> {
+        self.plugin.set_action_listener(active)
     }
 
     /// Create a notification channel (not supported on Windows).

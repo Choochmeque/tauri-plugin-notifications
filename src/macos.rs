@@ -191,14 +191,17 @@ impl<R: Runtime> Notifications<R> {
         Ok(response.permission_state)
     }
 
-    pub async fn register_for_push_notifications(&self) -> crate::Result<String> {
+    pub async fn register_for_push_notifications(
+        &self,
+        _vapid: Option<String>,
+    ) -> crate::Result<crate::PushNotificationResponse> {
         validation::require_bundle()?;
 
         #[cfg(feature = "push-notifications")]
         {
             let response: crate::PushNotificationResponse =
                 self.plugin.registerForPushNotifications().await.parse()?;
-            Ok(response.device_token)
+            Ok(response)
         }
         #[cfg(not(feature = "push-notifications"))]
         {
@@ -318,6 +321,10 @@ impl<R: Runtime> Notifications<R> {
                     .map_err(crate::error::PluginInvokeError::CannotSerializePayload)?,
             )
             .parse_void()
+    }
+
+    pub const fn set_action_listener_active(&self, _active: bool) -> crate::Result<()> {
+        Ok(())
     }
 
     /// Create a notification channel (not supported on macOS).

@@ -269,11 +269,18 @@ impl<R: Runtime> Notifications<R> {
     /// selected (or first available) `UnifiedPush` distributor and returns the
     /// endpoint URL. Apps that need endpoint stability across launches should
     /// call [`set_token`](Self::set_token) before this with a persisted token.
-    pub async fn register_for_push_notifications(&self) -> crate::Result<String> {
+    pub async fn register_for_push_notifications(
+        &self,
+        vapid: Option<String>,
+    ) -> crate::Result<crate::models::PushNotificationResponse> {
+        let _ = vapid;
         #[cfg(all(target_os = "linux", feature = "push-notifications"))]
         {
             let state = self.unifiedpush_state().await?;
-            state.register().await
+            let endpoint = state.register().await?;
+            Ok(crate::models::PushNotificationResponse::from_token(
+                endpoint,
+            ))
         }
         #[cfg(not(all(target_os = "linux", feature = "push-notifications")))]
         {
@@ -379,6 +386,10 @@ impl<R: Runtime> Notifications<R> {
         Err(crate::Error::Io(std::io::Error::other(
             "Click listeners are not supported with notify-rust",
         )))
+    }
+
+    pub const fn set_action_listener_active(&self, _active: bool) -> crate::Result<()> {
+        Ok(())
     }
 
     /// Linux: closes every tracked notification whose caller-supplied id
