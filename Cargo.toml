@@ -18,9 +18,9 @@ push-notifications = ["dep:zbus", "dep:tokio", "dep:uuid"]
 notify-rust = ["dep:notify-rust"]
 
 [dependencies]
-tauri = "2"
+tauri = { version = "2", default-features = false }
 serde = "1.0"
-serde_json = "1"
+serde_json = "1.0"
 serde_repr = "0.1"
 thiserror = "2"
 log = "0.4"
