@@ -507,7 +507,7 @@ fn register_toast_activator(
     let factory_interface: IClassFactory = factory.into();
     unsafe {
         CoRegisterClassObject(
-            &clsid,
+            &raw const clsid,
             &factory_interface,
             CLSCTX_LOCAL_SERVER,
             REGCLS_MULTIPLEUSE,
