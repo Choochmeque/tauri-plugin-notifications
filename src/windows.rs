@@ -1318,6 +1318,7 @@ mod tests {
         let read = types.read().expect("RwLock poisoned");
         assert!(read.contains_key("test"));
         assert_eq!(read.get("test").expect("Key not found").actions().len(), 1);
+        drop(read);
     }
 
     #[test]
@@ -1345,5 +1346,6 @@ mod tests {
         let r = types.read().expect("RwLock poisoned");
         assert_eq!(r.len(), 2);
         assert!(r.contains_key("confirm") && r.contains_key("reply"));
+        drop(r);
     }
 }
