@@ -385,6 +385,9 @@ impl WindowsPlugin {
         }
     }
 
+    // `self` is only touched by the push-notifications body; the stub compiled
+    // when the feature is off must keep the same signature for its call site.
+    #[cfg_attr(not(feature = "push-notifications"), allow(clippy::unused_self))]
     fn open_push_channel(&self) -> crate::Result<String> {
         #[cfg(feature = "push-notifications")]
         {
@@ -407,15 +410,19 @@ impl WindowsPlugin {
         }
     }
 
+    #[cfg_attr(not(feature = "push-notifications"), allow(clippy::unused_self))]
     fn close_push_channel(&self) -> crate::Result<()> {
         #[cfg(feature = "push-notifications")]
         {
-            if let Some(channel) = self
+            // Take the channel out in its own statement so the write guard is
+            // released before calling into WinRT — `Close()` is a cross-process
+            // call and shouldn't run with the lock held.
+            let channel = self
                 .push_channel
                 .write()
                 .map_err(|_| crate::Error::Io(std::io::Error::other("Lock poisoned")))?
-                .take()
-            {
+                .take();
+            if let Some(channel) = channel {
                 channel.Close()?;
             }
             Ok(())
