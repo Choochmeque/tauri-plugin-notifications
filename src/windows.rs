@@ -870,9 +870,13 @@ impl<R: Runtime> Notifications<R> {
     }
 
     pub fn register_action_types(&self, types: Vec<ActionType>) -> crate::Result<()> {
-        let mut action_types = self.plugin.action_types_mut()?;
-        for action_type in types {
-            action_types.insert(action_type.id().to_string(), action_type);
+        // Scoped so the write guard is released at the end of the inserts
+        // rather than being held until the function returns.
+        {
+            let mut action_types = self.plugin.action_types_mut()?;
+            for action_type in types {
+                action_types.insert(action_type.id().to_string(), action_type);
+            }
         }
         Ok(())
     }
