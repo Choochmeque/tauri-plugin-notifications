@@ -1115,7 +1115,7 @@ mod tests {
             windows_datetime_to_unix(windows_dt).expect("Failed to convert back to Unix");
 
         let diff = (original - roundtrip).whole_nanoseconds().abs();
-        assert!(diff < 100, "Roundtrip diff: {}ns", diff);
+        assert!(diff < 100, "Roundtrip diff: {diff}ns");
     }
 
     #[test]
@@ -1178,16 +1178,13 @@ mod tests {
 
             let before = time::OffsetDateTime::now_utc();
             let result = schedule_to_datetime(&schedule)
-                .unwrap_or_else(|e| panic!("Failed to convert {:?}: {}", interval, e));
+                .unwrap_or_else(|e| panic!("Failed to convert {interval:?}: {e}"));
             let converted = windows_datetime_to_unix(result)
-                .unwrap_or_else(|e| panic!("Failed to convert back {:?}: {}", interval, e));
+                .unwrap_or_else(|e| panic!("Failed to convert back {interval:?}: {e}"));
             let actual = (converted - before).whole_seconds();
             assert!(
                 (actual - expected).abs() <= 2,
-                "{:?}: {} vs {}",
-                interval,
-                actual,
-                expected
+                "{interval:?}: {actual} vs {expected}"
             );
         }
     }
