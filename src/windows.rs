@@ -515,6 +515,8 @@ fn register_toast_activator(
     }
 }
 
+// `async` mirrors the mobile/macOS plugin API so callers can `.await` uniformly.
+#[allow(clippy::unused_async)]
 impl<R: Runtime> crate::NotificationsBuilder<R> {
     /// Build toast notification XML using DOM API (safer than string concatenation).
     fn build_toast_xml(
@@ -826,6 +828,8 @@ pub struct Notifications<R: Runtime> {
     plugin: Arc<WindowsPlugin>,
 }
 
+// `async` mirrors the mobile/macOS plugin API so callers can `.await` uniformly.
+#[allow(clippy::unused_async)]
 impl<R: Runtime> Notifications<R> {
     pub fn builder(&self) -> crate::NotificationsBuilder<R> {
         crate::NotificationsBuilder::new(self.app.clone(), self.plugin.clone())
