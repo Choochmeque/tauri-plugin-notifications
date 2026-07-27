@@ -20,7 +20,12 @@ tauri-build = { version = "2", features = [] }
 [dependencies]
 tauri = { version = "2", features = [] }
 tauri-plugin-opener = "2"
+# `notify-rust` is on so `tauri dev` works without a .app bundle: the native
+# macOS/Windows backends require bundle identity, which a dev binary run from
+# `target/debug` doesn't have. Drop it to exercise the native backends instead
+# (needs `tauri build` on macOS).
 tauri-plugin-notifications = { path = "../../../", default-features = false, features = [
+    "notify-rust",
     "push-notifications",
 ] }
 serde = { version = "1", features = ["derive"] }
