@@ -302,10 +302,10 @@ impl INotificationActivationCallback_Impl for ToastActivator_Impl {
             // (hot reload, route change).
             if crate::listeners::has_listeners("notificationClicked") {
                 let _ = crate::listeners::trigger("notificationClicked", click_payload.to_string());
-            } else if let Some(plugin) = self.plugin.upgrade() {
-                if let Ok(mut buf) = plugin.pending_clicks.write() {
-                    buf.push(click_payload);
-                }
+            } else if let Some(plugin) = self.plugin.upgrade()
+                && let Ok(mut buf) = plugin.pending_clicks.write()
+            {
+                buf.push(click_payload);
             }
         }
         Ok(())
