@@ -586,7 +586,7 @@ impl<R: Runtime> crate::NotificationsBuilder<R> {
 
         // Add attachments as images. Same URI resolution applies.
         let mut hero_slot_taken = false;
-        for attachment in self.data.attachments.iter() {
+        for attachment in &self.data.attachments {
             let Some(src) =
                 resolve_toast_image_src(&self.app, attachment.url().as_str(), self.plugin.packaged)
             else {
