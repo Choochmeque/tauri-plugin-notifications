@@ -31,12 +31,29 @@ jobs:
       - run: pnpm run format:check
 
   # Static analyzer.
+  #
+  # The `notify-rust` feature selects the implementation module rather than
+  # adding to it: with it on, `desktop.rs` is compiled; with it off,
+  # `macos.rs` / `windows.rs` are. So a single `--all-features` pass can never
+  # lint the native backends — every desktop OS needs both feature sets.
+  # Linux has no native backend (`desktop.rs` is compiled either way), so the
+  # `native` rows there only assert the crate still builds with the feature off.
   clippy:
-    name: cargo-clippy (${{ matrix.os }})
+    name: cargo-clippy (${{ matrix.os }}, ${{ matrix.backend.name }})
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
+        backend:
+          - name: notify-rust
+            flags: ""
+          - name: notify-rust+push
+            flags: "--features push-notifications"
+          - name: native
+            flags: "--no-default-features"
+          - name: native+push
+            flags: "--no-default-features --features push-notifications"
     steps:
       - uses: awalsh128/cache-apt-pkgs-action@latest
         if: matrix.os == 'ubuntu-latest'
@@ -46,7 +63,7 @@ jobs:
 
       - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
-      - run: cargo clippy --all-targets --all-features -- -D warnings -D clippy::unwrap_used
+      - run: cargo clippy --all-targets ${{ matrix.backend.flags }} -- -D warnings -D clippy::unwrap_used
 
   # Static analyzer for mobile targets.
   clippy-mobile:
