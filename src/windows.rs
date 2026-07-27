@@ -8,6 +8,7 @@ use nt_time::FileTime;
 use serde::de::DeserializeOwned;
 use tauri::{
     AppHandle, Manager, Runtime,
+    path::BaseDirectory,
     plugin::{PermissionState, PluginApi},
 };
 use windows::ApplicationModel::Package;
@@ -95,11 +96,10 @@ fn resolve_toast_image_src<R: Runtime>(
         let trimmed = input.trim_start_matches('/');
         return Some(format!("ms-appx:///resources/{trimmed}"));
     }
-    use tauri::path::BaseDirectory;
-    if let Ok(resolved) = app.path().resolve(input, BaseDirectory::Resource) {
-        if resolved.exists() {
-            return Some(path_to_file_uri(&resolved));
-        }
+    if let Ok(resolved) = app.path().resolve(input, BaseDirectory::Resource)
+        && resolved.exists()
+    {
+        return Some(path_to_file_uri(&resolved));
     }
     log::warn!(
         "Ignoring notification image {input:?}: not a supported URI scheme, not an \
