@@ -773,10 +773,10 @@ fn schedule_to_datetime(schedule: &Schedule) -> crate::Result<DateTime> {
         Schedule::At { date, .. } => *date,
         Schedule::Interval { interval, .. } => {
             // Build duration from interval fields
-            let seconds = interval.second.unwrap_or(0) as i64;
-            let minutes = interval.minute.unwrap_or(0) as i64;
-            let hours = interval.hour.unwrap_or(0) as i64;
-            let days = interval.day.unwrap_or(0) as i64;
+            let seconds = i64::from(interval.second.unwrap_or(0));
+            let minutes = i64::from(interval.minute.unwrap_or(0));
+            let hours = i64::from(interval.hour.unwrap_or(0));
+            let days = i64::from(interval.day.unwrap_or(0));
             let total_seconds = seconds + minutes * 60 + hours * 3600 + days * 86400;
             now + time::Duration::seconds(total_seconds)
         }
@@ -793,7 +793,7 @@ fn schedule_to_datetime(schedule: &Schedule) -> crate::Result<DateTime> {
                 ScheduleEvery::Minute => 60,
                 ScheduleEvery::Second => 1,
             };
-            now + time::Duration::seconds(base_seconds * (*count as i64))
+            now + time::Duration::seconds(base_seconds * i64::from(*count))
         }
     };
 
@@ -1084,7 +1084,7 @@ mod tests {
     fn test_unix_to_windows_datetime_epoch() {
         let result = unix_to_windows_datetime(time::OffsetDateTime::UNIX_EPOCH)
             .expect("Failed to convert Unix epoch");
-        assert_eq!(result.UniversalTime as i128, WINDOWS_EPOCH_OFFSET_TICKS);
+        assert_eq!(i128::from(result.UniversalTime), WINDOWS_EPOCH_OFFSET_TICKS);
     }
 
     #[test]
@@ -1094,7 +1094,7 @@ mod tests {
 
         let unix_nanos = 946_684_800i128 * 1_000_000_000;
         let expected = (unix_nanos / 100) + WINDOWS_EPOCH_OFFSET_TICKS;
-        assert_eq!(result.UniversalTime as i128, expected);
+        assert_eq!(i128::from(result.UniversalTime), expected);
     }
 
     #[test]
