@@ -134,9 +134,9 @@ fn parse_clsid(raw: &str) -> windows::core::Result<GUID> {
 // Enable `?` operator for windows::core::Error
 impl From<windows::core::Error> for crate::Error {
     fn from(err: windows::core::Error) -> Self {
-        crate::Error::from(PluginInvokeError::InvokeRejected(ErrorResponse {
+        Self::from(PluginInvokeError::InvokeRejected(ErrorResponse {
             code: Some(format!("0x{:08X}", err.code().0)),
-            message: Some(err.message().to_string()),
+            message: Some(err.message()),
             data: (),
         }))
     }
