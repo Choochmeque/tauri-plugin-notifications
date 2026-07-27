@@ -34,7 +34,7 @@ use windows::core::{BOOL, GUID, HSTRING, Interface, PCWSTR, Ref, implement};
 
 use crate::WindowsConfig;
 use crate::error::{ErrorResponse, PluginInvokeError};
-use crate::models::*;
+use crate::models::{ActionType, ActiveNotification, PendingNotification, Schedule, ScheduleEvery};
 
 /// True when the current process has MSIX package identity.
 ///
@@ -1042,6 +1042,8 @@ impl<R: Runtime> Notifications<R> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    // Only referenced by tests, so they'd be unused imports at module scope.
+    use crate::models::{Action, ScheduleInterval};
 
     /// PowerShell App User Model ID - always available on Windows.
     const POWERSHELL_APP_ID: &str =
