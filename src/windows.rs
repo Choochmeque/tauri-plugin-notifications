@@ -1,5 +1,13 @@
 //! Windows implementation for notifications plugin using native Windows Toast API.
 
+// The `windows_core::implement` macro (used for `ToastActivator` /
+// `ToastActivatorFactory`) expands to `#[inline(always)]` accessors and
+// `&T as *const T` casts, emitted as sibling items whose spans land in this
+// file. There's no source-level expression to rewrite, and an `#[allow]` on the
+// annotated struct doesn't reach the generated impls, so both lints are scoped
+// out here. Neither is written by hand anywhere in this module.
+#![allow(clippy::inline_always, clippy::ref_as_ptr)]
+
 use std::collections::HashMap;
 use std::ffi::c_void;
 use std::sync::{Arc, RwLock, Weak};
