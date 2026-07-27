@@ -765,7 +765,7 @@ impl<R: Runtime> crate::NotificationsBuilder<R> {
     }
 }
 
-/// Convert Schedule to Windows DateTime.
+/// Convert Schedule to Windows `DateTime`.
 fn schedule_to_datetime(schedule: &Schedule) -> crate::Result<DateTime> {
     let now = time::OffsetDateTime::now_utc();
 
@@ -800,7 +800,7 @@ fn schedule_to_datetime(schedule: &Schedule) -> crate::Result<DateTime> {
     unix_to_windows_datetime(delivery_time)
 }
 
-/// Convert a Unix timestamp to Windows DateTime (FILETIME).
+/// Convert a Unix timestamp to Windows `DateTime` (FILETIME).
 fn unix_to_windows_datetime(time: time::OffsetDateTime) -> crate::Result<DateTime> {
     let ft = FileTime::try_from(time.to_utc())
         .map_err(|_| crate::Error::Io(std::io::Error::other("Schedule date out of range")))?;
@@ -811,7 +811,7 @@ fn unix_to_windows_datetime(time: time::OffsetDateTime) -> crate::Result<DateTim
     Ok(DateTime { UniversalTime: raw })
 }
 
-/// Convert Windows DateTime (FILETIME) back to Unix timestamp.
+/// Convert Windows `DateTime` (FILETIME) back to Unix timestamp.
 fn windows_datetime_to_unix(dt: DateTime) -> crate::Result<time::OffsetDateTime> {
     let raw: u64 = dt
         .UniversalTime
@@ -983,7 +983,7 @@ impl<R: Runtime> Notifications<R> {
                 (None, None)
             };
 
-            // Convert Windows DateTime back to Schedule::At
+            // Convert Windows `DateTime` back to Schedule::At
             let schedule = notification.DeliveryTime().ok().and_then(|dt| {
                 windows_datetime_to_unix(dt).ok().map(|date| Schedule::At {
                     date,
