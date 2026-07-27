@@ -38,13 +38,13 @@ use crate::models::{ActionType, ActiveNotification, PendingNotification, Schedul
 
 /// True when the current process has MSIX package identity.
 ///
-/// WinRT notification APIs split into two flavors: no-arg variants that use the
-/// package's default AUMID (only valid for packaged apps), and `*WithId`
+/// `WinRT` notification APIs split into two flavors: no-arg variants that use
+/// the package's default AUMID (only valid for packaged apps), and `*WithId`
 /// variants that take an explicit AUMID (only valid for unpackaged apps whose
 /// AUMID is registered via a Start Menu shortcut). Passing an arbitrary string
-/// to the WithId variants from inside an MSIX returns ERROR_NOT_FOUND because
-/// the real AUMID is `<PackageFamilyName>!<Application Id>` and the family-name
-/// hash is install-time only.
+/// to the `WithId` variants from inside an MSIX returns `ERROR_NOT_FOUND`
+/// because the real AUMID is `<PackageFamilyName>!<Application Id>` and the
+/// family-name hash is install-time only.
 fn is_packaged() -> bool {
     Package::Current().is_ok()
 }
