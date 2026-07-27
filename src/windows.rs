@@ -165,7 +165,7 @@ pub struct WindowsPlugin {
     /// explicit `CoRevokeClassObject` on shutdown; the OS reclaims it on exit.
     /// `None` when COM activator wasn't registered (unpackaged or no CLSID in
     /// config).
-    _com_cookie: RwLock<Option<u32>>,
+    com_cookie: RwLock<Option<u32>>,
     #[cfg(feature = "push-notifications")]
     push_channel: RwLock<Option<PushNotificationChannel>>,
 }
@@ -456,26 +456,24 @@ pub fn init<R: Runtime, C: DeserializeOwned>(
         action_types: RwLock::new(HashMap::new()),
         click_listener_active: RwLock::new(false),
         pending_clicks: RwLock::new(Vec::new()),
-        _com_cookie: RwLock::new(None),
+        com_cookie: RwLock::new(None),
         #[cfg(feature = "push-notifications")]
         push_channel: RwLock::new(None),
     });
 
-    if packaged {
-        if let Some(clsid_str) = windows_config.toast_activator_clsid.as_deref() {
-            match register_toast_activator(&plugin, clsid_str) {
-                Ok(cookie) => {
-                    if let Ok(mut slot) = plugin._com_cookie.write() {
-                        *slot = Some(cookie);
-                    }
-                    log::info!("Toast activator registered (clsid={clsid_str}, cookie={cookie})");
+    if packaged && let Some(clsid_str) = windows_config.toast_activator_clsid {
+        match register_toast_activator(&plugin, &clsid_str) {
+            Ok(cookie) => {
+                if let Ok(mut slot) = plugin.com_cookie.write() {
+                    *slot = Some(cookie);
                 }
-                Err(e) => {
-                    log::error!(
-                        "Failed to register toast activator (clsid={clsid_str}): {e}; \
-                         Action Center clicks will fall back to shortcut launch without payload"
-                    );
-                }
+                log::info!("Toast activator registered (clsid={clsid_str}, cookie={cookie})");
+            }
+            Err(e) => {
+                log::error!(
+                    "Failed to register toast activator (clsid={clsid_str}): {e}; \
+                     Action Center clicks will fall back to shortcut launch without payload"
+                );
             }
         }
     }
