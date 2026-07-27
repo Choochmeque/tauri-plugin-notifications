@@ -62,7 +62,7 @@ windows = { version = "0.61", features = [
 # The `#[implement]` macro from `windows::core::implement` emits `::windows_core::*`
 # absolute paths, so `windows-core` must be a direct dependency, not just
 # transitive through `windows`.
-windows-core = "0.61"
+windows-core = "0.62"
 # Used to parse user-supplied CLSID strings (accepts braced, unbraced, and
 # hyphen-less forms) before converting to `windows::core::GUID` via raw bits.
 uuid = { version = "1", default-features = false }
