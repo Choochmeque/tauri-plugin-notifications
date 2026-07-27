@@ -712,7 +712,7 @@ impl<R: Runtime> crate::NotificationsBuilder<R> {
                                 let action_id = if is_tap {
                                     "tap".to_string()
                                 } else {
-                                    arguments.to_string()
+                                    arguments
                                 };
 
                                 let payload = serde_json::json!({
@@ -1011,16 +1011,20 @@ impl<R: Runtime> Notifications<R> {
         let ids_to_cancel: std::collections::HashSet<_> = notifications.into_iter().collect();
 
         for i in 0..scheduled.Size()? {
-            if let Ok(notification) = scheduled.GetAt(i) {
-                if let Ok(tag) = notification.Tag() {
-                    if let Ok(id) = tag.to_string_lossy().parse::<i32>() {
-                        if ids_to_cancel.contains(&id) {
-                            if let Err(e) = self.plugin.notifier.RemoveFromSchedule(&notification) {
-                                log::error!("Failed to cancel notification {id}: {e}");
-                            }
-                        }
-                    }
-                }
+            let Ok(notification) = scheduled.GetAt(i) else {
+                continue;
+            };
+            let Ok(tag) = notification.Tag() else {
+                continue;
+            };
+            let Ok(id) = tag.to_string_lossy().parse::<i32>() else {
+                continue;
+            };
+            if !ids_to_cancel.contains(&id) {
+                continue;
+            }
+            if let Err(e) = self.plugin.notifier.RemoveFromSchedule(&notification) {
+                log::error!("Failed to cancel notification {id}: {e}");
             }
         }
         Ok(())
@@ -1029,10 +1033,11 @@ impl<R: Runtime> Notifications<R> {
     pub fn cancel_all(&self) -> crate::Result<()> {
         let scheduled = self.plugin.notifier.GetScheduledToastNotifications()?;
         for i in 0..scheduled.Size()? {
-            if let Ok(notification) = scheduled.GetAt(i) {
-                if let Err(e) = self.plugin.notifier.RemoveFromSchedule(&notification) {
-                    log::error!("Failed to cancel scheduled notification: {e}");
-                }
+            let Ok(notification) = scheduled.GetAt(i) else {
+                continue;
+            };
+            if let Err(e) = self.plugin.notifier.RemoveFromSchedule(&notification) {
+                log::error!("Failed to cancel scheduled notification: {e}");
             }
         }
         Ok(())
