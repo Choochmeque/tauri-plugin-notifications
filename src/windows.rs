@@ -572,16 +572,16 @@ impl<R: Runtime> crate::NotificationsBuilder<R> {
         // Add icon if specified. Drop silently when the user-supplied string
         // can't be coerced into a Windows-accepted URI scheme — otherwise the
         // whole toast falls back to "New notification".
-        if let Some(icon) = &self.data.icon {
-            if let Some(src) = resolve_toast_image_src(&self.app, icon, self.plugin.packaged) {
-                let image = doc.CreateElement(&HSTRING::from("image"))?;
-                image.SetAttribute(
-                    &HSTRING::from("placement"),
-                    &HSTRING::from("appLogoOverride"),
-                )?;
-                image.SetAttribute(&HSTRING::from("src"), &HSTRING::from(src.as_str()))?;
-                binding.AppendChild(&image)?;
-            }
+        if let Some(icon) = &self.data.icon
+            && let Some(src) = resolve_toast_image_src(&self.app, icon, self.plugin.packaged)
+        {
+            let image = doc.CreateElement(&HSTRING::from("image"))?;
+            image.SetAttribute(
+                &HSTRING::from("placement"),
+                &HSTRING::from("appLogoOverride"),
+            )?;
+            image.SetAttribute(&HSTRING::from("src"), &HSTRING::from(src.as_str()))?;
+            binding.AppendChild(&image)?;
         }
 
         // Add attachments as images. Same URI resolution applies.
@@ -605,28 +605,27 @@ impl<R: Runtime> crate::NotificationsBuilder<R> {
         toast.AppendChild(&visual)?;
 
         // Add <actions> if action_type_id specified
-        if let Some(action_type_id) = &self.data.action_type_id {
-            if let Some(action_type) = action_types.get(action_type_id) {
-                let actions = doc.CreateElement(&HSTRING::from("actions"))?;
-                for action in action_type.actions() {
-                    let action_el = doc.CreateElement(&HSTRING::from("action"))?;
-                    action_el
-                        .SetAttribute(&HSTRING::from("content"), &HSTRING::from(action.title()))?;
-                    action_el
-                        .SetAttribute(&HSTRING::from("arguments"), &HSTRING::from(action.id()))?;
-                    let activation_type = if action.foreground() {
-                        "foreground"
-                    } else {
-                        "background"
-                    };
-                    action_el.SetAttribute(
-                        &HSTRING::from("activationType"),
-                        &HSTRING::from(activation_type),
-                    )?;
-                    actions.AppendChild(&action_el)?;
-                }
-                toast.AppendChild(&actions)?;
+        if let Some(action_type_id) = &self.data.action_type_id
+            && let Some(action_type) = action_types.get(action_type_id)
+        {
+            let actions = doc.CreateElement(&HSTRING::from("actions"))?;
+            for action in action_type.actions() {
+                let action_el = doc.CreateElement(&HSTRING::from("action"))?;
+                action_el
+                    .SetAttribute(&HSTRING::from("content"), &HSTRING::from(action.title()))?;
+                action_el.SetAttribute(&HSTRING::from("arguments"), &HSTRING::from(action.id()))?;
+                let activation_type = if action.foreground() {
+                    "foreground"
+                } else {
+                    "background"
+                };
+                action_el.SetAttribute(
+                    &HSTRING::from("activationType"),
+                    &HSTRING::from(activation_type),
+                )?;
+                actions.AppendChild(&action_el)?;
             }
+            toast.AppendChild(&actions)?;
         }
 
         // Add <audio> element for silent or custom sound
