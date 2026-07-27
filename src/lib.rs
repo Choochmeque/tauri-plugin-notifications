@@ -106,7 +106,7 @@ impl<R: Runtime> NotificationsBuilder<R> {
         Self {
             app,
             plugin,
-            data: Default::default(),
+            data: NotificationData::default(),
         }
     }
 

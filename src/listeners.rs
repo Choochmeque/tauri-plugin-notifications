@@ -114,10 +114,8 @@ pub fn register_listener<R: Runtime>(
             .insert(handler.id(), handler);
     }
     #[cfg(all(target_os = "windows", not(feature = "notify-rust")))]
-    if should_drain_clicks {
-        if let Some(notif) = app.try_state::<crate::Notifications<R>>() {
-            notif.drain_pending_clicks();
-        }
+    if should_drain_clicks && let Some(notif) = app.try_state::<crate::Notifications<R>>() {
+        notif.drain_pending_clicks();
     }
     #[cfg(not(all(target_os = "windows", not(feature = "notify-rust"))))]
     let _ = (app, should_drain_clicks);
