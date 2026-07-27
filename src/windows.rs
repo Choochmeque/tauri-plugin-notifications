@@ -227,38 +227,47 @@ fn decode_activation(invoked_args: &str, inputs: &HashMap<String, String>) -> De
         .ok()
         .filter(serde_json::Value::is_object);
 
-    if let Some(launch) = parsed {
-        let action = serde_json::json!({
-            "actionId": "tap",
-            "inputValue": input_value,
-            "notification": launch.clone(),
-        });
-        DecodedActivation {
-            click: Some(launch),
-            action,
+    // Two independent axes: whether `invoked_args` decoded as the `launch=`
+    // JSON object we wrote, and whether it's empty at all. Matched as a tuple
+    // so the three outcomes stay side by side.
+    match (parsed, invoked_args.is_empty()) {
+        (Some(launch), _) => {
+            // `json!` borrows its value expression (`to_value(&expr)`), so
+            // `launch` is still ours to move into `click` afterwards.
+            let action = serde_json::json!({
+                "actionId": "tap",
+                "inputValue": input_value,
+                "notification": launch,
+            });
+            DecodedActivation {
+                click: Some(launch),
+                action,
+            }
         }
-    } else if invoked_args.is_empty() {
         // Legacy path: toasts produced before `launch=` was set, or a tap with
         // no extras. Emit a click with no payload so subscribers still fire.
-        let action = serde_json::json!({
-            "actionId": "tap",
-            "inputValue": input_value,
-            "notification": serde_json::Value::Null,
-        });
-        DecodedActivation {
-            click: Some(serde_json::json!({ "id": serde_json::Value::Null, "data": {} })),
-            action,
+        (None, true) => {
+            let action = serde_json::json!({
+                "actionId": "tap",
+                "inputValue": input_value,
+                "notification": serde_json::Value::Null,
+            });
+            DecodedActivation {
+                click: Some(serde_json::json!({ "id": serde_json::Value::Null, "data": {} })),
+                action,
+            }
         }
-    } else {
         // Button activation — `invoked_args` is the action's `arguments=`.
-        let action = serde_json::json!({
-            "actionId": invoked_args,
-            "inputValue": input_value,
-            "notification": serde_json::Value::Null,
-        });
-        DecodedActivation {
-            click: None,
-            action,
+        (None, false) => {
+            let action = serde_json::json!({
+                "actionId": invoked_args,
+                "inputValue": input_value,
+                "notification": serde_json::Value::Null,
+            });
+            DecodedActivation {
+                click: None,
+                action,
+            }
         }
     }
 }
