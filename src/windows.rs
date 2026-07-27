@@ -692,52 +692,51 @@ impl<R: Runtime> crate::NotificationsBuilder<R> {
                 toast.Activated(&TypedEventHandler::new(
                     move |_: windows::core::Ref<'_, ToastNotification>,
                           args: windows::core::Ref<'_, windows::core::IInspectable>| {
-                        if let Some(inspectable) = &*args {
-                            if let Ok(activated) = inspectable.cast::<ToastActivatedEventArgs>() {
-                                let arguments = activated
-                                    .Arguments()
-                                    .map(|s| s.to_string_lossy())
-                                    .unwrap_or_default();
+                        if let Some(inspectable) = &*args
+                            && let Ok(activated) = inspectable.cast::<ToastActivatedEventArgs>()
+                        {
+                            let arguments = activated
+                                .Arguments()
+                                .map(|s| s.to_string_lossy())
+                                .unwrap_or_default();
 
-                                // Foreground tap: empty `Arguments` (legacy
-                                // toasts without `launch=`) or the JSON object
-                                // we wrote into `launch=`. Anything else is a
-                                // button activation whose `arguments=` we
-                                // surface as the action id.
-                                let is_tap = arguments.is_empty()
-                                    || serde_json::from_str::<serde_json::Value>(&arguments)
-                                        .ok()
-                                        .is_some_and(|v| v.is_object());
+                            // Foreground tap: empty `Arguments` (legacy
+                            // toasts without `launch=`) or the JSON object
+                            // we wrote into `launch=`. Anything else is a
+                            // button activation whose `arguments=` we
+                            // surface as the action id.
+                            let is_tap = arguments.is_empty()
+                                || serde_json::from_str::<serde_json::Value>(&arguments)
+                                    .ok()
+                                    .is_some_and(|v| v.is_object());
 
-                                let action_id = if is_tap {
-                                    "tap".to_string()
-                                } else {
-                                    arguments
-                                };
+                            let action_id = if is_tap {
+                                "tap".to_string()
+                            } else {
+                                arguments
+                            };
 
-                                let payload = serde_json::json!({
-                                    "actionId": action_id,
-                                    "inputValue": null,
-                                    "notification": notification,
+                            let payload = serde_json::json!({
+                                "actionId": action_id,
+                                "inputValue": null,
+                                "notification": notification,
+                            });
+                            if let Err(e) =
+                                crate::listeners::trigger("actionPerformed", payload.to_string())
+                            {
+                                log::error!("Failed to trigger actionPerformed: {e}");
+                            }
+
+                            if is_tap {
+                                let click_payload = serde_json::json!({
+                                    "id": notification.id,
+                                    "data": notification.extra,
                                 });
                                 if let Err(e) = crate::listeners::trigger(
-                                    "actionPerformed",
-                                    payload.to_string(),
+                                    "notificationClicked",
+                                    click_payload.to_string(),
                                 ) {
-                                    log::error!("Failed to trigger actionPerformed: {e}");
-                                }
-
-                                if is_tap {
-                                    let click_payload = serde_json::json!({
-                                        "id": notification.id,
-                                        "data": notification.extra,
-                                    });
-                                    if let Err(e) = crate::listeners::trigger(
-                                        "notificationClicked",
-                                        click_payload.to_string(),
-                                    ) {
-                                        log::error!("Failed to trigger notificationClicked: {e}");
-                                    }
+                                    log::error!("Failed to trigger notificationClicked: {e}");
                                 }
                             }
                         }
