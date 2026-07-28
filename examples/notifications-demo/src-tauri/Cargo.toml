@@ -17,15 +17,23 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
 
+[features]
+# Default is the native backend (WinRT on Windows, UserNotifications on macOS).
+default = []
+# Selects the notify-rust backend instead:
+#
+#     pnpm tauri dev --features notify-rust
+#
+# Useful because the native macOS/Windows backends need bundle identity, which a
+# dev binary run out of `target/debug` doesn't have — on macOS the plugin refuses
+# to initialise at all ("requires the app to run from a .app bundle"). Use
+# `tauri build` to exercise the native backends.
+notify-rust = ["tauri-plugin-notifications/notify-rust"]
+
 [dependencies]
 tauri = { version = "2", features = [] }
 tauri-plugin-opener = "2"
-# `notify-rust` is on so `tauri dev` works without a .app bundle: the native
-# macOS/Windows backends require bundle identity, which a dev binary run from
-# `target/debug` doesn't have. Drop it to exercise the native backends instead
-# (needs `tauri build` on macOS).
 tauri-plugin-notifications = { path = "../../../", default-features = false, features = [
-    "notify-rust",
     "push-notifications",
 ] }
 serde = { version = "1", features = ["derive"] }
