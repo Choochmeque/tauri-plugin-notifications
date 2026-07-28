@@ -62,32 +62,32 @@ func makeActions(_ actions: [Action]) -> [UNNotificationAction] {
 }
 
 func makeActionOptions(_ action: Action) -> UNNotificationActionOptions {
+  var options: UNNotificationActionOptions = []
   if action.foreground ?? false {
-    return .foreground
+    options.insert(.foreground)
   }
   if action.destructive ?? false {
-    return .destructive
+    options.insert(.destructive)
   }
   if action.requiresAuthentication ?? false {
-    return .authenticationRequired
+    options.insert(.authenticationRequired)
   }
-  return UNNotificationActionOptions(rawValue: 0)
+  return options
 }
 
 func makeCategoryOptions(_ type: ActionType) -> UNNotificationCategoryOptions {
+  var options: UNNotificationCategoryOptions = []
   if type.customDismissAction ?? false {
-    return .customDismissAction
+    options.insert(.customDismissAction)
   }
   if type.allowInCarPlay ?? false {
-    return .allowInCarPlay
+    options.insert(.allowInCarPlay)
   }
-
   if type.hiddenPreviewsShowTitle ?? false {
-    return .hiddenPreviewsShowTitle
+    options.insert(.hiddenPreviewsShowTitle)
   }
   if type.hiddenPreviewsShowSubtitle ?? false {
-    return .hiddenPreviewsShowSubtitle
+    options.insert(.hiddenPreviewsShowSubtitle)
   }
-
-  return UNNotificationCategoryOptions(rawValue: 0)
+  return options
 }
