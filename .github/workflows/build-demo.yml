@@ -30,7 +30,7 @@ jobs:
             .
             examples/notifications-demo/src-tauri
 
-      - uses: pnpm/action-setup@v6
+      - uses: pnpm/action-setup@v6.0.9
         with:
           run_install: false
       - uses: actions/setup-node@v7
@@ -68,7 +68,7 @@ jobs:
         with:
           targets: aarch64-linux-android
       - uses: Swatinem/rust-cache@v2
-      - uses: pnpm/action-setup@v6
+      - uses: pnpm/action-setup@v6.0.9
         with:
           run_install: false
       - uses: actions/setup-node@v7
@@ -119,7 +119,7 @@ jobs:
         with:
           targets: aarch64-apple-ios-sim
       - uses: Swatinem/rust-cache@v2
-      - uses: pnpm/action-setup@v6
+      - uses: pnpm/action-setup@v6.0.9
         with:
           run_install: false
       - uses: actions/setup-node@v7
