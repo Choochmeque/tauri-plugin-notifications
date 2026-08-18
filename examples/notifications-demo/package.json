@@ -24,7 +24,7 @@
     "@sveltejs/vite-plugin-svelte": "^7.2.0",
     "@tauri-apps/cli": "^2",
     "svelte": "^5.56.8",
-    "svelte-check": "^4.7.3",
+    "svelte-check": "^4.7.6",
     "typescript": "~6.0.3",
     "vite": "^8.2.1",
     "@choochmeque/tauri-windows-bundle": "^0.1.26"
