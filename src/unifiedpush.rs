@@ -335,7 +335,7 @@ struct ConnectorService {
 impl ConnectorService {
     // `async` kept for consistency with the other D-Bus methods in this interface,
     // even though the body is currently synchronous.
-    #[allow(clippy::unused_async)]
+    #[allow(unknown_lints, clippy::unused_async, clippy::unused_async_trait_impl)]
     async fn message(&self, token: String, message: Vec<u8>, id: String) {
         let Some(state) = self.state.upgrade() else {
             return;

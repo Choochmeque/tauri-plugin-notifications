@@ -255,7 +255,7 @@ impl<R: Runtime> crate::NotificationsBuilder<R> {
 }
 
 // `async` mirrors the mobile/macOS plugin API so callers can `.await` uniformly.
-#[allow(clippy::unused_async)]
+#[allow(unknown_lints, clippy::unused_async, clippy::unused_async_trait_impl)]
 impl<R: Runtime> Notifications<R> {
     pub fn builder(&self) -> NotificationsBuilder<R> {
         NotificationsBuilder::new(self.app.clone())

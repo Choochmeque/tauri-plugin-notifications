@@ -193,7 +193,10 @@ impl<R: Runtime> Notifications<R> {
 
     // Only the push-notifications body awaits; the stub compiled when the
     // feature is off must keep the same signature for its call site.
-    #[cfg_attr(not(feature = "push-notifications"), allow(clippy::unused_async))]
+    #[cfg_attr(
+        not(feature = "push-notifications"),
+        allow(unknown_lints, clippy::unused_async, clippy::unused_async_trait_impl)
+    )]
     pub async fn register_for_push_notifications(&self) -> crate::Result<String> {
         validation::require_bundle()?;
 
