@@ -707,8 +707,7 @@ impl<R: Runtime> crate::NotificationsBuilder<R> {
                             // surface as the action id.
                             let is_tap = arguments.is_empty()
                                 || serde_json::from_str::<serde_json::Value>(&arguments)
-                                    .ok()
-                                    .is_some_and(|v| v.is_object());
+                                    .is_ok_and(|v| v.is_object());
 
                             let action_id = if is_tap {
                                 "tap".to_string()
