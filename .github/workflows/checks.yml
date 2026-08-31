@@ -13,8 +13,80 @@ concurrency:
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
+  # Which parts of the tree does this PR touch? Push events (main only) skip
+  # gating entirely; anything unmapped ("other") turns every job on.
+  changes:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      rust: ${{ steps.f.outputs.rust }}
+      js: ${{ steps.f.outputs.js }}
+      android: ${{ steps.f.outputs.android }}
+      ios: ${{ steps.f.outputs.ios }}
+      macos: ${{ steps.f.outputs.macos }}
+      all: ${{ github.event_name != 'pull_request' || steps.f.outputs.other == 'true' }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dorny/paths-filter@v3
+        id: f
+        with:
+          filters: |
+            rust:
+              - 'src/**'
+              - 'build.rs'
+              - 'Cargo.toml'
+              - 'Cargo.lock'
+              - 'deny.toml'
+              - 'permissions/**'
+              - '.cargo/**'
+              - 'rust-toolchain*'
+              - 'examples/*/src-tauri/**'
+            js:
+              - 'guest-js/**'
+              - 'package.json'
+              - 'pnpm-lock.yaml'
+              - 'rollup.config.js'
+              - 'tsconfig*.json'
+              - 'vitest.config.ts'
+              - 'examples/*/src/**'
+              - 'examples/*/package.json'
+              - 'examples/*/pnpm-lock.yaml'
+            android:
+              - 'android/**'
+              - 'examples/*/src-tauri/gen/android/**'
+            ios:
+              - 'ios/**'
+              - 'examples/*/src-tauri/gen/apple/**'
+            macos:
+              - 'macos/**'
+            other:
+              - '**'
+              - '!tsconfig*.json'
+              - '!rust-toolchain*'
+              - '!src/**'
+              - '!build.rs'
+              - '!Cargo.toml'
+              - '!Cargo.lock'
+              - '!deny.toml'
+              - '!permissions/**'
+              - '!.cargo/**'
+              - '!guest-js/**'
+              - '!package.json'
+              - '!pnpm-lock.yaml'
+              - '!rollup.config.js'
+              - '!vitest.config.ts'
+              - '!android/**'
+              - '!ios/**'
+              - '!macos/**'
+              - '!examples/**'
+              - '!README.md'
+              - '!LICENSE'
   # Code formatting.
   fmt:
+    needs: changes
+    if: ${{ needs.changes.outputs.all == 'true' || needs.changes.outputs.rust == 'true' }}
     name: cargo-fmt
     runs-on: ubuntu-latest
     steps:
@@ -23,6 +95,8 @@ jobs:
       - run: cargo fmt --all -- --check
 
   prettier:
+    # format:check sweeps JSON/HTML/CSS across the whole tree (including files in
+    # rust- and android-mapped areas), and the job costs seconds — always runs.
     name: prettier
     runs-on: ubuntu-latest
     steps:
@@ -46,6 +120,8 @@ jobs:
   # Linux has no native backend (`desktop.rs` is compiled either way), so the
   # `native` rows there only assert the crate still builds with the feature off.
   clippy:
+    needs: changes
+    if: ${{ needs.changes.outputs.all == 'true' || needs.changes.outputs.rust == 'true' }}
     name: cargo-clippy (${{ matrix.os }}, ${{ matrix.backend.name }})
     runs-on: ${{ matrix.os }}
     strategy:
@@ -74,6 +150,8 @@ jobs:
 
   # Static analyzer for mobile targets.
   clippy-mobile:
+    needs: changes
+    if: ${{ needs.changes.outputs.all == 'true' || needs.changes.outputs.rust == 'true' }}
     name: cargo-clippy (${{ matrix.target }})
     runs-on: ${{ matrix.os }}
     strategy:
@@ -92,6 +170,8 @@ jobs:
 
   # cargo-deny.
   deny:
+    needs: changes
+    if: ${{ needs.changes.outputs.all == 'true' || needs.changes.outputs.rust == 'true' }}
     name: cargo-deny
     runs-on: ubuntu-latest
     steps:
@@ -100,6 +180,8 @@ jobs:
 
   # cargo-semver.
   semver:
+    needs: changes
+    if: ${{ needs.changes.outputs.all == 'true' || needs.changes.outputs.rust == 'true' }}
     name: cargo-semver
     runs-on: ubuntu-latest
     steps:

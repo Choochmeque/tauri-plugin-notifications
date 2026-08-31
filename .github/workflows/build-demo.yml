@@ -13,9 +13,81 @@ concurrency:
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
+  # Which parts of the tree does this PR touch? Push events (main only) skip
+  # gating entirely; anything unmapped ("other") turns every job on.
+  changes:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      rust: ${{ steps.f.outputs.rust }}
+      js: ${{ steps.f.outputs.js }}
+      android: ${{ steps.f.outputs.android }}
+      ios: ${{ steps.f.outputs.ios }}
+      macos: ${{ steps.f.outputs.macos }}
+      all: ${{ github.event_name != 'pull_request' || steps.f.outputs.other == 'true' }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dorny/paths-filter@v3
+        id: f
+        with:
+          filters: |
+            rust:
+              - 'src/**'
+              - 'build.rs'
+              - 'Cargo.toml'
+              - 'Cargo.lock'
+              - 'deny.toml'
+              - 'permissions/**'
+              - '.cargo/**'
+              - 'rust-toolchain*'
+              - 'examples/*/src-tauri/**'
+            js:
+              - 'guest-js/**'
+              - 'package.json'
+              - 'pnpm-lock.yaml'
+              - 'rollup.config.js'
+              - 'tsconfig*.json'
+              - 'vitest.config.ts'
+              - 'examples/*/src/**'
+              - 'examples/*/package.json'
+              - 'examples/*/pnpm-lock.yaml'
+            android:
+              - 'android/**'
+              - 'examples/*/src-tauri/gen/android/**'
+            ios:
+              - 'ios/**'
+              - 'examples/*/src-tauri/gen/apple/**'
+            macos:
+              - 'macos/**'
+            other:
+              - '**'
+              - '!tsconfig*.json'
+              - '!rust-toolchain*'
+              - '!src/**'
+              - '!build.rs'
+              - '!Cargo.toml'
+              - '!Cargo.lock'
+              - '!deny.toml'
+              - '!permissions/**'
+              - '!.cargo/**'
+              - '!guest-js/**'
+              - '!package.json'
+              - '!pnpm-lock.yaml'
+              - '!rollup.config.js'
+              - '!vitest.config.ts'
+              - '!android/**'
+              - '!ios/**'
+              - '!macos/**'
+              - '!examples/**'
+              - '!README.md'
+              - '!LICENSE'
   # Build the example app on every desktop OS. Catches platform-specific
   # regressions.
   desktop:
+    needs: changes
+    if: ${{ needs.changes.outputs.all == 'true' || needs.changes.outputs.rust == 'true' || needs.changes.outputs.js == 'true' || needs.changes.outputs.macos == 'true' }}
     name: build-demo (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     strategy:
@@ -62,6 +134,8 @@ jobs:
         run: pnpm tauri build --debug --no-bundle
 
   android:
+    needs: changes
+    if: ${{ needs.changes.outputs.all == 'true' || needs.changes.outputs.rust == 'true' || needs.changes.outputs.js == 'true' || needs.changes.outputs.android == 'true' }}
     name: build-demo (android)
     runs-on: ubuntu-latest
     steps:
@@ -103,6 +177,8 @@ jobs:
           pnpm tauri android build --debug --apk --target aarch64
 
   ios:
+    needs: changes
+    if: ${{ needs.changes.outputs.all == 'true' || needs.changes.outputs.rust == 'true' || needs.changes.outputs.js == 'true' || needs.changes.outputs.ios == 'true' }}
     name: build-demo (ios)
     runs-on: macos-latest
     steps:
