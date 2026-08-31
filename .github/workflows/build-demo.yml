@@ -3,7 +3,7 @@ name: Build Demo
 on:
   pull_request:
   push:
-    branches: ['**']
+    branches: [main]
 
 concurrency:
   # Superseded runs cancel per workflow+ref (PR merge refs and branch pushes
