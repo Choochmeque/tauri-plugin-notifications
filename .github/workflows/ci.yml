@@ -1,0 +1,20 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  # Superseded runs cancel per ref; main is pinned to a unique group (run_id)
+  # so every commit on main gets its own uncancellable verification run.
+  group: ci-${{ github.ref == 'refs/heads/main' && github.run_id || github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  ci:
+    permissions:
+      contents: read
+      pull-requests: read
+    uses: Choochmeque/reusable-actions/.github/workflows/ci.yml@v1
+    secrets: inherit
