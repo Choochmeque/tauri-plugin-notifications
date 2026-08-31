@@ -14,5 +14,8 @@ concurrency:
 
 jobs:
   tests:
+    permissions:
+      contents: read
+      pull-requests: read
     uses: Choochmeque/reusable-actions/.github/workflows/tests.yml@v1
     secrets: inherit
