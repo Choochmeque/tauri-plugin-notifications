@@ -20,7 +20,10 @@ use crate::NotificationsBuilder;
 #[cfg(target_os = "linux")]
 struct ActiveEntry {
     caller_id: i32,
-    handle: notify_rust::NotificationHandle,
+    /// Shared with the action waiter spawned by [`NotificationsBuilder::show`]
+    /// when a click listener is subscribed, so both can hold the handle for as
+    /// long as the notification is live.
+    handle: std::sync::Arc<notify_rust::NotificationHandle>,
     title: Option<String>,
     body: Option<String>,
 }
@@ -39,6 +42,7 @@ pub fn init<R: Runtime, C: DeserializeOwned>(
         active_counter: std::sync::atomic::AtomicU64::new(0),
         #[cfg(all(target_os = "linux", feature = "push-notifications"))]
         unifiedpush: tokio::sync::OnceCell::new(),
+        click_listener_active: std::sync::atomic::AtomicBool::new(false),
     })
 }
 
@@ -60,6 +64,13 @@ pub struct Notifications<R: Runtime> {
     active_counter: std::sync::atomic::AtomicU64,
     #[cfg(all(target_os = "linux", feature = "push-notifications"))]
     unifiedpush: tokio::sync::OnceCell<std::sync::Arc<crate::unifiedpush::UnifiedPushState>>,
+    /// Whether a JS `notificationClicked` listener is currently subscribed.
+    /// Set by [`Notifications::set_click_listener_active`], which the JS
+    /// `onNotificationClicked` helper calls right after registering. Read by
+    /// [`NotificationsBuilder::show`] to decide whether to observe the
+    /// notification's response, and — on macOS and Linux — whether the
+    /// notification needs an activation action declared at all.
+    click_listener_active: std::sync::atomic::AtomicBool,
 }
 
 #[cfg(target_os = "linux")]
@@ -72,8 +83,8 @@ fn active_lock_err(e: impl std::fmt::Display) -> crate::Error {
 #[cfg(target_os = "linux")]
 impl<R: Runtime> Notifications<R> {
     /// Finds every tracked notification whose caller id is in `caller_ids`,
-    /// removes them from the active map, and dispatches `handle.close()` on
-    /// the blocking pool so the command call returns quickly.
+    /// removes them from the active map, and spawns `handle.close_async()` so
+    /// the command call returns quickly.
     fn close_by_caller_ids(&self, caller_ids: &[i32]) -> crate::Result<()> {
         let mut to_close: Vec<ActiveEntry> = Vec::new();
         {
@@ -97,7 +108,9 @@ impl<R: Runtime> Notifications<R> {
             *active = kept;
         }
         for entry in to_close {
-            tauri::async_runtime::spawn_blocking(move || entry.handle.close());
+            // `close_async` borrows, so it works through the `Arc` that the
+            // action waiter may also be holding; the consuming `close()` can't.
+            tauri::async_runtime::spawn(async move { entry.handle.close_async().await });
         }
         Ok(())
     }
@@ -150,7 +163,10 @@ impl<R: Runtime> Notifications<R> {
                         let entry_id = state.active_counter.fetch_add(1, Ordering::Relaxed);
                         let entry = ActiveEntry {
                             caller_id: 0,
-                            handle,
+                            // No click waiter for push toasts (they carry no
+                            // caller id or extras), but the field is shared with
+                            // the local path, which does spawn one.
+                            handle: std::sync::Arc::new(handle),
                             title,
                             body,
                         };
@@ -172,6 +188,63 @@ impl<R: Runtime> Notifications<R> {
     }
 }
 
+/// Linux: registers the freshly shown notification in the active map and, when
+/// a click listener is subscribed, spawns the waiter that reports the user's
+/// response and removes the entry once the notification is gone.
+///
+/// `Arc` because the handle has two concurrent users: the active map (for
+/// `cancel`) and the action waiter. Both only ever need `&self` —
+/// `wait_for_action_async` and `close_async` borrow, unlike their consuming
+/// sync counterparts. Tracking happens before observing so the waiter's removal
+/// can never race an insert that has not happened yet.
+#[cfg(target_os = "linux")]
+fn track_and_observe<R: Runtime>(
+    app: &tauri::AppHandle<R>,
+    caller_id: i32,
+    extra: std::collections::HashMap<String, serde_json::Value>,
+    title: Option<String>,
+    body: Option<String>,
+    handle: notify_rust::NotificationHandle,
+    click_listener_active: bool,
+) {
+    use std::sync::atomic::Ordering;
+    use tauri::Manager;
+
+    fn lock_active<R: Runtime>(
+        state: &Notifications<R>,
+    ) -> std::sync::MutexGuard<'_, std::collections::HashMap<u64, ActiveEntry>> {
+        state.active.lock().unwrap_or_else(|poisoned| {
+            log::warn!("active notifications mutex was poisoned; recovering");
+            poisoned.into_inner()
+        })
+    }
+
+    let handle = std::sync::Arc::new(handle);
+    let state = app.state::<Notifications<R>>();
+    let entry_id = state.active_counter.fetch_add(1, Ordering::Relaxed);
+    let entry = ActiveEntry {
+        caller_id,
+        handle: std::sync::Arc::clone(&handle),
+        title,
+        body,
+    };
+    lock_active(&state).insert(entry_id, entry);
+
+    if click_listener_active {
+        let app = app.clone();
+        tauri::async_runtime::spawn(async move {
+            // Resolves on ActionInvoked *or* NotificationClosed — either way
+            // the notification is no longer on screen, so the entry goes too.
+            handle
+                .wait_for_action_async(|response| {
+                    imp::emit_click(caller_id, &extra, response);
+                })
+                .await;
+            lock_active(&app.state::<Notifications<R>>()).remove(&entry_id);
+        });
+    }
+}
+
 // `async` and `Result` mirror the mobile/macOS plugin API so callers can `.await` and `?` uniformly.
 impl<R: Runtime> crate::NotificationsBuilder<R> {
     pub async fn show(self) -> crate::Result<()> {
@@ -182,15 +255,56 @@ impl<R: Runtime> crate::NotificationsBuilder<R> {
             .or_else(|| self.app.config().product_name.clone());
         let body = self.data.body;
         let icon = self.data.icon;
+        // Captured for the click payload: the response from `notify-rust`
+        // carries no notification identity, so the waiter has to close over the
+        // id and extras of the notification it was spawned for.
+        let extra = self.data.extra;
         let identifier = self.app.config().identifier.clone();
         let app = self.app.clone();
 
-        let notification = imp::build_notification(
+        // Read before building: on macOS and Linux, whether a listener is
+        // subscribed changes how the notification itself has to be constructed.
+        let click_listener_active = {
+            use tauri::Manager;
+            app.state::<Notifications<R>>()
+                .click_listener_active
+                .load(std::sync::atomic::Ordering::Relaxed)
+        };
+
+        #[cfg_attr(
+            target_os = "windows",
+            expect(unused_mut, reason = "no action is declared on Windows")
+        )]
+        let mut notification = imp::build_notification(
             title.as_deref(),
             body.as_deref(),
             icon.as_deref(),
             &identifier,
         )?;
+
+        // Both non-Windows backends need an action declared before a click can
+        // ever be reported, for different reasons:
+        //
+        // * macOS — `mac-notification-sys` only blocks for a response when the
+        //   notification declares an interactive element (`needs_response()` is
+        //   `main_button.is_some() || close_button.is_some() || wait_for_click`).
+        //   notify-rust never sets `wait_for_click` and only sets `close_button`
+        //   for `on_close`, so without an action `wait_for_response` returns
+        //   `None` immediately. One action becomes `MainButton::SingleAction`,
+        //   which arms the wait.
+        // * Linux — per the freedesktop spec the client declares the activation
+        //   action, and the daemon reports a body click as the action keyed
+        //   `"default"`. Without it there's no `ActionInvoked` signal to catch.
+        //   Requires the daemon to advertise the `actions` capability.
+        //
+        // Windows needs none of this: notify-rust wires `on_activated` /
+        // `on_dismissed` into an mpsc channel unconditionally, and a body tap
+        // arrives with empty `Arguments` — declaring an action would only add a
+        // visible button.
+        #[cfg(any(target_os = "macos", target_os = "linux"))]
+        if click_listener_active {
+            notification.action("default", "Open");
+        }
 
         // `notify_rust::Notification::show()` is sync and runs an internal
         // blocking D-Bus call (via zbus's `block_on`). Calling it inside
@@ -209,35 +323,54 @@ impl<R: Runtime> crate::NotificationsBuilder<R> {
         match join_result {
             #[cfg(target_os = "linux")]
             Ok(handle) => {
-                use std::sync::atomic::Ordering;
-                use tauri::Manager;
-                let state = app.state::<Notifications<R>>();
-                let entry_id = state.active_counter.fetch_add(1, Ordering::Relaxed);
-                let entry = ActiveEntry {
+                track_and_observe(
+                    &app,
                     caller_id,
-                    handle,
+                    extra,
                     title,
                     body,
-                };
-                // Take the lock into a binding so its `MutexGuard` temporary
-                // doesn't outlive `state` in the `match` arms.
-                let lock_result = state.active.lock();
-                match lock_result {
-                    Ok(mut active) => {
-                        active.insert(entry_id, entry);
-                    }
-                    Err(poisoned) => {
-                        log::warn!("active notifications mutex was poisoned; recovering");
-                        poisoned.into_inner().insert(entry_id, entry);
-                    }
-                }
+                    handle,
+                    click_listener_active,
+                );
             }
-            // macOS / Windows: drop the `NotificationHandle`. Neither
-            // platform's daemon dismisses popups on sender disconnect, so
-            // there's nothing to keep alive.
+            // macOS / Windows: both wait on a blocking thread, for different
+            // reasons.
+            //
+            // * macOS — `show()` posts nothing here, it only wraps the
+            //   `Notification`. Delivery happens in the handle's `Drop`
+            //   (fire-and-forget) or inside `wait_for_response`, which posts and
+            //   then blocks. So the listener decides which path delivers it, and
+            //   the `else` branch below is what shows the notification.
+            //   `mac-notification-sys` blocks on a condvar when called off the
+            //   main thread (it only spins the run loop when it *is* the main
+            //   thread), so the parked thread costs no CPU.
+            // * Windows — the toast is already posted; the handle owns the
+            //   receiving end of the mpsc channel notify-rust's `on_activated` /
+            //   `on_dismissed` feed. WinRT delivers activations on a threadpool
+            //   thread, so this is a plain blocking `recv()` that doesn't need
+            //   the showing thread to pump messages. Dropping the handle is
+            //   harmless: the sends just fail silently.
+            //
+            // `wait_for_action` is deliberately not used: its `Ok(_)` arm
+            // collapses `Default` into `"__closed"`, which would make a body tap
+            // indistinguishable from a dismissal.
             #[cfg(any(target_os = "macos", target_os = "windows"))]
-            Ok(_) => {
-                let _ = (caller_id, title, body, app);
+            Ok(handle) => {
+                let _ = (title, body, app);
+                if click_listener_active {
+                    tauri::async_runtime::spawn_blocking(move || {
+                        let responded = handle.wait_for_response(
+                            |response: &notify_rust::NotificationResponse| {
+                                imp::emit_click(caller_id, &extra, response);
+                            },
+                        );
+                        if let Err(e) = responded {
+                            log::warn!("Failed to await notification response: {e}");
+                        }
+                    });
+                } else {
+                    drop(handle);
+                }
             }
             // Propagate the underlying `notify-rust` failure (missing
             // notification daemon, D-Bus permission denied, etc.) instead of
@@ -261,6 +394,7 @@ impl<R: Runtime> Notifications<R> {
         NotificationsBuilder::new(self.app.clone())
     }
 
+    #[allow(unknown_lints, clippy::unused_async, clippy::unused_async_trait_impl)]
     pub async fn request_permission(&self) -> crate::Result<PermissionState> {
         Ok(PermissionState::Granted)
     }
@@ -269,6 +403,7 @@ impl<R: Runtime> Notifications<R> {
     /// selected (or first available) `UnifiedPush` distributor and returns the
     /// endpoint URL. Apps that need endpoint stability across launches should
     /// call [`set_token`](Self::set_token) before this with a persisted token.
+    #[allow(unknown_lints, clippy::unused_async, clippy::unused_async_trait_impl)]
     pub async fn register_for_push_notifications(&self) -> crate::Result<String> {
         #[cfg(all(target_os = "linux", feature = "push-notifications"))]
         {
@@ -296,6 +431,7 @@ impl<R: Runtime> Notifications<R> {
     /// `push-notifications` feature this calls
     /// `org.unifiedpush.Distributor1.Unregister` and clears the in-memory
     /// active registration.
+    #[allow(unknown_lints, clippy::unused_async, clippy::unused_async_trait_impl)]
     pub async fn unregister_for_push_notifications_async(&self) -> crate::Result<()> {
         #[cfg(all(target_os = "linux", feature = "push-notifications"))]
         {
@@ -335,10 +471,12 @@ impl<R: Runtime> Notifications<R> {
         state.set_token(token).await
     }
 
+    #[allow(unknown_lints, clippy::unused_async, clippy::unused_async_trait_impl)]
     pub async fn permission_state(&self) -> crate::Result<PermissionState> {
         Ok(PermissionState::Granted)
     }
 
+    #[allow(unknown_lints, clippy::unused_async, clippy::unused_async_trait_impl)]
     pub async fn pending(&self) -> crate::Result<Vec<crate::PendingNotification>> {
         Err(crate::Error::Io(std::io::Error::other(
             "Pending notifications are not supported with notify-rust",
@@ -352,6 +490,7 @@ impl<R: Runtime> Notifications<R> {
     /// since notify-rust doesn't expose a non-consuming "closed" callback.
     ///
     /// macOS / Windows: still unsupported.
+    #[allow(unknown_lints, clippy::unused_async, clippy::unused_async_trait_impl)]
     pub async fn active(&self) -> crate::Result<Vec<crate::ActiveNotification>> {
         #[cfg(target_os = "linux")]
         {
@@ -375,10 +514,17 @@ impl<R: Runtime> Notifications<R> {
         }
     }
 
-    pub fn set_click_listener_active(&self, _active: bool) -> crate::Result<()> {
-        Err(crate::Error::Io(std::io::Error::other(
-            "Click listeners are not supported with notify-rust",
-        )))
+    /// Records whether a `notificationClicked` listener is subscribed.
+    ///
+    /// Notifications shown while this is `true` are observed for the user's
+    /// response and emit `notificationClicked` on activation (see
+    /// [`NotificationsBuilder::show`]). Notifications already on screen when it
+    /// flips are not retroactively observed, and there is no cold-start buffer —
+    /// unlike the native Windows backend, this one can't be launched by a click.
+    pub fn set_click_listener_active(&self, active: bool) -> crate::Result<()> {
+        self.click_listener_active
+            .store(active, std::sync::atomic::Ordering::Relaxed);
+        Ok(())
     }
 
     /// Linux: closes every tracked notification whose caller-supplied id
@@ -434,9 +580,7 @@ impl<R: Runtime> Notifications<R> {
                 active.drain().map(|(_, v)| v).collect()
             };
             for entry in drained {
-                // `handle.close()` runs a blocking platform call; push it
-                // off the current thread so the command returns quickly.
-                tauri::async_runtime::spawn_blocking(move || entry.handle.close());
+                tauri::async_runtime::spawn(async move { entry.handle.close_async().await });
             }
             Ok(())
         }
@@ -476,6 +620,50 @@ impl<R: Runtime> Notifications<R> {
 mod imp {
     //! Helpers for assembling the cross-platform `notify_rust::Notification`
     //! before handing it off to a blocking thread for delivery.
+
+    /// Dispatches a `notificationClicked` event for a body tap, matching the
+    /// payload the native backends emit (`{ id, data }`, see `windows.rs`).
+    ///
+    /// A body tap arrives as
+    /// [`NotificationResponse::Default`](notify_rust::NotificationResponse::Default).
+    /// On macOS and Linux, arming the wait requires declaring a `"default"`
+    /// action (see `NotificationsBuilder::show`), so tapping that button instead
+    /// arrives as `Action("default")` — both mean "the user activated this
+    /// notification". `Closed` is ignored, so dismissal and expiry fire nothing.
+    pub fn emit_click(
+        id: i32,
+        extra: &std::collections::HashMap<String, serde_json::Value>,
+        response: &notify_rust::NotificationResponse,
+    ) {
+        if !is_activation(response) {
+            log::debug!("notification {id} closed without activation: {response:?}");
+            return;
+        }
+        if let Err(e) = crate::listeners::trigger("notificationClicked", click_payload(id, extra)) {
+            log::warn!("Failed to dispatch notificationClicked: {e}");
+        }
+    }
+
+    /// Whether the user activated the notification: a body tap (`Default`) or
+    /// the `"default"` action declared to arm the wait on macOS/Linux. Any
+    /// other action, a reply, or a close is not a click.
+    fn is_activation(response: &notify_rust::NotificationResponse) -> bool {
+        use notify_rust::NotificationResponse;
+        match response {
+            NotificationResponse::Default => true,
+            NotificationResponse::Action(key) => key == "default",
+            _ => false,
+        }
+    }
+
+    /// The `notificationClicked` payload, shaped like the native backends'
+    /// (`{ id, data }`).
+    fn click_payload(
+        id: i32,
+        extra: &std::collections::HashMap<String, serde_json::Value>,
+    ) -> String {
+        serde_json::json!({ "id": id, "data": extra }).to_string()
+    }
 
     #[cfg(windows)]
     use std::path::MAIN_SEPARATOR as SEP;
@@ -531,5 +719,54 @@ mod imp {
         let _ = identifier;
 
         Ok(notification)
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::{click_payload, is_activation};
+        use notify_rust::{CloseReason, NotificationResponse};
+
+        #[test]
+        fn body_tap_is_activation() {
+            assert!(is_activation(&NotificationResponse::Default));
+        }
+
+        #[test]
+        fn default_action_is_activation() {
+            assert!(is_activation(&NotificationResponse::Action(
+                "default".to_owned()
+            )));
+        }
+
+        #[test]
+        fn other_action_is_not_activation() {
+            assert!(!is_activation(&NotificationResponse::Action(
+                "settings".to_owned()
+            )));
+        }
+
+        #[test]
+        fn closes_are_not_activation() {
+            for reason in [
+                CloseReason::Expired,
+                CloseReason::Dismissed,
+                CloseReason::CloseAction,
+                CloseReason::Other(0),
+            ] {
+                assert!(!is_activation(&NotificationResponse::Closed(reason)));
+            }
+        }
+
+        #[test]
+        fn payload_matches_native_shape() {
+            let mut extra = std::collections::HashMap::new();
+            extra.insert("k".to_owned(), serde_json::json!("v"));
+            let payload: serde_json::Value = serde_json::from_str(&click_payload(7, &extra))
+                .expect("click payload is valid json");
+            assert_eq!(
+                payload,
+                serde_json::json!({ "id": 7, "data": { "k": "v" } })
+            );
+        }
     }
 }
