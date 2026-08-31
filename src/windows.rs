@@ -644,6 +644,7 @@ impl<R: Runtime> crate::NotificationsBuilder<R> {
         Ok(doc)
     }
 
+    #[allow(unknown_lints, clippy::unused_async, clippy::unused_async_trait_impl)]
     pub async fn show(self) -> crate::Result<()> {
         let action_types = self.plugin.action_types()?;
         let toast_xml = self.build_toast_xml(&action_types)?;
@@ -848,6 +849,7 @@ impl<R: Runtime> Notifications<R> {
         self.permission_state().await
     }
 
+    #[allow(unknown_lints, clippy::unused_async, clippy::unused_async_trait_impl)]
     pub async fn register_for_push_notifications(&self) -> crate::Result<String> {
         self.plugin.open_push_channel()
     }
@@ -856,6 +858,7 @@ impl<R: Runtime> Notifications<R> {
         self.plugin.close_push_channel()
     }
 
+    #[allow(unknown_lints, clippy::unused_async, clippy::unused_async_trait_impl)]
     pub async fn permission_state(&self) -> crate::Result<PermissionState> {
         match self.plugin.notifier.Setting()? {
             NotificationSetting::Enabled => Ok(PermissionState::Granted),
@@ -897,6 +900,7 @@ impl<R: Runtime> Notifications<R> {
         Ok(())
     }
 
+    #[allow(unknown_lints, clippy::unused_async, clippy::unused_async_trait_impl)]
     pub async fn active(&self) -> crate::Result<Vec<ActiveNotification>> {
         let history = ToastNotificationManager::History()?;
         let notifications = if self.plugin.packaged {
@@ -959,6 +963,7 @@ impl<R: Runtime> Notifications<R> {
         Ok(())
     }
 
+    #[allow(unknown_lints, clippy::unused_async, clippy::unused_async_trait_impl)]
     pub async fn pending(&self) -> crate::Result<Vec<PendingNotification>> {
         let scheduled = self.plugin.notifier.GetScheduledToastNotifications()?;
         let mut result = Vec::new();

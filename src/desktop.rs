@@ -394,6 +394,7 @@ impl<R: Runtime> Notifications<R> {
         NotificationsBuilder::new(self.app.clone())
     }
 
+    #[allow(unknown_lints, clippy::unused_async, clippy::unused_async_trait_impl)]
     pub async fn request_permission(&self) -> crate::Result<PermissionState> {
         Ok(PermissionState::Granted)
     }
@@ -402,6 +403,7 @@ impl<R: Runtime> Notifications<R> {
     /// selected (or first available) `UnifiedPush` distributor and returns the
     /// endpoint URL. Apps that need endpoint stability across launches should
     /// call [`set_token`](Self::set_token) before this with a persisted token.
+    #[allow(unknown_lints, clippy::unused_async, clippy::unused_async_trait_impl)]
     pub async fn register_for_push_notifications(&self) -> crate::Result<String> {
         #[cfg(all(target_os = "linux", feature = "push-notifications"))]
         {
@@ -429,6 +431,7 @@ impl<R: Runtime> Notifications<R> {
     /// `push-notifications` feature this calls
     /// `org.unifiedpush.Distributor1.Unregister` and clears the in-memory
     /// active registration.
+    #[allow(unknown_lints, clippy::unused_async, clippy::unused_async_trait_impl)]
     pub async fn unregister_for_push_notifications_async(&self) -> crate::Result<()> {
         #[cfg(all(target_os = "linux", feature = "push-notifications"))]
         {
@@ -468,10 +471,12 @@ impl<R: Runtime> Notifications<R> {
         state.set_token(token).await
     }
 
+    #[allow(unknown_lints, clippy::unused_async, clippy::unused_async_trait_impl)]
     pub async fn permission_state(&self) -> crate::Result<PermissionState> {
         Ok(PermissionState::Granted)
     }
 
+    #[allow(unknown_lints, clippy::unused_async, clippy::unused_async_trait_impl)]
     pub async fn pending(&self) -> crate::Result<Vec<crate::PendingNotification>> {
         Err(crate::Error::Io(std::io::Error::other(
             "Pending notifications are not supported with notify-rust",
@@ -485,6 +490,7 @@ impl<R: Runtime> Notifications<R> {
     /// since notify-rust doesn't expose a non-consuming "closed" callback.
     ///
     /// macOS / Windows: still unsupported.
+    #[allow(unknown_lints, clippy::unused_async, clippy::unused_async_trait_impl)]
     pub async fn active(&self) -> crate::Result<Vec<crate::ActiveNotification>> {
         #[cfg(target_os = "linux")]
         {
