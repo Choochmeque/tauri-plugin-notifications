@@ -188,6 +188,63 @@ impl<R: Runtime> Notifications<R> {
     }
 }
 
+/// Linux: registers the freshly shown notification in the active map and, when
+/// a click listener is subscribed, spawns the waiter that reports the user's
+/// response and removes the entry once the notification is gone.
+///
+/// `Arc` because the handle has two concurrent users: the active map (for
+/// `cancel`) and the action waiter. Both only ever need `&self` —
+/// `wait_for_action_async` and `close_async` borrow, unlike their consuming
+/// sync counterparts. Tracking happens before observing so the waiter's removal
+/// can never race an insert that has not happened yet.
+#[cfg(target_os = "linux")]
+fn track_and_observe<R: Runtime>(
+    app: &tauri::AppHandle<R>,
+    caller_id: i32,
+    extra: std::collections::HashMap<String, serde_json::Value>,
+    title: Option<String>,
+    body: Option<String>,
+    handle: notify_rust::NotificationHandle,
+    click_listener_active: bool,
+) {
+    use std::sync::atomic::Ordering;
+    use tauri::Manager;
+
+    fn lock_active<R: Runtime>(
+        state: &Notifications<R>,
+    ) -> std::sync::MutexGuard<'_, std::collections::HashMap<u64, ActiveEntry>> {
+        state.active.lock().unwrap_or_else(|poisoned| {
+            log::warn!("active notifications mutex was poisoned; recovering");
+            poisoned.into_inner()
+        })
+    }
+
+    let handle = std::sync::Arc::new(handle);
+    let state = app.state::<Notifications<R>>();
+    let entry_id = state.active_counter.fetch_add(1, Ordering::Relaxed);
+    let entry = ActiveEntry {
+        caller_id,
+        handle: std::sync::Arc::clone(&handle),
+        title,
+        body,
+    };
+    lock_active(&state).insert(entry_id, entry);
+
+    if click_listener_active {
+        let app = app.clone();
+        tauri::async_runtime::spawn(async move {
+            // Resolves on ActionInvoked *or* NotificationClosed — either way
+            // the notification is no longer on screen, so the entry goes too.
+            handle
+                .wait_for_action_async(|response| {
+                    imp::emit_click(caller_id, &extra, response);
+                })
+                .await;
+            lock_active(&app.state::<Notifications<R>>()).remove(&entry_id);
+        });
+    }
+}
+
 // `async` and `Result` mirror the mobile/macOS plugin API so callers can `.await` and `?` uniformly.
 impl<R: Runtime> crate::NotificationsBuilder<R> {
     pub async fn show(self) -> crate::Result<()> {
@@ -266,43 +323,15 @@ impl<R: Runtime> crate::NotificationsBuilder<R> {
         match join_result {
             #[cfg(target_os = "linux")]
             Ok(handle) => {
-                use std::sync::atomic::Ordering;
-                use tauri::Manager;
-                // `Arc` because the handle has two concurrent users: the active
-                // map (for `cancel`) and the action waiter. Both only ever need
-                // `&self` — `wait_for_action_async` and `close_async` borrow,
-                // unlike their consuming sync counterparts.
-                let handle = std::sync::Arc::new(handle);
-                if click_listener_active {
-                    let waiter = std::sync::Arc::clone(&handle);
-                    tauri::async_runtime::spawn(async move {
-                        waiter
-                            .wait_for_action_async(|response| {
-                                imp::emit_click(caller_id, &extra, response);
-                            })
-                            .await;
-                    });
-                }
-                let state = app.state::<Notifications<R>>();
-                let entry_id = state.active_counter.fetch_add(1, Ordering::Relaxed);
-                let entry = ActiveEntry {
+                track_and_observe(
+                    &app,
                     caller_id,
-                    handle,
+                    extra,
                     title,
                     body,
-                };
-                // Take the lock into a binding so its `MutexGuard` temporary
-                // doesn't outlive `state` in the `match` arms.
-                let lock_result = state.active.lock();
-                match lock_result {
-                    Ok(mut active) => {
-                        active.insert(entry_id, entry);
-                    }
-                    Err(poisoned) => {
-                        log::warn!("active notifications mutex was poisoned; recovering");
-                        poisoned.into_inner().insert(entry_id, entry);
-                    }
-                }
+                    handle,
+                    click_listener_active,
+                );
             }
             // macOS / Windows: both wait on a blocking thread, for different
             // reasons.
