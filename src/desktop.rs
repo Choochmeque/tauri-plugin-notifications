@@ -635,21 +635,34 @@ mod imp {
         extra: &std::collections::HashMap<String, serde_json::Value>,
         response: &notify_rust::NotificationResponse,
     ) {
-        use notify_rust::NotificationResponse;
-
-        let activated = match response {
-            NotificationResponse::Default => true,
-            NotificationResponse::Action(key) => key == "default",
-            _ => false,
-        };
-        if !activated {
+        if !is_activation(response) {
             log::debug!("notification {id} closed without activation: {response:?}");
             return;
         }
-        let payload = serde_json::json!({ "id": id, "data": extra });
-        if let Err(e) = crate::listeners::trigger("notificationClicked", payload.to_string()) {
+        if let Err(e) = crate::listeners::trigger("notificationClicked", click_payload(id, extra)) {
             log::warn!("Failed to dispatch notificationClicked: {e}");
         }
+    }
+
+    /// Whether the user activated the notification: a body tap (`Default`) or
+    /// the `"default"` action declared to arm the wait on macOS/Linux. Any
+    /// other action, a reply, or a close is not a click.
+    fn is_activation(response: &notify_rust::NotificationResponse) -> bool {
+        use notify_rust::NotificationResponse;
+        match response {
+            NotificationResponse::Default => true,
+            NotificationResponse::Action(key) => key == "default",
+            _ => false,
+        }
+    }
+
+    /// The `notificationClicked` payload, shaped like the native backends'
+    /// (`{ id, data }`).
+    fn click_payload(
+        id: i32,
+        extra: &std::collections::HashMap<String, serde_json::Value>,
+    ) -> String {
+        serde_json::json!({ "id": id, "data": extra }).to_string()
     }
 
     #[cfg(windows)]
@@ -706,5 +719,54 @@ mod imp {
         let _ = identifier;
 
         Ok(notification)
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::{click_payload, is_activation};
+        use notify_rust::{CloseReason, NotificationResponse};
+
+        #[test]
+        fn body_tap_is_activation() {
+            assert!(is_activation(&NotificationResponse::Default));
+        }
+
+        #[test]
+        fn default_action_is_activation() {
+            assert!(is_activation(&NotificationResponse::Action(
+                "default".to_owned()
+            )));
+        }
+
+        #[test]
+        fn other_action_is_not_activation() {
+            assert!(!is_activation(&NotificationResponse::Action(
+                "settings".to_owned()
+            )));
+        }
+
+        #[test]
+        fn closes_are_not_activation() {
+            for reason in [
+                CloseReason::Expired,
+                CloseReason::Dismissed,
+                CloseReason::CloseAction,
+                CloseReason::Other(0),
+            ] {
+                assert!(!is_activation(&NotificationResponse::Closed(reason)));
+            }
+        }
+
+        #[test]
+        fn payload_matches_native_shape() {
+            let mut extra = std::collections::HashMap::new();
+            extra.insert("k".to_owned(), serde_json::json!("v"));
+            let payload: serde_json::Value = serde_json::from_str(&click_payload(7, &extra))
+                .expect("click payload is valid json");
+            assert_eq!(
+                payload,
+                serde_json::json!({ "id": 7, "data": { "k": "v" } })
+            );
+        }
     }
 }
