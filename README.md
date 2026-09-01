@@ -45,7 +45,7 @@ Add the plugin to your Tauri project's `Cargo.toml`:
 
 ```toml
 [dependencies]
-tauri-plugin-notifications = "0.4"
+tauri-plugin-notifications = "0.5"
 ```
 
 ### Push Notifications Feature
@@ -54,7 +54,7 @@ The `push-notifications` feature is **disabled by default**. To enable push noti
 
 ```toml
 [dependencies]
-tauri-plugin-notifications = { version = "0.4", features = ["push-notifications"] }
+tauri-plugin-notifications = { version = "0.5", features = ["push-notifications"] }
 ```
 
 This enables:
@@ -88,14 +88,14 @@ To disable `notify-rust` and use native platform implementations:
 
 ```toml
 [dependencies]
-tauri-plugin-notifications = { version = "0.4", default-features = false }
+tauri-plugin-notifications = { version = "0.5", default-features = false }
 ```
 
 To disable `notify-rust` and enable push notifications:
 
 ```toml
 [dependencies]
-tauri-plugin-notifications = { version = "0.4", default-features = false, features = ["push-notifications"] }
+tauri-plugin-notifications = { version = "0.5", default-features = false, features = ["push-notifications"] }
 ```
 
 Configure the plugin permissions in your `capabilities/default.json`:
