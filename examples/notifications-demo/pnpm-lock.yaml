@@ -19,8 +19,8 @@ importers:
         version: 2.5.5
     devDependencies:
       '@choochmeque/tauri-windows-bundle':
-        specifier: ^0.1.26
-        version: 0.1.28
+        specifier: ^0.1.29
+        version: 0.1.29
       '@sveltejs/adapter-static':
         specifier: ^3.0.6
         version: 3.0.10(@sveltejs/kit@2.70.3(@sveltejs/vite-plugin-svelte@7.3.0(svelte@5.57.0(@typescript-eslint/types@8.58.0))(vite@8.2.2(esbuild@0.27.2)))(svelte@5.57.0(@typescript-eslint/types@8.58.0))(typescript@6.0.3)(vite@8.2.2(esbuild@0.27.2)))
@@ -48,15 +48,15 @@ importers:
 
 packages:
 
-  '@choochmeque/msixbundle-cli-win32@1.1.11':
-    resolution: {integrity: sha512-eT6hnDzYxTflsil/zhf5FNdHC3ip8JPr+Itgh9ULI2KdD3YhWd9PVeRRC5BFHZUKHHsOqW2SVcRvsU3rcfpqiQ==}
+  '@choochmeque/msixbundle-cli-win32@1.1.15':
+    resolution: {integrity: sha512-jnIkJ5S0yVWtOdYgboT+mA9/73fGzwAtL2AjzJAklf/OgRi7va6TKX+s1yPNsRAld3nMELk2XJeVPkw1sBnEGw==}
     os: [win32]
 
   '@choochmeque/tauri-plugin-notifications-api@file:../..':
     resolution: {directory: ../.., type: directory}
 
-  '@choochmeque/tauri-windows-bundle@0.1.28':
-    resolution: {integrity: sha512-myr/hMcWI8ivQeI5eP75qqiYm4Pgn7NQ9Wz9Z0FNXmaEmrnLbPyX2EZggTvOfJsImLnarvU4eP6NYXo2gnAHPQ==}
+  '@choochmeque/tauri-windows-bundle@0.1.29':
+    resolution: {integrity: sha512-OnKyjje1udUfQoadWGqGhlvQb6FgbIZW7oeTy4G2Ie3owFmpgYj2JarMI/6JWCaIW+2J5zzUtBboGJtqtja9ww==}
     hasBin: true
 
   '@esbuild/aix-ppc64@0.27.2':
@@ -486,12 +486,12 @@ packages:
   binary-search@1.3.6:
     resolution: {integrity: sha512-nbE1WxOTTrUWIfsfZ4aHGYu5DOuNkbxGokjV6Z2kxfJK3uaAb8zNK1muzOeipoLHZjInT4Br88BHpzevc681xA==}
 
-  brace-expansion@5.0.7:
-    resolution: {integrity: sha512-7oFy703dxfY3/NLxC1fh2SUCQ0H9rmAY+5EpDVfXjUTTs+HEwR2nYaqLv+GWcTsumwxPfiz6CzCNkwXwBUwqCA==}
-    engines: {node: 18 || 20 || >=22}
+  brace-expansion@5.0.9:
+    resolution: {integrity: sha512-ScQ4IuvIEF1TMlP7Zt+vjJ//9zlPb2SDcxWxM3bk8s6t6GGdJ7KO1dCcTidOPJKePW30LE/2cT7wCyPho9/Wxg==}
+    engines: {node: 20 || >=22}
 
-  bresenham-zingl@0.2.5:
-    resolution: {integrity: sha512-0TCrPvavRM/3Os9QIUDhe8jpAQXgEYjsVO+9IKnkC8cdzorDX5fMRfr3neEFGjcfRItEswHvIvPrqQzCalRYkw==}
+  bresenham-zingl@0.2.8:
+    resolution: {integrity: sha512-AaC4k7+pHgbzlK4fb+l3/fXJd1CbQwhqE5oIoLaknVojyXQv79einSR+fWLR1yCJWOh46v+lLsFRMxHlea8Q5A==}
 
   cheminfo-types@1.15.0:
     resolution: {integrity: sha512-shv45WN2u0yN9EHH1bisNrv+fy4Cw+eLM5lOoriP67mePrwbHZ1kJqg90C8GEU7K1A8gJsicEoVZHcuBbuul/w==}
@@ -504,8 +504,8 @@ packages:
     resolution: {integrity: sha512-eYm0QWBtUrBWZWG0d386OGAw16Z995PiOVo2B7bjWSbHedGl5e0ZWaq65kOGgUSNesEIDkB9ISbTg/JK9dhCZA==}
     engines: {node: '>=6'}
 
-  colord@2.9.3:
-    resolution: {integrity: sha512-jeC1axXpnb0/2nn/Y1LPuLdgXBLH7aDcHu4KEKfqw3CUhX7ZpfBSlPKyqXE6btIgEzfWtrX3/tyBCaCvXvMkOw==}
+  colord@2.10.0:
+    resolution: {integrity: sha512-AidJptpBJmjTclAp9BkLwJi0T93fo5epJnbaZslpg6QVzpHjAiveF55mE9AcUJiGMqRHgMDY8soMsQtuNYMHfw==}
 
   commander@15.0.0:
     resolution: {integrity: sha512-z67u4ZhzCL/Tydu1lJARtEZYWbWaN7oYLHbsuzocr6y4N6WZAagG3RQ4FW61V1/0+jImpj293XfrcYnd1qxtPg==}
@@ -604,8 +604,8 @@ packages:
     resolution: {integrity: sha512-vK9P5/iUfdl95AI+JVyUuIcVtd4ofvtrOr3HNtM2yxC9bnMbEdp3x01OhQNnjb8IJYi38VlTE3mBXwcfvywuSw==}
     engines: {node: '>= 14'}
 
-  image-js@1.6.2:
-    resolution: {integrity: sha512-YQaL8Z3G04S1ky24EW8oyvKBdWxMP74t3GLwRWWWB2s1c1hC3GfEBl1bOApYrwYWs4WIjfvQ1vw+GdCBDmlSIw==}
+  image-js@1.7.0:
+    resolution: {integrity: sha512-/i72uwbYaSetVaLYPi3lHqr71/4O5RqWkEq4h/p5DM3FR0SSe5Jj57u6xk6sMVOurDBmTrvbm+FeinKnqLwIMA==}
 
   image-type@4.1.0:
     resolution: {integrity: sha512-CFJMJ8QK8lJvRlTCEgarL4ro6hfDQKif2HjSvYCdQZESaIPV4v9imrf7BQHK+sQeTeNeMpWciR9hyC/g8ybXEg==}
@@ -706,8 +706,8 @@ packages:
   locate-character@3.0.0:
     resolution: {integrity: sha512-SW13ws7BjaeJ6p7Q6CO2nchbYEc3X3J6WrmTTDto7yMPqVSZTUyY5Tjbid+Ab8gLnATtygYtiDIJGQRRn2ZOiA==}
 
-  lru-cache@11.5.1:
-    resolution: {integrity: sha512-RPimw/7aMdv2oqRrxKwvZXcPfwBrn/JZ2xYcY9Hus/6LaS3VOAKVWKWgNLCFSiOm1ESXinjsDlidVU7JlnCN2A==}
+  lru-cache@11.5.2:
+    resolution: {integrity: sha512-4pfM1Ff0x50o0tQwb5ucw/RzNyD0/YJME6IVcStalZuMWxdt3sR3huStTtxz4PUmvZfRguvDejasvQ2kifR11g==}
     engines: {node: 20 || >=22}
 
   magic-string@0.30.21:
@@ -719,8 +719,8 @@ packages:
   median-quickselect@1.0.1:
     resolution: {integrity: sha512-/QL9ptNuLsdA68qO+2o10TKCyu621zwwTFdLvtu8rzRNKsn8zvuGoq/vDxECPyELFG8wu+BpyoMR9BnsJqfVZQ==}
 
-  minimatch@10.2.5:
-    resolution: {integrity: sha512-MULkVLfKGYDFYejP07QOurDLLQpcjk7Fw+7jXS2R2czRQzR56yHRveU5NDJEOviH+hETZKSkIk5c+T23GjFUMg==}
+  minimatch@10.2.6:
+    resolution: {integrity: sha512-vpLQEs+VLCr1nU0BXS07maYoFwlDAH0gngQuuttxIwutDFEMHq2blX+8vpgxDdK3J1PwjCJiep77OitTZ4Ll1A==}
     engines: {node: 18 || 20 || >=22}
 
   minipass@7.1.3:
@@ -745,8 +745,8 @@ packages:
   ml-convolution@2.0.0:
     resolution: {integrity: sha512-ExW6zVmN2YGuyO3aBiS1ymybme3nVgv2ccCfynSdgtW5sNp4DOHnfow4K/ErTDMQ1s9tINjv7kvzjnVhQHXJBA==}
 
-  ml-matrix@6.13.0:
-    resolution: {integrity: sha512-QpV0UTUkglg6vPUgThKGBEtit2ac6habSoZ33bwI9rU0UHZLqw6G3ukTIE8zWiUF3sjK8YAlhx/o/b9layzH8A==}
+  ml-matrix@6.15.0:
+    resolution: {integrity: sha512-wFa1v6KP8bKp+fj0nYmRs1Pb5K4zRkXGKsOvLinvILENFIADncm4XlOI+S1M7yuACMGfI6cfk0IifDgd4j5xmw==}
 
   ml-random@0.5.0:
     resolution: {integrity: sha512-zLJBmNb34LOz+vN6BD8l3aYm/VWYWbmAunrLMPs4dHf4gTl8BWlhil72j56HubPg86zrXioIs4qoHq7Topy6tw==}
@@ -763,8 +763,8 @@ packages:
   ml-regression-polynomial-2d@1.0.0:
     resolution: {integrity: sha512-r34kaawZKMwjORIdzpa/o5fnjlTXkkaLJ3B4vvFNeKlvEGPtApqFxbDRmw07e2CjUH2MhGIChpMeXp/XB3Iogg==}
 
-  ml-spectra-processing@14.29.1:
-    resolution: {integrity: sha512-+hManK5VqO48ViKNfW8i1Qo9wiraQIkT620tKLg899AQoQ5iMbAKYApH9bkTJFoA6yOfowNIU+8nVaXLkQGm6w==}
+  ml-spectra-processing@14.34.0:
+    resolution: {integrity: sha512-sNM3nOg7s4tyinRnU5FyYZFV//cPHMvjwfxQvFh3GyrvWNuZmPIZTPS+kiT/SPXMymxA4+qx8oFSZ9K03clGyQ==}
 
   ml-xsadd@2.0.0:
     resolution: {integrity: sha512-VoAYUqmPRmzKbbqRejjqceGFp3VF81Qe8XXFGU0UXLxB7Mf4GGvyGq5Qn3k4AiQgDEV6WzobqlPOd+j0+m6IrA==}
@@ -957,20 +957,20 @@ packages:
 
 snapshots:
 
-  '@choochmeque/msixbundle-cli-win32@1.1.11':
+  '@choochmeque/msixbundle-cli-win32@1.1.15':
     optional: true
 
   '@choochmeque/tauri-plugin-notifications-api@file:../..':
     dependencies:
       '@tauri-apps/api': 2.11.1
 
-  '@choochmeque/tauri-windows-bundle@0.1.28':
+  '@choochmeque/tauri-windows-bundle@0.1.29':
     dependencies:
       commander: 15.0.0
       glob: 13.0.6
-      image-js: 1.6.2
+      image-js: 1.7.0
     optionalDependencies:
-      '@choochmeque/msixbundle-cli-win32': 1.1.11
+      '@choochmeque/msixbundle-cli-win32': 1.1.15
     transitivePeerDependencies:
       - debug
       - supports-color
@@ -1241,11 +1241,11 @@ snapshots:
 
   binary-search@1.3.6: {}
 
-  brace-expansion@5.0.7:
+  brace-expansion@5.0.9:
     dependencies:
       balanced-match: 4.0.4
 
-  bresenham-zingl@0.2.5: {}
+  bresenham-zingl@0.2.8: {}
 
   cheminfo-types@1.15.0: {}
 
@@ -1255,7 +1255,7 @@ snapshots:
 
   clsx@2.1.1: {}
 
-  colord@2.9.3: {}
+  colord@2.10.0: {}
 
   commander@15.0.0: {}
 
@@ -1344,7 +1344,7 @@ snapshots:
 
   glob@13.0.6:
     dependencies:
-      minimatch: 10.2.5
+      minimatch: 10.2.6
       minipass: 7.1.3
       path-scurry: 2.0.2
 
@@ -1356,10 +1356,10 @@ snapshots:
       - supports-color
     optional: true
 
-  image-js@1.6.2:
+  image-js@1.7.0:
     dependencies:
-      bresenham-zingl: 0.2.5
-      colord: 2.9.3
+      bresenham-zingl: 0.2.8
+      colord: 2.10.0
       fast-bmp: 4.0.1
       fast-jpeg: 3.0.1
       fast-png: 8.0.0
@@ -1369,11 +1369,11 @@ snapshots:
       median-quickselect: 1.0.1
       ml-affine-transform: 1.0.3
       ml-convolution: 2.0.0
-      ml-matrix: 6.13.0
+      ml-matrix: 6.15.0
       ml-ransac: 1.0.0
       ml-regression-multivariate-linear: 2.0.4
       ml-regression-polynomial-2d: 1.0.0
-      ml-spectra-processing: 14.29.1
+      ml-spectra-processing: 14.34.0
       robust-point-in-polygon: 1.0.3
       ssim.js: 3.5.0
       tiff: 7.1.3
@@ -1456,7 +1456,7 @@ snapshots:
 
   locate-character@3.0.0: {}
 
-  lru-cache@11.5.1: {}
+  lru-cache@11.5.2: {}
 
   magic-string@0.30.21:
     dependencies:
@@ -1468,15 +1468,15 @@ snapshots:
 
   median-quickselect@1.0.1: {}
 
-  minimatch@10.2.5:
+  minimatch@10.2.6:
     dependencies:
-      brace-expansion: 5.0.7
+      brace-expansion: 5.0.9
 
   minipass@7.1.3: {}
 
   ml-affine-transform@1.0.3:
     dependencies:
-      ml-matrix: 6.13.0
+      ml-matrix: 6.15.0
 
   ml-array-max@2.0.0:
     dependencies:
@@ -1502,7 +1502,7 @@ snapshots:
       fft.js: 4.0.4
       next-power-of-two: 1.0.0
 
-  ml-matrix@6.13.0:
+  ml-matrix@6.15.0:
     dependencies:
       is-any-array: 3.0.0
       ml-array-rescale: 2.0.0
@@ -1514,7 +1514,7 @@ snapshots:
   ml-ransac@1.0.0:
     dependencies:
       ml-array-median: 1.1.6
-      ml-matrix: 6.13.0
+      ml-matrix: 6.15.0
       ml-random: 0.5.0
 
   ml-regression-base@4.0.1:
@@ -1524,22 +1524,22 @@ snapshots:
 
   ml-regression-multivariate-linear@2.0.4:
     dependencies:
-      ml-matrix: 6.13.0
+      ml-matrix: 6.15.0
 
   ml-regression-polynomial-2d@1.0.0:
     dependencies:
       cheminfo-types: 1.15.0
       is-any-array: 2.0.1
-      ml-matrix: 6.13.0
+      ml-matrix: 6.15.0
       ml-regression-base: 4.0.1
 
-  ml-spectra-processing@14.29.1:
+  ml-spectra-processing@14.34.0:
     dependencies:
       binary-search: 1.3.6
       cheminfo-types: 1.15.0
       fft.js: 4.0.4
       is-any-array: 3.0.0
-      ml-matrix: 6.13.0
+      ml-matrix: 6.15.0
       ml-xsadd: 3.0.1
 
   ml-xsadd@2.0.0: {}
@@ -1564,7 +1564,7 @@ snapshots:
 
   path-scurry@2.0.2:
     dependencies:
-      lru-cache: 11.5.1
+      lru-cache: 11.5.2
       minipass: 7.1.3
 
   picocolors@1.1.1: {}
