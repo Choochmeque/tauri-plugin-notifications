@@ -6,10 +6,10 @@ use tauri::{
 
 use crate::NotificationsBuilder;
 
-/// Tracks a single live `notify-rust` notification on Linux. Owning the
+/// Tracks a single live `notify-rust` notification on Linux and FreeBSD. Owning the
 /// `NotificationHandle` keeps the underlying D-Bus `Connection` alive
 /// (preventing the "popup disappears when the sending client disconnects"
-/// behavior some Linux daemons exhibit) and lets us implement
+/// behavior some XDG daemons exhibit) and lets us implement
 /// `active`/`cancel` for the caller-supplied id.
 ///
 /// macOS / Windows: `notify_rust::NotificationHandle` on those platforms
@@ -17,7 +17,7 @@ use crate::NotificationsBuilder;
 /// sender disconnect; Windows's handle is a thin wrapper without close
 /// semantics), so we don't track there and the active-list / cancel
 /// methods stay as the existing stubs.
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", target_os = "freebsd"))]
 struct ActiveEntry {
     caller_id: i32,
     /// Shared with the action waiter spawned by [`NotificationsBuilder::show`]
@@ -36,9 +36,9 @@ pub fn init<R: Runtime, C: DeserializeOwned>(
 ) -> crate::Result<Notifications<R>> {
     Ok(Notifications {
         app: app.clone(),
-        #[cfg(target_os = "linux")]
+        #[cfg(any(target_os = "linux", target_os = "freebsd"))]
         active: std::sync::Mutex::new(std::collections::HashMap::new()),
-        #[cfg(target_os = "linux")]
+        #[cfg(any(target_os = "linux", target_os = "freebsd"))]
         active_counter: std::sync::atomic::AtomicU64::new(0),
         #[cfg(all(target_os = "linux", feature = "push-notifications"))]
         unifiedpush: tokio::sync::OnceCell::new(),
@@ -58,9 +58,9 @@ pub struct Notifications<R: Runtime> {
     /// `remove_active`/`active` work without leaking. Entries are removed by
     /// explicit cancel; expired/auto-dismissed notifications may linger
     /// because notify-rust doesn't expose a non-consuming "closed" callback.
-    #[cfg(target_os = "linux")]
+    #[cfg(any(target_os = "linux", target_os = "freebsd"))]
     active: std::sync::Mutex<std::collections::HashMap<u64, ActiveEntry>>,
-    #[cfg(target_os = "linux")]
+    #[cfg(any(target_os = "linux", target_os = "freebsd"))]
     active_counter: std::sync::atomic::AtomicU64,
     #[cfg(all(target_os = "linux", feature = "push-notifications"))]
     unifiedpush: tokio::sync::OnceCell<std::sync::Arc<crate::unifiedpush::UnifiedPushState>>,
@@ -68,19 +68,19 @@ pub struct Notifications<R: Runtime> {
     /// Set by [`Notifications::set_click_listener_active`], which the JS
     /// `onNotificationClicked` helper calls right after registering. Read by
     /// [`NotificationsBuilder::show`] to decide whether to observe the
-    /// notification's response, and — on macOS and Linux — whether the
+    /// notification's response, and — on macOS, Linux, and FreeBSD — whether the
     /// notification needs an activation action declared at all.
     click_listener_active: std::sync::atomic::AtomicBool,
 }
 
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", target_os = "freebsd"))]
 fn active_lock_err(e: impl std::fmt::Display) -> crate::Error {
     crate::Error::Io(std::io::Error::other(format!(
         "active notifications mutex poisoned: {e}"
     )))
 }
 
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", target_os = "freebsd"))]
 impl<R: Runtime> Notifications<R> {
     /// Finds every tracked notification whose caller id is in `caller_ids`,
     /// removes them from the active map, and spawns `handle.close_async()` so
@@ -188,7 +188,7 @@ impl<R: Runtime> Notifications<R> {
     }
 }
 
-/// Linux: registers the freshly shown notification in the active map and, when
+/// Linux / FreeBSD: registers the freshly shown notification in the active map and, when
 /// a click listener is subscribed, spawns the waiter that reports the user's
 /// response and removes the entry once the notification is gone.
 ///
@@ -197,7 +197,7 @@ impl<R: Runtime> Notifications<R> {
 /// `wait_for_action_async` and `close_async` borrow, unlike their consuming
 /// sync counterparts. Tracking happens before observing so the waiter's removal
 /// can never race an insert that has not happened yet.
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", target_os = "freebsd"))]
 fn track_and_observe<R: Runtime>(
     app: &tauri::AppHandle<R>,
     caller_id: i32,
@@ -262,7 +262,7 @@ impl<R: Runtime> crate::NotificationsBuilder<R> {
         let identifier = self.app.config().identifier.clone();
         let app = self.app.clone();
 
-        // Read before building: on macOS and Linux, whether a listener is
+        // Read before building: on macOS, Linux, and FreeBSD, whether a listener is
         // subscribed changes how the notification itself has to be constructed.
         let click_listener_active = {
             use tauri::Manager;
@@ -292,7 +292,7 @@ impl<R: Runtime> crate::NotificationsBuilder<R> {
         //   for `on_close`, so without an action `wait_for_response` returns
         //   `None` immediately. One action becomes `MainButton::SingleAction`,
         //   which arms the wait.
-        // * Linux — per the freedesktop spec the client declares the activation
+        // * Linux / FreeBSD — per the freedesktop spec the client declares the activation
         //   action, and the daemon reports a body click as the action keyed
         //   `"default"`. Without it there's no `ActionInvoked` signal to catch.
         //   Requires the daemon to advertise the `actions` capability.
@@ -301,7 +301,7 @@ impl<R: Runtime> crate::NotificationsBuilder<R> {
         // `on_dismissed` into an mpsc channel unconditionally, and a body tap
         // arrives with empty `Arguments` — declaring an action would only add a
         // visible button.
-        #[cfg(any(target_os = "macos", target_os = "linux"))]
+        #[cfg(any(target_os = "macos", target_os = "linux", target_os = "freebsd"))]
         if click_listener_active {
             notification.action("default", "Open");
         }
@@ -321,7 +321,7 @@ impl<R: Runtime> crate::NotificationsBuilder<R> {
             })?;
 
         match join_result {
-            #[cfg(target_os = "linux")]
+            #[cfg(any(target_os = "linux", target_os = "freebsd"))]
             Ok(handle) => {
                 track_and_observe(
                     &app,
@@ -483,7 +483,7 @@ impl<R: Runtime> Notifications<R> {
         )))
     }
 
-    /// Linux: returns the currently-tracked notifications. The list is
+    /// Linux / FreeBSD: returns the currently-tracked notifications. The list is
     /// populated by [`NotificationsBuilder::show`] and pruned by
     /// `cancel`/`cancel_all`/`remove_active`. Entries dismissed by the user
     /// or expired by the OS may linger until the next explicit cancel call,
@@ -492,7 +492,7 @@ impl<R: Runtime> Notifications<R> {
     /// macOS / Windows: still unsupported.
     #[allow(unknown_lints, clippy::unused_async, clippy::unused_async_trait_impl)]
     pub async fn active(&self) -> crate::Result<Vec<crate::ActiveNotification>> {
-        #[cfg(target_os = "linux")]
+        #[cfg(any(target_os = "linux", target_os = "freebsd"))]
         {
             let active = self.active.lock().map_err(active_lock_err)?;
             Ok(active
@@ -506,7 +506,7 @@ impl<R: Runtime> Notifications<R> {
                 })
                 .collect())
         }
-        #[cfg(not(target_os = "linux"))]
+        #[cfg(not(any(target_os = "linux", target_os = "freebsd")))]
         {
             Err(crate::Error::Io(std::io::Error::other(
                 "Active notifications are not supported with notify-rust",
@@ -527,17 +527,17 @@ impl<R: Runtime> Notifications<R> {
         Ok(())
     }
 
-    /// Linux: closes every tracked notification whose caller-supplied id
+    /// Linux / FreeBSD: closes every tracked notification whose caller-supplied id
     /// appears in `ids` and removes it from the active map.
     /// macOS / Windows: unsupported.
     // Existing public signature; switching to `&[i32]` would be breaking.
     #[allow(clippy::needless_pass_by_value)]
     pub fn remove_active(&self, ids: Vec<i32>) -> crate::Result<()> {
-        #[cfg(target_os = "linux")]
+        #[cfg(any(target_os = "linux", target_os = "freebsd"))]
         {
             self.close_by_caller_ids(&ids)
         }
-        #[cfg(not(target_os = "linux"))]
+        #[cfg(not(any(target_os = "linux", target_os = "freebsd")))]
         {
             let _ = ids;
             Err(crate::Error::Io(std::io::Error::other(
@@ -552,16 +552,16 @@ impl<R: Runtime> Notifications<R> {
         )))
     }
 
-    /// Same semantics as [`remove_active`](Self::remove_active) on Linux;
+    /// Same semantics as [`remove_active`](Self::remove_active) on Linux/FreeBSD;
     /// macOS / Windows: unsupported.
     // Existing public signature; switching to `&[i32]` would be breaking.
     #[allow(clippy::needless_pass_by_value)]
     pub fn cancel(&self, notifications: Vec<i32>) -> crate::Result<()> {
-        #[cfg(target_os = "linux")]
+        #[cfg(any(target_os = "linux", target_os = "freebsd"))]
         {
             self.close_by_caller_ids(&notifications)
         }
-        #[cfg(not(target_os = "linux"))]
+        #[cfg(not(any(target_os = "linux", target_os = "freebsd")))]
         {
             let _ = notifications;
             Err(crate::Error::Io(std::io::Error::other(
@@ -570,10 +570,10 @@ impl<R: Runtime> Notifications<R> {
         }
     }
 
-    /// Linux: closes every tracked notification.
+    /// Linux / FreeBSD: closes every tracked notification.
     /// macOS / Windows: unsupported.
     pub fn cancel_all(&self) -> crate::Result<()> {
-        #[cfg(target_os = "linux")]
+        #[cfg(any(target_os = "linux", target_os = "freebsd"))]
         {
             let drained: Vec<ActiveEntry> = {
                 let mut active = self.active.lock().map_err(active_lock_err)?;
@@ -584,7 +584,7 @@ impl<R: Runtime> Notifications<R> {
             }
             Ok(())
         }
-        #[cfg(not(target_os = "linux"))]
+        #[cfg(not(any(target_os = "linux", target_os = "freebsd")))]
         {
             Err(crate::Error::Io(std::io::Error::other(
                 "Canceling notifications is not supported with notify-rust",
@@ -645,7 +645,7 @@ mod imp {
     }
 
     /// Whether the user activated the notification: a body tap (`Default`) or
-    /// the `"default"` action declared to arm the wait on macOS/Linux. Any
+    /// the `"default"` action declared to arm the wait on macOS/Linux/FreeBSD. Any
     /// other action, a reply, or a close is not a click.
     fn is_activation(response: &notify_rust::NotificationResponse) -> bool {
         use notify_rust::NotificationResponse;
@@ -714,8 +714,8 @@ mod imp {
             });
         }
         // `identifier` is used by the cfg-gated Windows/macOS branches above
-        // — silence the unused-parameter warning on Linux.
-        #[cfg(target_os = "linux")]
+        // — silence the unused-parameter warning on Linux/FreeBSD.
+        #[cfg(any(target_os = "linux", target_os = "freebsd"))]
         let _ = identifier;
 
         Ok(notification)

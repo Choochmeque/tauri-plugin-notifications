@@ -26,6 +26,7 @@ A Tauri v2 plugin for sending notifications on desktop and mobile platforms. Sen
 - **macOS**: Native notification center integration
 - **Windows**: Windows notification system
 - **Linux**: notify-rust with desktop notification support; push notifications via UnifiedPush
+- **FreeBSD**: notify-rust with desktop notification support over a D-Bus session bus
 - **iOS**: User Notifications framework
 - **Android**: Android notification system with channels
 
@@ -76,9 +77,11 @@ Without this feature enabled:
 The `notify-rust` feature is **enabled by default** and provides cross-platform desktop notifications using the [notify-rust](https://crates.io/crates/notify-rust) crate.
 
 **When to use notify-rust (default):**
-- Simple notifications on Linux, macOS, and Windows
+- Simple notifications on Linux, FreeBSD, macOS, and Windows
 - Cross-platform consistency
 - Basic notification features (title, body, icon)
+
+On Linux and FreeBSD, notify-rust is always enabled because it is the only desktop backend. A running D-Bus session bus and a desktop notification daemon are required.
 
 **When to disable notify-rust:**
 - You need native Windows toast notifications with advanced features (actions, hero images, scheduling)

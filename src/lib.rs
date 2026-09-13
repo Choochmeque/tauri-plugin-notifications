@@ -40,7 +40,10 @@ pub struct WindowsConfig {
 pub use models::*;
 pub use tauri::plugin::PermissionState;
 
-#[cfg(all(desktop, any(feature = "notify-rust", target_os = "linux")))]
+#[cfg(all(
+    desktop,
+    any(feature = "notify-rust", target_os = "linux", target_os = "freebsd")
+))]
 mod desktop;
 #[cfg(all(target_os = "macos", not(feature = "notify-rust")))]
 mod macos;
@@ -59,7 +62,10 @@ mod models;
 
 pub use error::{Error, Result};
 
-#[cfg(all(desktop, any(feature = "notify-rust", target_os = "linux")))]
+#[cfg(all(
+    desktop,
+    any(feature = "notify-rust", target_os = "linux", target_os = "freebsd")
+))]
 pub use desktop::Notifications;
 #[cfg(all(target_os = "macos", not(feature = "notify-rust")))]
 pub use macos::Notifications;
@@ -84,7 +90,10 @@ pub struct NotificationsBuilder<R: Runtime> {
 }
 
 impl<R: Runtime> NotificationsBuilder<R> {
-    #[cfg(all(desktop, any(feature = "notify-rust", target_os = "linux")))]
+    #[cfg(all(
+        desktop,
+        any(feature = "notify-rust", target_os = "linux", target_os = "freebsd")
+    ))]
     fn new(app: AppHandle<R>) -> Self {
         Self {
             app,
@@ -334,7 +343,10 @@ pub fn init<R: Runtime>() -> TauriPlugin<R, Option<PluginConfig>> {
                 .unwrap_or_default();
             #[cfg(mobile)]
             let notification = mobile::init(app, api)?;
-            #[cfg(all(desktop, any(feature = "notify-rust", target_os = "linux")))]
+            #[cfg(all(
+                desktop,
+                any(feature = "notify-rust", target_os = "linux", target_os = "freebsd")
+            ))]
             let notification = desktop::init(app, api)?;
             #[cfg(all(target_os = "macos", not(feature = "notify-rust")))]
             let notification = macos::init(app, api)?;
