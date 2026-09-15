@@ -34,16 +34,18 @@ tauri = { version = "2", features = ["wry"] }
 [target.'cfg(target_os = "macos")'.dependencies]
 swift-bridge = { version = "0.1", features = ["async"] }
 
-# notify-rust is the only desktop backend on Linux (no native impl), so it's
+# notify-rust is the only desktop backend on Linux and FreeBSD (no native impl), so it's
 # always pulled in there. On macOS/Windows it's an opt-in alternative to the
 # native backends, gated by the `notify-rust` feature.
 [target.'cfg(any(target_os = "macos", target_os = "windows"))'.dependencies]
 notify-rust = { version = "4.18", optional = true }
 
+[target.'cfg(any(target_os = "linux", target_os = "freebsd"))'.dependencies]
+notify-rust = "4.18"
+
 # UnifiedPush stack — only relevant on desktop Linux, kept optional so non-Linux
 # builds never pull in the zbus/tokio/uuid crates.
 [target.'cfg(all(target_os = "linux", not(target_os = "android")))'.dependencies]
-notify-rust = "4.18"
 zbus = { version = "5", default-features = false, features = ["tokio"], optional = true }
 tokio = { version = "1", default-features = false, features = ["sync", "macros", "time"], optional = true }
 uuid = { version = "1", default-features = false, features = ["v4", "fast-rng"], optional = true }
@@ -78,3 +80,8 @@ swift-bridge-build = "0.1"
 color-backtrace = "0.7"
 ctor = "1.0"
 maplit = "1"
+
+[target.'cfg(any(target_os = "linux", target_os = "freebsd"))'.dev-dependencies]
+tauri = { version = "2", default-features = false, features = ["test"] }
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "sync", "time"] }
+zbus = { version = "5", default-features = false, features = ["async-io"] }
