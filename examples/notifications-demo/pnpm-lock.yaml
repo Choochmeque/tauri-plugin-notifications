@@ -19,17 +19,17 @@ importers:
         version: 2.5.5
     devDependencies:
       '@choochmeque/tauri-windows-bundle':
-        specifier: ^0.1.29
-        version: 0.1.29
+        specifier: ^0.2.0
+        version: 0.2.0
       '@sveltejs/adapter-static':
         specifier: ^3.0.6
-        version: 3.0.10(@sveltejs/kit@2.70.3(@sveltejs/vite-plugin-svelte@7.3.0(svelte@5.57.1(@typescript-eslint/types@8.58.0))(vite@8.3.0(esbuild@0.27.2)))(svelte@5.57.1(@typescript-eslint/types@8.58.0))(typescript@6.0.3)(vite@8.3.0(esbuild@0.27.2)))
+        version: 3.0.10(@sveltejs/kit@2.70.3(@sveltejs/vite-plugin-svelte@7.3.1(svelte@5.57.1(@typescript-eslint/types@8.58.0))(vite@8.3.0(esbuild@0.27.2)))(svelte@5.57.1(@typescript-eslint/types@8.58.0))(typescript@6.0.3)(vite@8.3.0(esbuild@0.27.2)))
       '@sveltejs/kit':
         specifier: ^2.70.2
-        version: 2.70.3(@sveltejs/vite-plugin-svelte@7.3.0(svelte@5.57.1(@typescript-eslint/types@8.58.0))(vite@8.3.0(esbuild@0.27.2)))(svelte@5.57.1(@typescript-eslint/types@8.58.0))(typescript@6.0.3)(vite@8.3.0(esbuild@0.27.2))
+        version: 2.70.3(@sveltejs/vite-plugin-svelte@7.3.1(svelte@5.57.1(@typescript-eslint/types@8.58.0))(vite@8.3.0(esbuild@0.27.2)))(svelte@5.57.1(@typescript-eslint/types@8.58.0))(typescript@6.0.3)(vite@8.3.0(esbuild@0.27.2))
       '@sveltejs/vite-plugin-svelte':
         specifier: ^7.2.0
-        version: 7.3.0(svelte@5.57.1(@typescript-eslint/types@8.58.0))(vite@8.3.0(esbuild@0.27.2))
+        version: 7.3.1(svelte@5.57.1(@typescript-eslint/types@8.58.0))(vite@8.3.0(esbuild@0.27.2))
       '@tauri-apps/cli':
         specifier: ^2
         version: 2.11.5
@@ -55,8 +55,8 @@ packages:
   '@choochmeque/tauri-plugin-notifications-api@file:../..':
     resolution: {directory: ../.., type: directory}
 
-  '@choochmeque/tauri-windows-bundle@0.1.29':
-    resolution: {integrity: sha512-OnKyjje1udUfQoadWGqGhlvQb6FgbIZW7oeTy4G2Ie3owFmpgYj2JarMI/6JWCaIW+2J5zzUtBboGJtqtja9ww==}
+  '@choochmeque/tauri-windows-bundle@0.2.0':
+    resolution: {integrity: sha512-kuksJnGm0J0KbBk3AYtUC7SGwp8uM6yW2CwnnJo4azUjmibU9jH85OZDwXNmT9nDT0sIMQNIRQXQydJ4VXRDMg==}
     hasBin: true
 
   '@esbuild/aix-ppc64@0.27.2':
@@ -368,8 +368,8 @@ packages:
     resolution: {integrity: sha512-VT3qmUb8pRV2QrZjd8iAmtg8lf4W0TIjZbvXtz5MKei/q96teWZgGJyyidJzOjzZzvdq616eSRVeMYIQChUTAQ==}
     engines: {node: '>= 18.0.0'}
 
-  '@sveltejs/vite-plugin-svelte@7.3.0':
-    resolution: {integrity: sha512-QbRoJyD92e9R0ufeQIWRHrCC0ObcqSv/aBDdrQMoU+sypav3cDx5wytdQ6GLdXjEMO6xjrXGzfkUygng8JMv0A==}
+  '@sveltejs/vite-plugin-svelte@7.3.1':
+    resolution: {integrity: sha512-ZPsLN8B1e/En+Ak5s4V7srFDT532oS0qieLsQwu63NGKsS+iAjoO2Js1BochlHlglcU+Pt7WAO3C5Ee+4f6gVA==}
     engines: {node: ^20.19 || ^22.12 || >=24}
     peerDependencies:
       svelte: ^5.46.4
@@ -486,15 +486,15 @@ packages:
   binary-search@1.3.6:
     resolution: {integrity: sha512-nbE1WxOTTrUWIfsfZ4aHGYu5DOuNkbxGokjV6Z2kxfJK3uaAb8zNK1muzOeipoLHZjInT4Br88BHpzevc681xA==}
 
-  brace-expansion@5.0.9:
-    resolution: {integrity: sha512-ScQ4IuvIEF1TMlP7Zt+vjJ//9zlPb2SDcxWxM3bk8s6t6GGdJ7KO1dCcTidOPJKePW30LE/2cT7wCyPho9/Wxg==}
+  brace-expansion@5.0.12:
+    resolution: {integrity: sha512-YovQ3rzhaLMIrDjNDMkNS01tea93qhEhG5xy8f6+R0l+dw3Ki+5sCoIoI942iuLZTHWogWktgwVDhU09iNEimQ==}
     engines: {node: 20 || >=22}
 
   bresenham-zingl@0.2.8:
     resolution: {integrity: sha512-AaC4k7+pHgbzlK4fb+l3/fXJd1CbQwhqE5oIoLaknVojyXQv79einSR+fWLR1yCJWOh46v+lLsFRMxHlea8Q5A==}
 
-  cheminfo-types@1.15.0:
-    resolution: {integrity: sha512-shv45WN2u0yN9EHH1bisNrv+fy4Cw+eLM5lOoriP67mePrwbHZ1kJqg90C8GEU7K1A8gJsicEoVZHcuBbuul/w==}
+  cheminfo-types@1.16.0:
+    resolution: {integrity: sha512-j0MiXFnLRVEZg3vUr7SXm6F3HuDNVE5arfQyDMiy1w2fAcuOs3QRgVsw7aOIACvr0aqbvn85cucwt+yOu64IiQ==}
 
   chokidar@4.0.3:
     resolution: {integrity: sha512-Qgzu8kfBvo+cA4962jnP1KkS6Dop5NS6g7R5LFYJr4b8Ub94PPQXUksCw9PvXoeXPRRddRNC5C1JQUR2SMGtnA==}
@@ -706,8 +706,8 @@ packages:
   locate-character@3.0.0:
     resolution: {integrity: sha512-SW13ws7BjaeJ6p7Q6CO2nchbYEc3X3J6WrmTTDto7yMPqVSZTUyY5Tjbid+Ab8gLnATtygYtiDIJGQRRn2ZOiA==}
 
-  lru-cache@11.5.2:
-    resolution: {integrity: sha512-4pfM1Ff0x50o0tQwb5ucw/RzNyD0/YJME6IVcStalZuMWxdt3sR3huStTtxz4PUmvZfRguvDejasvQ2kifR11g==}
+  lru-cache@11.5.3:
+    resolution: {integrity: sha512-U4N8FgzmWxc8k1VH8Kr6lQg18U7Fjvby6wXHVRX/ZZ7IwWbRMgrRbP0Wrb5q5NVinryp4SQampHKdvtecItxUg==}
     engines: {node: 20 || >=22}
 
   magic-string@0.30.21:
@@ -763,8 +763,8 @@ packages:
   ml-regression-polynomial-2d@1.0.0:
     resolution: {integrity: sha512-r34kaawZKMwjORIdzpa/o5fnjlTXkkaLJ3B4vvFNeKlvEGPtApqFxbDRmw07e2CjUH2MhGIChpMeXp/XB3Iogg==}
 
-  ml-spectra-processing@14.34.0:
-    resolution: {integrity: sha512-sNM3nOg7s4tyinRnU5FyYZFV//cPHMvjwfxQvFh3GyrvWNuZmPIZTPS+kiT/SPXMymxA4+qx8oFSZ9K03clGyQ==}
+  ml-spectra-processing@14.35.1:
+    resolution: {integrity: sha512-yxTB9YpgNmo53U+c2tG1/uKKUl+CNO3hlp+3utuBlhAqDw3AD9c78gI+1rYz+sykOXV76QtAXuAhFZFZjMvgDw==}
 
   ml-xsadd@2.0.0:
     resolution: {integrity: sha512-VoAYUqmPRmzKbbqRejjqceGFp3VF81Qe8XXFGU0UXLxB7Mf4GGvyGq5Qn3k4AiQgDEV6WzobqlPOd+j0+m6IrA==}
@@ -964,7 +964,7 @@ snapshots:
     dependencies:
       '@tauri-apps/api': 2.11.1
 
-  '@choochmeque/tauri-windows-bundle@0.1.29':
+  '@choochmeque/tauri-windows-bundle@0.2.0':
     dependencies:
       commander: 15.0.0
       glob: 13.0.6
@@ -1133,15 +1133,15 @@ snapshots:
     dependencies:
       acorn: 8.18.0
 
-  '@sveltejs/adapter-static@3.0.10(@sveltejs/kit@2.70.3(@sveltejs/vite-plugin-svelte@7.3.0(svelte@5.57.1(@typescript-eslint/types@8.58.0))(vite@8.3.0(esbuild@0.27.2)))(svelte@5.57.1(@typescript-eslint/types@8.58.0))(typescript@6.0.3)(vite@8.3.0(esbuild@0.27.2)))':
+  '@sveltejs/adapter-static@3.0.10(@sveltejs/kit@2.70.3(@sveltejs/vite-plugin-svelte@7.3.1(svelte@5.57.1(@typescript-eslint/types@8.58.0))(vite@8.3.0(esbuild@0.27.2)))(svelte@5.57.1(@typescript-eslint/types@8.58.0))(typescript@6.0.3)(vite@8.3.0(esbuild@0.27.2)))':
     dependencies:
-      '@sveltejs/kit': 2.70.3(@sveltejs/vite-plugin-svelte@7.3.0(svelte@5.57.1(@typescript-eslint/types@8.58.0))(vite@8.3.0(esbuild@0.27.2)))(svelte@5.57.1(@typescript-eslint/types@8.58.0))(typescript@6.0.3)(vite@8.3.0(esbuild@0.27.2))
+      '@sveltejs/kit': 2.70.3(@sveltejs/vite-plugin-svelte@7.3.1(svelte@5.57.1(@typescript-eslint/types@8.58.0))(vite@8.3.0(esbuild@0.27.2)))(svelte@5.57.1(@typescript-eslint/types@8.58.0))(typescript@6.0.3)(vite@8.3.0(esbuild@0.27.2))
 
-  '@sveltejs/kit@2.70.3(@sveltejs/vite-plugin-svelte@7.3.0(svelte@5.57.1(@typescript-eslint/types@8.58.0))(vite@8.3.0(esbuild@0.27.2)))(svelte@5.57.1(@typescript-eslint/types@8.58.0))(typescript@6.0.3)(vite@8.3.0(esbuild@0.27.2))':
+  '@sveltejs/kit@2.70.3(@sveltejs/vite-plugin-svelte@7.3.1(svelte@5.57.1(@typescript-eslint/types@8.58.0))(vite@8.3.0(esbuild@0.27.2)))(svelte@5.57.1(@typescript-eslint/types@8.58.0))(typescript@6.0.3)(vite@8.3.0(esbuild@0.27.2))':
     dependencies:
       '@standard-schema/spec': 1.1.0
       '@sveltejs/acorn-typescript': 1.0.11(acorn@8.18.0)
-      '@sveltejs/vite-plugin-svelte': 7.3.0(svelte@5.57.1(@typescript-eslint/types@8.58.0))(vite@8.3.0(esbuild@0.27.2))
+      '@sveltejs/vite-plugin-svelte': 7.3.1(svelte@5.57.1(@typescript-eslint/types@8.58.0))(vite@8.3.0(esbuild@0.27.2))
       '@types/cookie': 0.6.0
       acorn: 8.18.0
       cookie: 0.6.0
@@ -1159,7 +1159,7 @@ snapshots:
 
   '@sveltejs/load-config@0.2.3': {}
 
-  '@sveltejs/vite-plugin-svelte@7.3.0(svelte@5.57.1(@typescript-eslint/types@8.58.0))(vite@8.3.0(esbuild@0.27.2))':
+  '@sveltejs/vite-plugin-svelte@7.3.1(svelte@5.57.1(@typescript-eslint/types@8.58.0))(vite@8.3.0(esbuild@0.27.2))':
     dependencies:
       deepmerge: 4.3.1
       magic-string: 1.1.0
@@ -1241,13 +1241,13 @@ snapshots:
 
   binary-search@1.3.6: {}
 
-  brace-expansion@5.0.9:
+  brace-expansion@5.0.12:
     dependencies:
       balanced-match: 4.0.4
 
   bresenham-zingl@0.2.8: {}
 
-  cheminfo-types@1.15.0: {}
+  cheminfo-types@1.16.0: {}
 
   chokidar@4.0.3:
     dependencies:
@@ -1373,7 +1373,7 @@ snapshots:
       ml-ransac: 1.0.0
       ml-regression-multivariate-linear: 2.0.4
       ml-regression-polynomial-2d: 1.0.0
-      ml-spectra-processing: 14.34.0
+      ml-spectra-processing: 14.35.1
       robust-point-in-polygon: 1.0.3
       ssim.js: 3.5.0
       tiff: 7.1.3
@@ -1456,7 +1456,7 @@ snapshots:
 
   locate-character@3.0.0: {}
 
-  lru-cache@11.5.2: {}
+  lru-cache@11.5.3: {}
 
   magic-string@0.30.21:
     dependencies:
@@ -1470,7 +1470,7 @@ snapshots:
 
   minimatch@10.2.6:
     dependencies:
-      brace-expansion: 5.0.9
+      brace-expansion: 5.0.12
 
   minipass@7.1.3: {}
 
@@ -1519,7 +1519,7 @@ snapshots:
 
   ml-regression-base@4.0.1:
     dependencies:
-      cheminfo-types: 1.15.0
+      cheminfo-types: 1.16.0
       is-any-array: 3.0.0
 
   ml-regression-multivariate-linear@2.0.4:
@@ -1528,15 +1528,15 @@ snapshots:
 
   ml-regression-polynomial-2d@1.0.0:
     dependencies:
-      cheminfo-types: 1.15.0
+      cheminfo-types: 1.16.0
       is-any-array: 2.0.1
       ml-matrix: 6.15.0
       ml-regression-base: 4.0.1
 
-  ml-spectra-processing@14.34.0:
+  ml-spectra-processing@14.35.1:
     dependencies:
       binary-search: 1.3.6
-      cheminfo-types: 1.15.0
+      cheminfo-types: 1.16.0
       fft.js: 4.0.4
       is-any-array: 3.0.0
       ml-matrix: 6.15.0
@@ -1564,7 +1564,7 @@ snapshots:
 
   path-scurry@2.0.2:
     dependencies:
-      lru-cache: 11.5.2
+      lru-cache: 11.5.3
       minipass: 7.1.3
 
   picocolors@1.1.1: {}
