@@ -1336,6 +1336,29 @@ final class NotificationHandlerTests: XCTestCase {
         XCTAssertEqual(pendingNotification?.title, "Scheduled")
     }
 
+    func testToActiveNotificationCarriesExtra() {
+        handler.saveNotification("123", makeTestNotification(id: 123, title: "Saved"))
+
+        let content = UNMutableNotificationContent()
+        content.title = "Saved"
+        content.userInfo = ["sessionId": "session-a", "tag": "question-1"]
+        let request = UNNotificationRequest(identifier: "123", content: content, trigger: nil)
+
+        let activeNotification = handler.toActiveNotification(request)
+        XCTAssertEqual(activeNotification?.extra?["sessionId"], "session-a")
+        XCTAssertEqual(activeNotification?.extra?["tag"], "question-1")
+    }
+
+    func testToActiveNotificationExtraIsNilWithoutUserInfo() {
+        handler.saveNotification("124", makeTestNotification(id: 124, title: "Saved"))
+
+        let content = UNMutableNotificationContent()
+        content.title = "Saved"
+        let request = UNNotificationRequest(identifier: "124", content: content, trigger: nil)
+
+        XCTAssertNil(handler.toActiveNotification(request)?.extra)
+    }
+
     func testSetClickListenerActive() {
         // Initially false
         handler.setClickListenerActive(true)
