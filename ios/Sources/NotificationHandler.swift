@@ -1,3 +1,4 @@
+import Foundation
 import Tauri
 import UserNotifications
 
@@ -8,18 +9,48 @@ public class NotificationHandler: NSObject, NotificationHandlerProtocol {
   private var notificationsMap = [String: Notification]()
   private var hasClickedListener = false
   private var pendingNotificationClick: NotificationClickedData? = nil
+  private var hasActionListener = false
+  private var pendingNotificationActions = [ReceivedNotification]()
+  private let maxPendingActions = 32
+  // Serializes delegate callbacks and plugin commands.
+  private let stateLock = NSRecursiveLock()
 
   internal func saveNotification(_ key: String, _ notification: Notification) {
+    stateLock.lock()
+    defer { stateLock.unlock() }
     notificationsMap.updateValue(notification, forKey: key)
   }
 
   func setClickListenerActive(_ active: Bool) {
+    stateLock.lock()
     hasClickedListener = active
+    let pending = active ? pendingNotificationClick : nil
+    if pending != nil { pendingNotificationClick = nil }
+    stateLock.unlock()
+    if let pending { try? self.plugin?.trigger("notificationClicked", data: pending) }
+  }
 
-    if active, let pending = pendingNotificationClick {
-      pendingNotificationClick = nil
-      try? self.plugin?.trigger("notificationClicked", data: pending)
+  func setActionListenerActive(_ active: Bool) {
+    stateLock.lock()
+    hasActionListener = active
+    let pendingActions = active ? pendingNotificationActions : []
+    if active { pendingNotificationActions.removeAll() }
+    stateLock.unlock()
+    guard active else { return }
+    for action in pendingActions {
+      try? self.plugin?.trigger("actionPerformed", data: action)
     }
+  }
+
+  private func triggerActionPerformed(_ action: ReceivedNotification) {
+    stateLock.lock()
+    let shouldTrigger = hasActionListener
+    if !shouldTrigger && pendingNotificationActions.count >= maxPendingActions {
+      pendingNotificationActions.removeFirst()
+    }
+    if !shouldTrigger { pendingNotificationActions.append(action) }
+    stateLock.unlock()
+    if shouldTrigger { try? self.plugin?.trigger("actionPerformed", data: action) }
   }
 
   public func requestPermissions(with completion: ((Bool, Error?) -> Void)? = nil) {
@@ -37,63 +68,48 @@ public class NotificationHandler: NSObject, NotificationHandlerProtocol {
   }
 
   public func willPresent(notification: UNNotification) -> UNNotificationPresentationOptions {
+    stateLock.lock()
+    var event: (String, Encodable)? = nil
     // Trigger notification event for both local and push notifications
     if var notificationData = toActiveNotification(notification.request) {
       notificationData.source = "local"
-      try? self.plugin?.trigger("notification", data: notificationData)
+      event = ("notification", notificationData)
     } else {
       var notificationData = toReceivedNotification(notification.request)
       notificationData.source = "push"
-      try? self.plugin?.trigger("notification", data: notificationData)
+      event = ("notification", notificationData)
     }
 
     // For push notifications in foreground, don't show system notification
     // (only trigger event so developer can handle it)
     let isPushNotification = notification.request.trigger?.isKind(of: UNPushNotificationTrigger.self) == true
+    let options: UNNotificationPresentationOptions
     if isPushNotification {
-      return UNNotificationPresentationOptions.init(rawValue: 0)
+      options = UNNotificationPresentationOptions(rawValue: 0)
+    } else if let local = notificationsMap[notification.request.identifier], local.silent ?? false {
+      options = UNNotificationPresentationOptions(rawValue: 0)
+    } else {
+      options = [.badge, .sound, .alert]
     }
-
-    // For local notifications, check if silent
-    if let options = notificationsMap[notification.request.identifier] {
-      if options.silent ?? false {
-        return UNNotificationPresentationOptions.init(rawValue: 0)
-      }
-    }
-
-    return [
-      .badge,
-      .sound,
-      .alert,
-    ]
+    stateLock.unlock()
+    if let event { try? self.plugin?.trigger(event.0, data: event.1) }
+    return options
   }
 
   /// Convert notification request to ReceivedNotification (for push notifications not in map)
   private func toReceivedNotification(_ request: UNNotificationRequest) -> ReceivedNotificationData {
     let content = request.content
-    var extra: [String: String]? = nil
-
-    if !content.userInfo.isEmpty {
-      extra = [:]
-      for (key, value) in content.userInfo {
-        if let keyStr = key as? String, let valStr = value as? String {
-          extra?[keyStr] = valStr
-        }
-      }
-      if extra?.isEmpty == true {
-        extra = nil
-      }
-    }
 
     return ReceivedNotificationData(
       id: Int(request.identifier) ?? -1,
       title: content.title,
       body: content.body,
-      extra: extra
+      extra: notificationExtra(content.userInfo)
     )
   }
 
   public func didReceive(response: UNNotificationResponse) {
+    stateLock.lock()
     let originalNotificationRequest = response.notification.request
     let actionId = response.actionIdentifier
 
@@ -113,45 +129,50 @@ public class NotificationHandler: NSObject, NotificationHandlerProtocol {
       inputValue = inputType.userText
     }
 
-    // Only trigger actionPerformed for local notifications (those in our map)
-    if let activeNotification = toActiveNotification(originalNotificationRequest) {
-      try? self.plugin?.trigger(
-        "actionPerformed",
-        data: ReceivedNotification(
-          actionId: actionIdValue,
-          inputValue: inputValue,
-          notification: activeNotification
-        ))
+    let isSystemAction = actionId == UNNotificationDefaultActionIdentifier
+      || actionId == UNNotificationDismissActionIdentifier
+
+    let actionNotification = toActiveNotification(originalNotificationRequest)
+      ?? toRemoteActionNotification(originalNotificationRequest)
+    let action = ReceivedNotification(
+      actionId: actionIdValue,
+      inputValue: inputValue,
+      notification: actionNotification
+    )
+    let shouldTriggerAction = hasActionListener
+    if !shouldTriggerAction {
+      if pendingNotificationActions.count >= maxPendingActions { pendingNotificationActions.removeFirst() }
+      pendingNotificationActions.append(action)
+    }
+
+    if !isSystemAction {
+      stateLock.unlock()
+      if shouldTriggerAction { try? self.plugin?.trigger("actionPerformed", data: action) }
+      return
     }
 
     // Handle notificationClicked for both local and push notifications
     let id = Int(originalNotificationRequest.identifier) ?? -1
-    let userInfo = originalNotificationRequest.content.userInfo
-    var dataDict: [String: String]? = nil
-    if !userInfo.isEmpty {
-      dataDict = [:]
-      for (key, value) in userInfo {
-        if let keyStr = key as? String, let valStr = value as? String {
-          dataDict?[keyStr] = valStr
-        }
-      }
-      if dataDict?.isEmpty == true {
-        dataDict = nil
-      }
-    }
+    let clickedData = NotificationClickedData(
+      id: id,
+      data: notificationExtra(originalNotificationRequest.content.userInfo)
+    )
 
-    let clickedData = NotificationClickedData(id: id, data: dataDict)
-
-    if hasClickedListener {
-      // Listener exists, trigger directly
-      try? self.plugin?.trigger("notificationClicked", data: clickedData)
+    let shouldTriggerClick = hasClickedListener
+    if shouldTriggerClick {
+      // Listener exists, trigger directly after releasing the lock.
     } else {
       // No listener (cold-start), store for later
       pendingNotificationClick = clickedData
     }
+    stateLock.unlock()
+    if shouldTriggerAction { try? self.plugin?.trigger("actionPerformed", data: action) }
+    if shouldTriggerClick { try? self.plugin?.trigger("notificationClicked", data: clickedData) }
   }
 
   func toActiveNotification(_ request: UNNotificationRequest) -> ActiveNotification? {
+    stateLock.lock()
+    defer { stateLock.unlock() }
     guard let notificationRequest = notificationsMap[request.identifier] else {
       return nil
     }
@@ -161,11 +182,41 @@ public class NotificationHandler: NSObject, NotificationHandlerProtocol {
       body: request.content.body,
       sound: notificationRequest.sound ?? "",
       actionTypeId: request.content.categoryIdentifier,
-      attachments: notificationRequest.attachments
+      attachments: notificationRequest.attachments,
+      extra: notificationExtra(request.content.userInfo)
     )
   }
 
+  func toRemoteActionNotification(_ request: UNNotificationRequest) -> ActiveNotification {
+    ActiveNotification(
+      id: Int(request.identifier) ?? -1,
+      title: request.content.title,
+      body: request.content.body,
+      sound: "",
+      actionTypeId: request.content.categoryIdentifier,
+      attachments: nil,
+      extra: notificationExtra(request.content.userInfo),
+      source: "push"
+    )
+  }
+
+  private func notificationExtra(_ userInfo: [AnyHashable: Any]) -> [String: String]? {
+    var extra = [String: String]()
+    for (key, value) in userInfo {
+      guard let key = key as? String else { continue }
+      guard key != "aps" else { continue }
+      if let value = value as? String {
+        extra[key] = value
+      } else if let value = value as? NSNumber {
+        extra[key] = value.stringValue
+      }
+    }
+    return extra.isEmpty ? nil : extra
+  }
+
   func toPendingNotification(_ request: UNNotificationRequest) -> PendingNotification? {
+    stateLock.lock()
+    defer { stateLock.unlock() }
     guard let notification = notificationsMap[request.identifier],
           let schedule = notification.schedule else {
       return nil
@@ -193,7 +244,28 @@ struct ActiveNotification: Encodable {
   let sound: String
   let actionTypeId: String
   let attachments: [NotificationAttachment]?
-  var source: String = "local"
+  let extra: [String: String]?
+  var source: String
+
+  init(
+    id: Int,
+    title: String,
+    body: String,
+    sound: String,
+    actionTypeId: String,
+    attachments: [NotificationAttachment]?,
+    extra: [String: String]? = nil,
+    source: String = "local"
+  ) {
+    self.id = id
+    self.title = title
+    self.body = body
+    self.sound = sound
+    self.actionTypeId = actionTypeId
+    self.attachments = attachments
+    self.extra = extra
+    self.source = source
+  }
 }
 
 struct ReceivedNotification: Encodable {
@@ -205,6 +277,11 @@ struct ReceivedNotification: Encodable {
 struct NotificationClickedData: Encodable {
   let id: Int
   let data: [String: String]?
+
+  init(id: Int, data: [String: String]?) {
+    self.id = id
+    self.data = data
+  }
 }
 
 struct ReceivedNotificationData: Encodable {

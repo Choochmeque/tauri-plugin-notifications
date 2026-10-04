@@ -4,6 +4,17 @@ import UserNotifications
 
 final class NotificationTests: XCTestCase {
 
+    func testPluginConfigDecodesLaunchTimeActionTypes() throws {
+        let json = """
+        {"actionTypes":[{"id":"sable-message","actions":[{"id":"sable-reply","title":"Reply","input":true,"inputButtonTitle":"Send","inputPlaceholder":"Type a reply"}]}]}
+        """
+        let config = try JSONDecoder().decode(PluginConfig.self, from: Data(json.utf8))
+
+        XCTAssertEqual(config.actionTypes?.first?.id, "sable-message")
+        XCTAssertEqual(config.actionTypes?.first?.actions.first?.id, "sable-reply")
+        XCTAssertEqual(config.actionTypes?.first?.actions.first?.input, true)
+    }
+
     // MARK: - Notification Content Tests
 
     func testMakeNotificationContentWithBasicNotification() throws {
@@ -540,6 +551,64 @@ final class NotificationTests: XCTestCase {
         XCTAssertEqual(json?["source"] as? String, "local")
     }
 
+    func testActiveNotificationIncludesExtraMetadata() throws {
+        let handler = NotificationHandler()
+        let notification = Notification(
+            id: 42,
+            title: "Message",
+            body: "Reply",
+            extra: ["room_id": "!room:example.org", "event_id": "$event"],
+            schedule: nil,
+            attachments: nil,
+            sound: nil,
+            group: nil,
+            actionTypeId: "message-actions",
+            summary: nil,
+            silent: nil
+        )
+        handler.saveNotification("42", notification)
+
+        let content = try makeNotificationContent(notification)
+        let request = UNNotificationRequest(identifier: "42", content: content, trigger: nil)
+        let active = handler.toActiveNotification(request)
+
+        XCTAssertEqual(active?.actionTypeId, "message-actions")
+        XCTAssertEqual(active?.extra?["room_id"], "!room:example.org")
+        XCTAssertEqual(active?.extra?["event_id"], "$event")
+    }
+
+    func testRemoteActionNotificationIncludesRoutingMetadata() throws {
+        let handler = NotificationHandler()
+        let content = UNMutableNotificationContent()
+        content.title = "New message"
+        content.body = "Reply inline"
+        content.categoryIdentifier = "sable-message"
+        content.userInfo = [
+            "room_id": "!room:example.org",
+            "event_id": "$event",
+            "user_id": "@user:example.org",
+        ]
+        let request = UNNotificationRequest(identifier: "remote-message", content: content, trigger: nil)
+
+        let active = handler.toRemoteActionNotification(request)
+        let result = ReceivedNotification(
+            actionId: "reply",
+            inputValue: "Hello",
+            notification: active
+        )
+        let data = try JSONEncoder().encode(result)
+        let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+        let notification = json?["notification"] as? [String: Any]
+        let extra = notification?["extra"] as? [String: String]
+
+        XCTAssertEqual(active.id, -1)
+        XCTAssertEqual(active.source, "push")
+        XCTAssertEqual(active.actionTypeId, "sable-message")
+        XCTAssertEqual(extra?["room_id"], "!room:example.org")
+        XCTAssertEqual(extra?["event_id"], "$event")
+        XCTAssertEqual(extra?["user_id"], "@user:example.org")
+    }
+
     func testReceivedNotificationEncoding() throws {
         let active = ActiveNotification(
             id: 1,
@@ -547,7 +616,8 @@ final class NotificationTests: XCTestCase {
             body: "Body",
             sound: "default",
             actionTypeId: "CATEGORY",
-            attachments: nil
+            attachments: nil,
+            extra: ["room_id": "!room:example.org"]
         )
 
         let received = ReceivedNotification(
@@ -570,6 +640,10 @@ final class NotificationTests: XCTestCase {
         let notification = json?["notification"] as? [String: Any]
         XCTAssertNotNil(notification)
         XCTAssertEqual(notification?["id"] as? Int, 1)
+        XCTAssertEqual(
+            (notification?["extra"] as? [String: String])?["room_id"],
+            "!room:example.org"
+        )
     }
 
     // MARK: - NotificationHandler Tests
@@ -721,8 +795,8 @@ final class NotificationTests: XCTestCase {
 
         let options = makeActionOptions(action)
 
-        // Should return foreground as it's checked first
-        XCTAssertEqual(options, .foreground)
+        // Options form an OptionSet, so every requested flag is combined
+        XCTAssertEqual(options, [.foreground, .destructive, .authenticationRequired])
     }
 
     func testMakeCategoryOptionsWithMultipleFlags() {
@@ -739,8 +813,11 @@ final class NotificationTests: XCTestCase {
 
         let options = makeCategoryOptions(actionType)
 
-        // Should return customDismissAction as it's checked first
-        XCTAssertEqual(options, .customDismissAction)
+        // Options form an OptionSet, so every requested flag is combined
+        XCTAssertEqual(
+            options,
+            [.customDismissAction, .allowInCarPlay, .hiddenPreviewsShowTitle, .hiddenPreviewsShowSubtitle]
+        )
     }
 
     // MARK: - Silent Notification Tests

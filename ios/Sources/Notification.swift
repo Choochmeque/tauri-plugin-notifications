@@ -94,6 +94,11 @@ func makeAttachments(_ attachments: [NotificationAttachment]) throws -> [UNNotif
 }
 
 func makeAttachmentUrl(_ path: String) -> URL? {
+  // UNNotificationAttachment needs a file URL, and URL(string:) leaves an
+  // absolute filesystem path schemeless. Relative/empty input stays nil.
+  if path.hasPrefix("/") {
+    return URL(fileURLWithPath: path)
+  }
   return URL(string: path)
 }
 
