@@ -6,8 +6,10 @@ use std::{
 
 /// Overrides the `SwiftPM` build system (`native` or `swiftbuild`). Toolchains
 /// differ in their default -- Xcode 26 uses `native`, Xcode 27 uses
-/// `swiftbuild` -- and the two lay their products out differently, so CI pins
-/// this to cover both and users can pin it to route around a broken backend.
+/// `swiftbuild` -- and the two lay their products out differently, so the
+/// product directory is queried rather than assumed. Both defaults produce a
+/// static archive; only Xcode 26 with `swiftbuild` forced emits a bare object
+/// instead, which is not supported. CI pins this to cover both backends.
 #[cfg(target_os = "macos")]
 const SWIFT_BUILD_SYSTEM_ENV: &str = "TAURI_PLUGIN_SWIFT_BUILD_SYSTEM";
 
@@ -258,7 +260,27 @@ Stderr:
     );
 
     let bin_dir = swift_bin_dir(&package_dir, &args);
-    swift_static_lib_dir(&bin_dir, &args)
+    assert!(
+        bin_dir.join(format!("lib{SWIFT_LIB_NAME}.a")).is_file(),
+        r"
+Could not find lib{}.a to link.
+Command:   swift {}
+Looked in: {}
+Contents:
+{}
+Xcode 27's swiftbuild backend writes the archive here. Xcode 26's swiftbuild
+backend emits a bare {}.o instead, which is not supported; set
+{}=native to get the layout that toolchain does produce.
+",
+        SWIFT_LIB_NAME,
+        args.join(" "),
+        bin_dir.display(),
+        list_dir(&bin_dir),
+        SWIFT_LIB_NAME,
+        SWIFT_BUILD_SYSTEM_ENV,
+    );
+
+    bin_dir
 }
 
 /// Asks `SwiftPM` where it put the products instead of assuming a layout: the
@@ -310,102 +332,6 @@ Stderr:
     } else {
         package_dir.join(bin_dir)
     }
-}
-
-/// Normalises whatever `SwiftPM` produced into a directory holding
-/// `lib<name>.a`. The swiftbuild backend emits a bare object even for a
-/// `type: .static` product, so archive it ourselves in that case.
-#[cfg(target_os = "macos")]
-fn swift_static_lib_dir(bin_dir: &Path, build_args: &[String]) -> PathBuf {
-    if bin_dir.join(format!("lib{SWIFT_LIB_NAME}.a")).is_file() {
-        return bin_dir.to_path_buf();
-    }
-
-    let object = bin_dir.join(format!("{SWIFT_LIB_NAME}.o"));
-    assert!(
-        object.is_file(),
-        r"
-Could not find a Swift library or object to link.
-Command:  swift {}
-Looked in: {}
-Expected:  lib{}.a or {}.o
-Contents:
-{}
-",
-        build_args.join(" "),
-        bin_dir.display(),
-        SWIFT_LIB_NAME,
-        SWIFT_LIB_NAME,
-        list_dir(bin_dir),
-    );
-
-    // Start from an empty directory so an archive left by a previous backend
-    // can never shadow the product that was just built.
-    let lib_dir = out_dir().join("swift-lib");
-    match std::fs::remove_dir_all(&lib_dir) {
-        Ok(()) => {}
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
-        Err(error) => panic!(
-            "Failed to clear the Swift library directory {}: {error}",
-            lib_dir.display()
-        ),
-    }
-    std::fs::create_dir_all(&lib_dir).unwrap_or_else(|error| {
-        panic!(
-            "Failed to create the Swift library directory {}: {error}",
-            lib_dir.display()
-        )
-    });
-
-    let archive = lib_dir.join(format!("lib{SWIFT_LIB_NAME}.a"));
-    archive_object(&object, &archive);
-
-    assert!(
-        archive.is_file(),
-        "Archiving {} produced no file at {}",
-        object.display(),
-        archive.display()
-    );
-
-    lib_dir
-}
-
-/// Wraps a single object file in a static archive.
-#[cfg(target_os = "macos")]
-fn archive_object(object: &Path, archive: &Path) {
-    let object = path_arg(object, "Swift object path");
-    let archive = path_arg(archive, "Swift archive path");
-
-    // `libtool -static` is the archiver to use here: the swiftbuild backend
-    // emits a universal (x86_64 + arm64) object, and `ar` writes an archive
-    // that `ranlib` then refuses to index.
-    let attempts: [Vec<&str>; 2] = [
-        vec!["xcrun", "libtool", "-static", "-o", &archive, &object],
-        vec!["libtool", "-static", "-o", &archive, &object],
-    ];
-
-    let mut failures = Vec::new();
-    for attempt in &attempts {
-        let Some((program, args)) = attempt.split_first() else {
-            continue;
-        };
-
-        match Command::new(program).args(args).output() {
-            Ok(output) if output.status.success() => return,
-            Ok(output) => failures.push(format!(
-                "`{program} {}` exited with {}: {}",
-                args.join(" "),
-                output.status,
-                String::from_utf8_lossy(&output.stderr).trim_end()
-            )),
-            Err(error) => failures.push(format!("`{program}` could not be run: {error}")),
-        }
-    }
-
-    panic!(
-        "Failed to archive {object} into {archive}:\n{}",
-        failures.join("\n")
-    );
 }
 
 #[cfg(target_os = "macos")]
