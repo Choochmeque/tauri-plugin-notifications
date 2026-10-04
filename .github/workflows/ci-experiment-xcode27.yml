@@ -1,0 +1,127 @@
+# CI experiment, not for merging: run the Swift build script on GitHub's
+# Xcode 27 preview runner (the toolchain from issue #335) and on the
+# current macOS 26 runner. One job proves the old build.rs fails there, the
+# others prove the fix builds, exports every swift-bridge entry point, and
+# links the demo in release.
+name: ci-experiment-xcode27
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  old-build-rs-must-fail:
+    name: old build.rs (${{ matrix.runner }})
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [xcode-27, macos-26]
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin
+      - name: Toolchain
+        run: |
+          xcodebuild -version
+          swift --version
+          swift build --help | grep -A1 -- '--build-system'
+      - name: Use the build.rs from main
+        run: git show origin/main:build.rs > build.rs
+      - name: Build (expected to fail on a swiftbuild-default toolchain)
+        id: old
+        continue-on-error: true
+        run: cargo build --release --target aarch64-apple-darwin
+      - name: Record
+        run: |
+          echo "old build.rs on ${{ matrix.runner }}: ${{ steps.old.outcome }}"
+          # On xcode-27 the old script is expected to fail (#305). A success
+          # there would mean the preview toolchain does not use swiftbuild by
+          # default, which is also an answer worth having.
+
+  fix-default-backend:
+    name: fix, default backend (${{ matrix.runner }})
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [xcode-27, macos-26]
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin
+      - name: Toolchain
+        run: |
+          xcodebuild -version
+          swift --version
+      - name: Build release with the toolchain's default build system
+        run: cargo build --release --target aarch64-apple-darwin
+      - name: Which layout did SwiftPM use
+        run: |
+          out=$(ls -t target/aarch64-apple-darwin/release/build/tauri-plugin-notifications-*/output | head -1)
+          grep -h 'rustc-link-search=native=' "$out"
+      - name: Check swift-bridge symbols are exported
+        run: |
+          set -euo pipefail
+          out=$(ls -t target/aarch64-apple-darwin/release/build/tauri-plugin-notifications-*/output | head -1)
+          dir=$(grep -h 'rustc-link-search=native=' "$out" | tail -1 | sed 's/.*native=//')
+          lib="$dir/libtauri-plugin-notifications.a"
+          if [ ! -f "$lib" ]; then echo "no archive at $lib"; exit 1; fi
+          echo "checking $lib"
+          nm -gU -arch arm64 "$lib" > exported.txt
+          grep -rhoE '@_cdecl\("[^"]+"\)' macos/Sources/generated --include='*.swift' \
+            | sed 's/@_cdecl("//; s/")//' | sort -u > expected.txt
+          count=$(wc -l < expected.txt | tr -d " ")
+          if [ "$count" -eq 0 ]; then echo "no @_cdecl entry points found"; exit 1; fi
+          missing=0
+          while IFS= read -r name; do
+            if ! grep -F " T _$name" exported.txt > /dev/null; then
+              echo "missing export: $name"; missing=1
+            fi
+          done < expected.txt
+          if [ "$missing" -ne 0 ]; then exit 1; fi
+          echo "all $count swift-bridge entry points exported"
+      - name: Demo release link (the #306 check)
+        run: |
+          mkdir -p examples/notifications-demo/build
+          echo '<html></html>' > examples/notifications-demo/build/index.html
+          cd examples/notifications-demo/src-tauri
+          cargo build --release --target aarch64-apple-darwin
+          file target/aarch64-apple-darwin/release/notifications-demo
+
+  fix-forced-backends:
+    name: fix, forced ${{ matrix.backend }} (${{ matrix.runner }})
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [xcode-27, macos-26]
+        backend: [native, swiftbuild]
+    runs-on: ${{ matrix.runner }}
+    env:
+      TAURI_PLUGIN_SWIFT_BUILD_SYSTEM: ${{ matrix.backend }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin
+      - name: Build release
+        run: cargo build --release --target aarch64-apple-darwin
+      - name: Check swift-bridge symbols are exported
+        run: |
+          set -euo pipefail
+          out=$(ls -t target/aarch64-apple-darwin/release/build/tauri-plugin-notifications-*/output | head -1)
+          dir=$(grep -h 'rustc-link-search=native=' "$out" | tail -1 | sed 's/.*native=//')
+          lib="$dir/libtauri-plugin-notifications.a"
+          echo "checking $lib"
+          nm -gU -arch arm64 "$lib" > exported.txt
+          grep -rhoE '@_cdecl\("[^"]+"\)' macos/Sources/generated --include='*.swift' \
+            | sed 's/@_cdecl("//; s/")//' | sort -u > expected.txt
+          missing=0
+          while IFS= read -r name; do
+            grep -F " T _$name" exported.txt > /dev/null || { echo "missing export: $name"; missing=1; }
+          done < expected.txt
+          [ "$missing" -eq 0 ]
