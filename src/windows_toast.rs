@@ -520,7 +520,7 @@ mod tests {
             &launch(),
         );
 
-        assert!(planned.inputs.is_empty());
+        assert_eq!(planned.inputs, [] as [ToastInput; 0]);
         assert_eq!(planned.buttons.len(), 1);
         assert_eq!(planned.buttons[0].content, "Mark as Read");
         assert_eq!(planned.buttons[0].hint_input_id, None);
