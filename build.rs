@@ -1,5 +1,21 @@
 #[cfg(target_os = "macos")]
-use std::{path::PathBuf, process::Command};
+use std::{
+    path::{Path, PathBuf},
+    process::Command,
+};
+
+/// Overrides the `SwiftPM` build system (`native` or `swiftbuild`). Toolchains
+/// differ in their default -- Xcode 26 uses `native`, Xcode 27 uses
+/// `swiftbuild` -- and the two lay their products out differently, so the
+/// product directory is queried rather than assumed. Both defaults produce a
+/// static archive; only Xcode 26 with `swiftbuild` forced emits a bare object
+/// instead, which is not supported. CI covers both backends by running on
+/// a runner with each default rather than by forcing one.
+#[cfg(target_os = "macos")]
+const SWIFT_BUILD_SYSTEM_ENV: &str = "TAURI_PLUGIN_SWIFT_BUILD_SYSTEM";
+
+#[cfg(target_os = "macos")]
+const SWIFT_LIB_NAME: &str = "tauri-plugin-notifications";
 
 const COMMANDS: &[&str] = &[
     "register_listener",
@@ -80,81 +96,264 @@ fn main() {
             // Rebuild when target architecture or deployment target changes
             println!("cargo:rerun-if-env-changed=CARGO_CFG_TARGET_ARCH");
             println!("cargo:rerun-if-env-changed=MACOSX_DEPLOYMENT_TARGET");
+            println!("cargo:rerun-if-env-changed={SWIFT_BUILD_SYSTEM_ENV}");
 
             let bridges = vec!["src/macos.rs"];
             for path in &bridges {
                 println!("cargo:rerun-if-changed={path}");
             }
 
-            println!("cargo:rerun-if-changed=macos/Sources/NotificationPlugin.swift");
+            watch_swift_inputs();
 
             swift_bridge_build::parse_bridges(bridges)
                 .write_all_concatenated(swift_bridge_out_dir(), env!("CARGO_PKG_NAME"));
 
-            compile_swift();
+            let lib_dir = compile_swift();
 
-            println!("cargo:rustc-link-lib=static=tauri-plugin-notifications");
+            println!("cargo:rustc-link-lib=static={SWIFT_LIB_NAME}");
             println!(
-                "cargo:rustc-link-search={}",
-                swift_library_static_lib_dir()
-                    .to_str()
-                    .expect("Swift library path must be valid UTF-8")
+                "cargo:rustc-link-search=native={}",
+                path_arg(&lib_dir, "Swift library directory")
             );
         }
     }
 }
 
+/// Declares every hand-written Swift input as a rebuild trigger.
+/// `Sources/generated` is deliberately skipped: this build script writes it, so
+/// watching it would make cargo rebuild on every invocation.
 #[cfg(target_os = "macos")]
-fn compile_swift() {
-    let swift_package_dir = manifest_dir().join("macos");
-    let target_triple = swift_target_triple();
+fn watch_swift_inputs() {
+    let package_manifest = manifest_dir().join("macos/Package.swift");
+    println!(
+        "cargo:rerun-if-changed={}",
+        path_arg(&package_manifest, "Package.swift path")
+    );
+    watch_swift_dir(&swift_source_dir());
+}
 
-    let mut cmd = Command::new("swift");
+#[cfg(target_os = "macos")]
+fn watch_swift_dir(dir: &Path) {
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return;
+    };
 
-    cmd.current_dir(&swift_package_dir)
-        .arg("build")
+    for entry in entries.filter_map(Result::ok) {
+        let path = entry.path();
+        if path.is_dir() {
+            if path.file_name().is_some_and(|name| name == "generated") {
+                continue;
+            }
+            watch_swift_dir(&path);
+        } else {
+            println!(
+                "cargo:rerun-if-changed={}",
+                path_arg(&path, "Swift source path")
+            );
+        }
+    }
+}
+
+/// The build system `SwiftPM` should use, when pinned.
+#[cfg(target_os = "macos")]
+fn swift_build_system() -> Option<String> {
+    let value = std::env::var(SWIFT_BUILD_SYSTEM_ENV).ok()?;
+    if value.is_empty() {
+        return None;
+    }
+
+    assert!(
+        matches!(value.as_str(), "native" | "swiftbuild" | "xcode"),
+        "{SWIFT_BUILD_SYSTEM_ENV}={value} is not a SwiftPM build system; \
+         expected one of: native, swiftbuild, xcode"
+    );
+
+    Some(value)
+}
+
+/// The `swift build` arguments shared by the real build and by the
+/// `--show-bin-path` query, so the two can never describe different builds.
+#[cfg(target_os = "macos")]
+fn swift_build_args() -> Vec<String> {
+    let mut args = vec![
+        "build".to_owned(),
         // Build into OUT_DIR (under target/) instead of the default `.build`
         // inside the crate source. Source-tree writes don't survive a clean
         // registry re-extraction / cache restore, which leaves cargo's
         // fingerprint saying "built" while the linked artifact is gone.
-        .args([
-            "--scratch-path",
-            swift_build_dir()
-                .to_str()
-                .expect("Swift build path must be valid UTF-8"),
-        ])
-        .args(["--triple", &target_triple])
-        .args([
-            "-Xswiftc",
-            "-import-objc-header",
-            "-Xswiftc",
-            swift_source_dir()
-                .join("bridging-header.h")
-                .to_str()
-                .expect("Bridging header path must be valid UTF-8"),
-        ]);
+        "--scratch-path".to_owned(),
+        path_arg(&swift_build_dir(), "Swift build path"),
+        "--triple".to_owned(),
+        swift_target_triple(),
+        "-Xswiftc".to_owned(),
+        "-import-objc-header".to_owned(),
+        "-Xswiftc".to_owned(),
+        path_arg(
+            &swift_source_dir().join("bridging-header.h"),
+            "Bridging header path",
+        ),
+    ];
 
-    if is_release_build() {
-        cmd.args(["-c", "release"]);
+    if let Some(build_system) = swift_build_system() {
+        args.push("--build-system".to_owned());
+        args.push(build_system);
     }
 
-    let exit_status = cmd
-        .spawn()
-        .expect("Failed to spawn swift build command")
-        .wait_with_output()
-        .expect("Failed to wait for swift build output");
+    if is_release_build() {
+        args.push("-c".to_owned());
+        args.push("release".to_owned());
+        // The swiftbuild backend prelinks a static target with `clang -r -Os`
+        // and LTO, which internalises everything outside the module's public
+        // API. swift-bridge's `@_cdecl` wrappers are internal, so they survive
+        // as `T` in Objects-normal/<arch>/*.o and come back `t` from the
+        // prelink, leaving the Rust link with undefined
+        // `__swift_bridge__$...` symbols. Testability keeps them external.
+        // This is not whole-module optimisation: the native backend also uses
+        // `-wmo -O` for release and keeps the symbols. Debug is unaffected
+        // because SwiftPM already passes `-enable-testing` there.
+        // `-Xlinker -exported_symbol`, `-Xlinker -keep_private_externs` and
+        // `--disable-dead-strip` were all measured and do not help, because
+        // SwiftPM does not forward them to that prelink step. The narrow fix
+        // is for swift-bridge to generate `public` wrappers (upstream).
+        args.push("-Xswiftc".to_owned());
+        args.push("-enable-testing".to_owned());
+    }
+
+    args
+}
+
+/// Builds the Swift package and returns the directory holding the static
+/// library to link against.
+#[cfg(target_os = "macos")]
+fn compile_swift() -> PathBuf {
+    let package_dir = manifest_dir().join("macos");
+    let args = swift_build_args();
+
+    let output = Command::new("swift")
+        .current_dir(&package_dir)
+        .args(&args)
+        .output()
+        .unwrap_or_else(|error| {
+            panic!(
+                "Failed to run `swift {}` in {}: {error}",
+                args.join(" "),
+                package_dir.display()
+            )
+        });
 
     assert!(
-        exit_status.status.success(),
+        output.status.success(),
         r"
-Swift build failed for target: {}
-Stderr: {}
-Stdout: {}
+Swift build failed.
+Command:   swift {}
+Directory: {}
+Status:    {}
+Stdout:
+{}
+Stderr:
+{}
 ",
-        target_triple,
-        String::from_utf8(exit_status.stderr).expect("Stderr must be valid UTF-8"),
-        String::from_utf8(exit_status.stdout).expect("Stdout must be valid UTF-8"),
+        args.join(" "),
+        package_dir.display(),
+        output.status,
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr),
     );
+
+    let bin_dir = swift_bin_dir(&package_dir, &args);
+    assert!(
+        bin_dir.join(format!("lib{SWIFT_LIB_NAME}.a")).is_file(),
+        r"
+Could not find lib{}.a to link.
+Command:   swift {}
+Looked in: {}
+Contents:
+{}
+Xcode 27's swiftbuild backend writes the archive here. Xcode 26's swiftbuild
+backend emits a bare {}.o instead, which is not supported; set
+{}=native to get the layout that toolchain does produce.
+",
+        SWIFT_LIB_NAME,
+        args.join(" "),
+        bin_dir.display(),
+        list_dir(&bin_dir),
+        SWIFT_LIB_NAME,
+        SWIFT_BUILD_SYSTEM_ENV,
+    );
+
+    bin_dir
+}
+
+/// Asks `SwiftPM` where it put the products instead of assuming a layout: the
+/// native backend writes `<triple>/<config>`, the swiftbuild backend writes
+/// `<triple>/Products/<Config>`.
+#[cfg(target_os = "macos")]
+fn swift_bin_dir(package_dir: &Path, build_args: &[String]) -> PathBuf {
+    let mut args = build_args.to_vec();
+    args.push("--show-bin-path".to_owned());
+
+    let output = Command::new("swift")
+        .current_dir(package_dir)
+        .args(&args)
+        .output()
+        .unwrap_or_else(|error| {
+            panic!(
+                "Failed to run `swift {}` in {}: {error}",
+                args.join(" "),
+                package_dir.display()
+            )
+        });
+
+    // Only the line terminator is stripped; a directory name may end in a space.
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let bin_path = stdout.trim_end_matches(['\n', '\r']);
+
+    assert!(
+        output.status.success() && !bin_path.is_empty() && !bin_path.contains(['\n', '\r']),
+        r"
+`swift build --show-bin-path` did not print exactly one path.
+Command:   swift {}
+Directory: {}
+Status:    {}
+Stdout:
+{}
+Stderr:
+{}
+",
+        args.join(" "),
+        package_dir.display(),
+        output.status,
+        stdout,
+        String::from_utf8_lossy(&output.stderr),
+    );
+
+    let bin_dir = Path::new(bin_path);
+    if bin_dir.is_absolute() {
+        bin_dir.to_path_buf()
+    } else {
+        package_dir.join(bin_dir)
+    }
+}
+
+#[cfg(target_os = "macos")]
+fn list_dir(dir: &Path) -> String {
+    std::fs::read_dir(dir).map_or_else(
+        |error| format!("  <unreadable: {error}>"),
+        |entries| {
+            entries
+                .filter_map(Result::ok)
+                .map(|entry| format!("  {}", entry.file_name().to_string_lossy()))
+                .collect::<Vec<_>>()
+                .join("\n")
+        },
+    )
+}
+
+#[cfg(target_os = "macos")]
+fn path_arg(path: &Path, label: &str) -> String {
+    path.to_str()
+        .unwrap_or_else(|| panic!("{label} must be valid UTF-8: {}", path.display()))
+        .to_owned()
 }
 
 #[cfg(target_os = "macos")]
@@ -218,16 +417,4 @@ fn macos_deployment_target() -> String {
 #[cfg(target_os = "macos")]
 fn swift_target_triple() -> String {
     format!("{}-apple-macosx{}", swift_arch(), macos_deployment_target())
-}
-
-#[cfg(target_os = "macos")]
-fn swift_library_static_lib_dir() -> PathBuf {
-    let debug_or_release = if is_release_build() {
-        "release"
-    } else {
-        "debug"
-    };
-
-    let arch_dir = format!("{}-apple-macosx", swift_arch());
-    swift_build_dir().join(format!("{arch_dir}/{debug_or_release}"))
 }
