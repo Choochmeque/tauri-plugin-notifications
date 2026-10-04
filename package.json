@@ -48,7 +48,7 @@
   "devDependencies": {
     "@vitest/coverage-v8": "^4.0.16",
     "prettier": "3.9.9",
-    "typescript": "^6.0.2",
+    "typescript": "^7.0.2",
     "vite": "^8.2.2",
     "vitest": "^4.0.16"
   },
