@@ -9,7 +9,8 @@ use std::{
 /// `swiftbuild` -- and the two lay their products out differently, so the
 /// product directory is queried rather than assumed. Both defaults produce a
 /// static archive; only Xcode 26 with `swiftbuild` forced emits a bare object
-/// instead, which is not supported. CI pins this to cover both backends.
+/// instead, which is not supported. CI covers both backends by running on
+/// a runner with each default rather than by forcing one.
 #[cfg(target_os = "macos")]
 const SWIFT_BUILD_SYSTEM_ENV: &str = "TAURI_PLUGIN_SWIFT_BUILD_SYSTEM";
 
