@@ -68,12 +68,8 @@ public class NotificationHandler: NSObject, NotificationHandlerProtocol {
     ]
   }
 
-  /// The string-valued entries of `userInfo`, which holds only the caller's `extra`.
+  /// The string-valued entries of `userInfo`.
   private func stringExtra(from userInfo: [AnyHashable: Any]) -> [String: String]? {
-    guard !userInfo.isEmpty else {
-      return nil
-    }
-
     var extra: [String: String] = [:]
     for (key, value) in userInfo {
       if let keyStr = key as? String, let valStr = value as? String {
@@ -127,7 +123,7 @@ public class NotificationHandler: NSObject, NotificationHandlerProtocol {
         ))
     }
 
-    // Only a tap on the body is a click; actions and dismissals went through actionPerformed above.
+    // Only a tap on the body is a click.
     guard actionId == UNNotificationDefaultActionIdentifier else {
       return
     }
