@@ -33,7 +33,7 @@
   },
   "homepage": "https://github.com/Choochmeque/tauri-plugin-notifications#readme",
   "scripts": {
-    "build": "rollup -c",
+    "build": "vite build && tsc -p tsconfig.build.json",
     "prepublishOnly": "pnpm build",
     "pretest": "pnpm build",
     "test": "vitest run",
@@ -46,11 +46,8 @@
     "@tauri-apps/api": "^2.8.0"
   },
   "devDependencies": {
-    "@rollup/plugin-typescript": "^12.1.4",
     "@vitest/coverage-v8": "^4.0.16",
     "prettier": "3.9.9",
-    "rollup": "^4.52.4",
-    "tslib": "^2.6.2",
     "typescript": "^6.0.2",
     "vite": "^8.2.2",
     "vitest": "^4.0.16"
