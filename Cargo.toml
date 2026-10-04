@@ -55,6 +55,8 @@ windows = { version = "0.62", features = [
     "ApplicationModel",
     "Data_Xml_Dom",
     "Foundation",
+    # `ValueSet`, the text typed into a toast's `<input>` boxes.
+    "Foundation_Collections",
     "Networking_PushNotifications",
     "UI_Notifications",
     "Win32_Foundation",

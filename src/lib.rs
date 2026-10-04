@@ -53,6 +53,13 @@ mod mobile;
 mod unifiedpush;
 #[cfg(all(target_os = "windows", not(feature = "notify-rust")))]
 mod windows;
+// The Windows backend's pure logic; `cfg(test)` so its tests run on any host.
+#[cfg(any(all(target_os = "windows", not(feature = "notify-rust")), test))]
+#[cfg_attr(
+    not(all(target_os = "windows", not(feature = "notify-rust"))),
+    allow(dead_code)
+)]
+mod windows_toast;
 
 mod commands;
 mod error;
