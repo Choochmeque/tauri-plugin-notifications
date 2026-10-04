@@ -44,6 +44,49 @@ private func makeTestNotification(
     )
 }
 
+/// `UNNotification` and `UNNotificationResponse` have unavailable initializers,
+/// but both conform to `NSSecureCoding`, so a decoder that answers the keys they
+/// ask for builds one. The key names are not API; if a future SDK renames
+/// them `makeResponse` returns nil and the tests using it fail with that reason.
+private final class StubCoder: NSCoder {
+    private let values: [String: Any]
+
+    init(_ values: [String: Any]) {
+        self.values = values
+        super.init()
+    }
+
+    override var allowsKeyedCoding: Bool { true }
+    override var decodingFailurePolicy: NSCoder.DecodingFailurePolicy { .setErrorAndReturn }
+    override func containsValue(forKey key: String) -> Bool { values[key] != nil }
+    override func decodeObject(forKey key: String) -> Any? { values[key] }
+    override func decodeBool(forKey key: String) -> Bool { (values[key] as? Bool) ?? false }
+    override func decodeInteger(forKey key: String) -> Int { (values[key] as? Int) ?? 0 }
+    override func decodeInt64(forKey key: String) -> Int64 { (values[key] as? Int64) ?? 0 }
+    override func decodeDouble(forKey key: String) -> Double { (values[key] as? Double) ?? 0 }
+    override func failWithError(_ error: Error) {}
+}
+
+/// Builds a response for `identifier` carrying `userInfo`, delivered with `actionIdentifier`.
+private func makeResponse(
+    identifier: String,
+    userInfo: [AnyHashable: Any],
+    actionIdentifier: String
+) -> UNNotificationResponse? {
+    let content = UNMutableNotificationContent()
+    content.userInfo = userInfo
+    let request = UNNotificationRequest(identifier: identifier, content: content, trigger: nil)
+
+    guard let notification = UNNotification(coder: StubCoder(["date": Date(), "request": request]))
+    else {
+        return nil
+    }
+
+    return UNNotificationResponse(
+        coder: StubCoder(["notification": notification, "actionIdentifier": actionIdentifier])
+    )
+}
+
 // MARK: - ScheduleEveryKind Tests
 
 final class ScheduleEveryKindTests: XCTestCase {
@@ -1205,6 +1248,26 @@ final class EncodableExtensionTests: XCTestCase {
         XCTAssertEqual(json["actionTypeId"] as? String, "actions")
     }
 
+    func testActiveNotificationWithExtraToJSON() throws {
+        let notification = ActiveNotification(
+            id: 123,
+            title: "Test",
+            body: "Body",
+            sound: "default",
+            actionTypeId: "actions",
+            attachments: nil,
+            extra: ["sessionId": "session-a", "tag": "question-1"]
+        )
+
+        let jsonString = try notification.toJSONString()
+        let data = try XCTUnwrap(jsonString.data(using: .utf8))
+        let json = try JSONSerialization.jsonObject(with: data) as! [String: Any]
+
+        let extra = json["extra"] as? [String: String]
+        XCTAssertEqual(extra?["sessionId"], "session-a")
+        XCTAssertEqual(extra?["tag"], "question-1")
+    }
+
     func testPendingNotificationToJSON() throws {
         let notification = PendingNotification(
             id: 456,
@@ -1334,6 +1397,73 @@ final class NotificationHandlerTests: XCTestCase {
         XCTAssertNotNil(pendingNotification)
         XCTAssertEqual(pendingNotification?.id, 456)
         XCTAssertEqual(pendingNotification?.title, "Scheduled")
+    }
+
+    func testToActiveNotificationCarriesExtra() {
+        handler.saveNotification("123", makeTestNotification(id: 123, title: "Saved"))
+
+        let content = UNMutableNotificationContent()
+        content.title = "Saved"
+        content.userInfo = ["sessionId": "session-a", "tag": "question-1"]
+        let request = UNNotificationRequest(identifier: "123", content: content, trigger: nil)
+
+        let activeNotification = handler.toActiveNotification(request)
+        XCTAssertEqual(activeNotification?.extra?["sessionId"], "session-a")
+        XCTAssertEqual(activeNotification?.extra?["tag"], "question-1")
+    }
+
+    func testToActiveNotificationExtraIsNilWithoutUserInfo() {
+        handler.saveNotification("124", makeTestNotification(id: 124, title: "Saved"))
+
+        let content = UNMutableNotificationContent()
+        content.title = "Saved"
+        let request = UNNotificationRequest(identifier: "124", content: content, trigger: nil)
+
+        XCTAssertNil(handler.toActiveNotification(request)?.extra)
+    }
+
+    func testDefaultActionBuffersClick() throws {
+        let response = try XCTUnwrap(
+            makeResponse(
+                identifier: "200",
+                userInfo: ["sessionId": "session-a"],
+                actionIdentifier: UNNotificationDefaultActionIdentifier
+            ),
+            "could not build a UNNotificationResponse on this SDK"
+        )
+
+        handler.didReceive(response: response)
+
+        XCTAssertEqual(handler.pendingNotificationClick?.id, 200)
+        XCTAssertEqual(handler.pendingNotificationClick?.data?["sessionId"], "session-a")
+    }
+
+    func testDismissDoesNotBufferClick() throws {
+        let response = try XCTUnwrap(
+            makeResponse(
+                identifier: "201",
+                userInfo: [:],
+                actionIdentifier: UNNotificationDismissActionIdentifier
+            ),
+            "could not build a UNNotificationResponse on this SDK"
+        )
+
+        handler.didReceive(response: response)
+
+        XCTAssertNil(handler.pendingNotificationClick)
+    }
+
+    func testCustomActionDoesNotBufferClick() throws {
+        // Text-input replies arrive with the action's own identifier too,
+        // so the same gate keeps them off the click path.
+        let response = try XCTUnwrap(
+            makeResponse(identifier: "202", userInfo: [:], actionIdentifier: "reply"),
+            "could not build a UNNotificationResponse on this SDK"
+        )
+
+        handler.didReceive(response: response)
+
+        XCTAssertNil(handler.pendingNotificationClick)
     }
 
     func testSetClickListenerActive() {

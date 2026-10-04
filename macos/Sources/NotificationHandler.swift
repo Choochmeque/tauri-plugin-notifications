@@ -6,7 +6,8 @@ public class NotificationHandler: NSObject, NotificationHandlerProtocol {
 
   private var notificationsMap = [String: Notification]()
   private var hasClickedListener = false
-  private var pendingNotificationClick: NotificationClickedData? = nil
+  // Internal rather than private so the tests can assert which responses buffer a click.
+  var pendingNotificationClick: NotificationClickedData? = nil
 
   internal func saveNotification(_ key: String, _ notification: Notification) {
     notificationsMap.updateValue(notification, forKey: key)
@@ -63,28 +64,35 @@ public class NotificationHandler: NSObject, NotificationHandlerProtocol {
     ]
   }
 
+  /// Collect the string-valued entries of a notification's `userInfo`.
+  ///
+  /// `makeNotificationContent` spreads the caller's `extra` straight into
+  /// `userInfo` at the top level and writes no bookkeeping keys of its own,
+  /// so every entry readable here is the app's own payload.
+  private func stringExtra(from userInfo: [AnyHashable: Any]) -> [String: String]? {
+    guard !userInfo.isEmpty else {
+      return nil
+    }
+
+    var extra: [String: String] = [:]
+    for (key, value) in userInfo {
+      if let keyStr = key as? String, let valStr = value as? String {
+        extra[keyStr] = valStr
+      }
+    }
+
+    return extra.isEmpty ? nil : extra
+  }
+
   /// Convert notification request to ReceivedNotification (for push notifications not in map)
   private func toReceivedNotification(_ request: UNNotificationRequest) -> ReceivedNotificationData {
     let content = request.content
-    var extra: [String: String]? = nil
-
-    if !content.userInfo.isEmpty {
-      extra = [:]
-      for (key, value) in content.userInfo {
-        if let keyStr = key as? String, let valStr = value as? String {
-          extra?[keyStr] = valStr
-        }
-      }
-      if extra?.isEmpty == true {
-        extra = nil
-      }
-    }
 
     return ReceivedNotificationData(
       id: Int(request.identifier) ?? -1,
       title: content.title,
       body: content.body,
-      extra: extra
+      extra: stringExtra(from: content.userInfo)
     )
   }
 
@@ -119,23 +127,20 @@ public class NotificationHandler: NSObject, NotificationHandlerProtocol {
         ))
     }
 
-    // Handle notificationClicked for both local and push notifications
-    let id = Int(originalNotificationRequest.identifier) ?? -1
-    let userInfo = originalNotificationRequest.content.userInfo
-    var dataDict: [String: String]? = nil
-    if !userInfo.isEmpty {
-      dataDict = [:]
-      for (key, value) in userInfo {
-        if let keyStr = key as? String, let valStr = value as? String {
-          dataDict?[keyStr] = valStr
-        }
-      }
-      if dataDict?.isEmpty == true {
-        dataDict = nil
-      }
+    // Handle notificationClicked for both local and push notifications.
+    // Only a tap on the notification body is a click. Custom actions,
+    // text-input replies and dismissals are reported through actionPerformed
+    // (when the notification is known to this handler), and emitting a click
+    // for them left a dismissal indistinguishable from an actual tap.
+    guard actionId == UNNotificationDefaultActionIdentifier else {
+      return
     }
 
-    let clickedData = NotificationClickedData(id: id, data: dataDict)
+    let id = Int(originalNotificationRequest.identifier) ?? -1
+    let clickedData = NotificationClickedData(
+      id: id,
+      data: stringExtra(from: originalNotificationRequest.content.userInfo)
+    )
 
     if hasClickedListener {
       // Listener exists, trigger directly
@@ -156,7 +161,8 @@ public class NotificationHandler: NSObject, NotificationHandlerProtocol {
       body: request.content.body,
       sound: notificationRequest.sound ?? "",
       actionTypeId: request.content.categoryIdentifier,
-      attachments: notificationRequest.attachments
+      attachments: notificationRequest.attachments,
+      extra: stringExtra(from: request.content.userInfo)
     )
   }
 
@@ -187,6 +193,7 @@ struct ActiveNotification: Encodable {
   let sound: String
   let actionTypeId: String
   let attachments: [NotificationAttachment]?
+  var extra: [String: String]? = nil
   var source: String = "local"
 }
 
