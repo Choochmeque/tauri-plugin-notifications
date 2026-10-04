@@ -1411,8 +1411,8 @@ mod tests {
             assert!(xml.contains(expected), "{expected} missing from {xml}");
         }
         assert!(
-            xml.find("<input").expect("input element")
-                < xml.find("<action").expect("action element"),
+            xml.find("<input ").expect("input element")
+                < xml.find("<action ").expect("action element"),
             "a hint-inputId may only name an <input> already in the document"
         );
     }
