@@ -98,8 +98,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        runner: [xcode-27, macos-26]
-        backend: [native, swiftbuild]
+        include:
+          - { runner: xcode-27, backend: native }
+          - { runner: macos-26, backend: native }
+          - { runner: xcode-27, backend: swiftbuild }
+          # macos-26 + swiftbuild emits a bare object and is unsupported by design
     runs-on: ${{ matrix.runner }}
     env:
       TAURI_PLUGIN_SWIFT_BUILD_SYSTEM: ${{ matrix.backend }}
