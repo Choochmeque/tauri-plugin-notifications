@@ -18,7 +18,7 @@ push-notifications = ["dep:zbus", "dep:tokio", "dep:uuid"]
 notify-rust = ["dep:notify-rust"]
 
 [dependencies]
-tauri = { version = "2", default-features = false }
+tauri = { version = "2.12.1", default-features = false }
 serde = "1.0"
 serde_json = "1.0"
 serde_repr = "0.1"
@@ -29,7 +29,7 @@ time = { version = "0.3", features = ["serde", "parsing", "formatting"] }
 url = { version = "2", features = ["serde"] }
 
 [target.'cfg(target_os = "ios")'.dependencies]
-tauri = { version = "2", features = ["wry"] }
+tauri = { version = "2.12.1", features = ["wry"] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 swift-bridge = { version = "0.1", features = ["async"] }
@@ -51,7 +51,7 @@ tokio = { version = "1", default-features = false, features = ["sync", "macros",
 uuid = { version = "1", default-features = false, features = ["v4", "fast-rng"], optional = true }
 
 [target.'cfg(target_os = "windows")'.dependencies]
-windows = { version = "0.61", features = [
+windows = { version = "0.62", features = [
     "ApplicationModel",
     "Data_Xml_Dom",
     "Foundation",
@@ -64,7 +64,7 @@ windows = { version = "0.61", features = [
 # The `#[implement]` macro from `windows::core::implement` emits `::windows_core::*`
 # absolute paths, so `windows-core` must be a direct dependency, not just
 # transitive through `windows`.
-windows-core = "0.61"
+windows-core = "0.62"
 # Used to parse user-supplied CLSID strings (accepts braced, unbraced, and
 # hyphen-less forms) before converting to `windows::core::GUID` via raw bits.
 uuid = { version = "1", default-features = false }
@@ -82,6 +82,6 @@ ctor = "1.0"
 maplit = "1"
 
 [target.'cfg(any(target_os = "linux", target_os = "freebsd"))'.dev-dependencies]
-tauri = { version = "2", default-features = false, features = ["test"] }
+tauri = { version = "2.12.1", default-features = false, features = ["test"] }
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "sync", "time"] }
 zbus = { version = "5", default-features = false, features = ["async-io"] }

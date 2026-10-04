@@ -393,7 +393,7 @@ impl WindowsPlugin {
         {
             let channel =
                 PushNotificationChannelManager::CreatePushNotificationChannelForApplicationAsync()?
-                    .get()?;
+                    .join()?;
             let uri = channel.Uri()?.to_string_lossy();
             *self
                 .push_channel
