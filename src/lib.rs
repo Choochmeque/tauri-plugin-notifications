@@ -53,6 +53,16 @@ mod mobile;
 mod unifiedpush;
 #[cfg(all(target_os = "windows", not(feature = "notify-rust")))]
 mod windows;
+// The Windows backend's pure decision logic, split out of `windows` so its
+// unit tests also compile — and run — on a non-Windows host. Nothing outside
+// the Windows backend calls it, so on every other target it exists only for
+// those tests.
+#[cfg(any(all(target_os = "windows", not(feature = "notify-rust")), test))]
+#[cfg_attr(
+    not(all(target_os = "windows", not(feature = "notify-rust"))),
+    allow(dead_code)
+)]
+mod windows_toast;
 
 mod commands;
 mod error;

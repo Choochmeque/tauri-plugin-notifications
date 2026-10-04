@@ -455,6 +455,28 @@ impl Action {
     pub const fn foreground(&self) -> bool {
         self.foreground
     }
+
+    /// Whether the action presents a text box. Windows renders it as an
+    /// `<input type="text">` inside the toast's `<actions>` block; iOS maps it
+    /// to a `UNTextInputNotificationAction`.
+    #[must_use]
+    pub const fn input(&self) -> bool {
+        self.input
+    }
+
+    /// Caption for the button that submits the text box. Only meaningful when
+    /// [`Action::input`] is set; callers fall back to [`Action::title`].
+    #[must_use]
+    pub fn input_button_title(&self) -> Option<&str> {
+        self.input_button_title.as_deref()
+    }
+
+    /// Placeholder shown in the empty text box. Only meaningful when
+    /// [`Action::input`] is set.
+    #[must_use]
+    pub fn input_placeholder(&self) -> Option<&str> {
+        self.input_placeholder.as_deref()
+    }
 }
 
 pub use android::*;

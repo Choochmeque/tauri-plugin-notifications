@@ -55,6 +55,9 @@ windows = { version = "0.62", features = [
     "ApplicationModel",
     "Data_Xml_Dom",
     "Foundation",
+    # `ToastActivatedEventArgs::UserInput` returns a `Foundation::Collections::ValueSet`
+    # — the text the user typed into a toast's `<input>` boxes.
+    "Foundation_Collections",
     "Networking_PushNotifications",
     "UI_Notifications",
     "Win32_Foundation",
