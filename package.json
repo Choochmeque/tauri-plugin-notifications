@@ -46,7 +46,7 @@
     "@tauri-apps/api": "^2.8.0"
   },
   "devDependencies": {
-    "@vitest/coverage-v8": "^4.0.16",
+    "@vitest/coverage-v8": "^5.0.5",
     "prettier": "3.9.9",
     "typescript": "^7.0.2",
     "vite": "^8.2.2",
