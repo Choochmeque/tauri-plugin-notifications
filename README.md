@@ -528,6 +528,13 @@ Register actions that are performed when the user clicks on the notification.
     - `inputButtonTitle`: Input button label
     - `inputPlaceholder`: Input placeholder text
 
+On the native Windows backend (the default `notify-rust` feature turned off) an
+action with `input: true` renders a text box in the toast. `inputButtonTitle`
+captions the button that submits the box, falling back to `title`;
+`inputPlaceholder` is a hint shown in the empty box, so submitting without
+typing gives `inputValue: null`. At most five actions and five input boxes are
+sent — Windows rejects a toast with more.
+
 ### `pending()`
 Retrieves the list of pending notifications.
 
@@ -579,7 +586,10 @@ Listens for notification received events.
 **Returns:** `Promise<PluginListener>` with `unlisten()` method
 
 ### `onAction(callback: (notification: Options) => void)`
-Listens for notification action performed events.
+Listens for notification action performed events. The payload carries
+`actionId` (`"tap"` when the notification body itself was clicked), the
+`notification`, and `inputValue` — the text typed into that action's input box,
+or `null` when it declared none or was left empty.
 
 **Returns:** `Promise<PluginListener>` with `unlisten()` method
 

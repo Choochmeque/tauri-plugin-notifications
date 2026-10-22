@@ -455,6 +455,21 @@ impl Action {
     pub const fn foreground(&self) -> bool {
         self.foreground
     }
+
+    #[must_use]
+    pub const fn input(&self) -> bool {
+        self.input
+    }
+
+    #[must_use]
+    pub fn input_button_title(&self) -> Option<&str> {
+        self.input_button_title.as_deref()
+    }
+
+    #[must_use]
+    pub fn input_placeholder(&self) -> Option<&str> {
+        self.input_placeholder.as_deref()
+    }
 }
 
 pub use android::*;
