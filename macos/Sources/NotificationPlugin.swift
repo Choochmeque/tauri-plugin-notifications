@@ -325,18 +325,21 @@ class NotificationPlugin {
   #if ENABLE_PUSH_NOTIFICATIONS
     private func registerForPushNotificationsWithCompletion(_ completion: @escaping (Result<String, Error>) -> Void)
     {
-      // Store completion for later
-      self.pushTokenCompletion = completion
-
-      // Set up timeout
-      self.pushTokenTimer?.invalidate()
-      self.pushTokenTimer = Timer.scheduledTimer(withTimeInterval: pushTokenTimeout, repeats: false)
-      { [weak self] _ in
-        self?.handlePushTokenTimeout()
-      }
-
-      // Register for remote notifications
+      // This is called from an async context on the cooperative thread pool, which has no
+      // run loop, so a Timer scheduled there never fires. The token callbacks arrive on the
+      // main thread, so the completion and the timeout are set up there too.
       DispatchQueue.main.async {
+        // Store completion for later
+        self.pushTokenCompletion = completion
+
+        // Set up timeout
+        self.pushTokenTimer?.invalidate()
+        self.pushTokenTimer = Timer.scheduledTimer(withTimeInterval: self.pushTokenTimeout, repeats: false)
+        { [weak self] _ in
+          self?.handlePushTokenTimeout()
+        }
+
+        // Register for remote notifications
         NSApplication.shared.registerForRemoteNotifications()
       }
     }

@@ -252,18 +252,21 @@ class NotificationPlugin: Plugin {
   #if ENABLE_PUSH_NOTIFICATIONS
     private func registerForPushNotifications(completion: @escaping (Result<String, Error>) -> Void)
     {
-      // Store completion for later
-      self.pushTokenCompletion = completion
-
-      // Set up timeout
-      self.pushTokenTimer?.invalidate()
-      self.pushTokenTimer = Timer.scheduledTimer(withTimeInterval: pushTokenTimeout, repeats: false)
-      { [weak self] _ in
-        self?.handlePushTokenTimeout()
-      }
-
-      // Register for remote notifications
+      // The permission callback that calls this runs on a background queue with no run loop,
+      // where a scheduled Timer never fires. The token callbacks arrive on the main thread, so
+      // the completion and the timeout are set up there too.
       DispatchQueue.main.async {
+        // Store completion for later
+        self.pushTokenCompletion = completion
+
+        // Set up timeout
+        self.pushTokenTimer?.invalidate()
+        self.pushTokenTimer = Timer.scheduledTimer(withTimeInterval: self.pushTokenTimeout, repeats: false)
+        { [weak self] _ in
+          self?.handlePushTokenTimeout()
+        }
+
+        // Register for remote notifications
         UIApplication.shared.registerForRemoteNotifications()
       }
     }
