@@ -47,6 +47,7 @@ trait Distributor {
 struct ActiveRegistration {
     client_token: String,
     distributor: String,
+    endpoint: String,
 }
 
 /// Callback used to display an incoming push as a desktop toast. Provided
@@ -206,14 +207,9 @@ impl UnifiedPushState {
     }
 
     pub async fn register(&self) -> crate::Result<String> {
-        // Reject if there's already an active registration. Otherwise the
-        // previous token would stay registered at the distributor (and keep
-        // receiving pushes) while the plugin only tracks the latest one,
-        // making `unregister` impossible for the orphaned token.
-        if self.active.read().await.is_some() {
-            return Err(io_err(
-                "Already registered; call unregister first to re-register",
-            ));
+        // Return the existing endpoint rather than orphaning the current token.
+        if let Some(active) = self.active.read().await.as_ref() {
+            return Ok(active.endpoint.clone());
         }
 
         let distributor = self.pick_distributor().await?;
@@ -286,6 +282,7 @@ impl UnifiedPushState {
         *self.active.write().await = Some(ActiveRegistration {
             client_token,
             distributor,
+            endpoint: endpoint.clone(),
         });
         Ok(endpoint)
     }
