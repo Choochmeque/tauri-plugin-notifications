@@ -46,7 +46,7 @@ notify-rust = "4.18"
 # UnifiedPush stack — only relevant on desktop Linux, kept optional so non-Linux
 # builds never pull in the zbus/tokio/uuid crates.
 [target.'cfg(all(target_os = "linux", not(target_os = "android")))'.dependencies]
-zbus = { version = "5", default-features = false, features = ["tokio"], optional = true }
+zbus = { version = "6", default-features = false, features = ["tokio", "proxy", "service"], optional = true }
 tokio = { version = "1", default-features = false, features = ["sync", "macros", "time"], optional = true }
 uuid = { version = "1", default-features = false, features = ["v4", "fast-rng"], optional = true }
 
@@ -84,4 +84,4 @@ maplit = "1"
 [target.'cfg(any(target_os = "linux", target_os = "freebsd"))'.dev-dependencies]
 tauri = { version = "2.12.1", default-features = false, features = ["test"] }
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "sync", "time"] }
-zbus = { version = "5", default-features = false, features = ["async-io"] }
+zbus = { version = "6", default-features = false, features = ["tokio", "proxy", "service"] }

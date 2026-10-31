@@ -45,7 +45,7 @@ impl NotificationService {
         summary: &str,
         body: &str,
         actions: Vec<String>,
-        hints: HashMap<String, zbus::zvariant::OwnedValue>,
+        hints: HashMap<String, zbus::OwnedVariant>,
         expire_timeout: i32,
     ) -> u32 {
         let _ = (
@@ -76,7 +76,6 @@ impl NotificationService {
 
 async fn start_notification_service(deliveries: UnboundedSender<Delivery>) -> zbus::Connection {
     let service = zbus::connection::Builder::session()
-        .expect("connect to the isolated D-Bus session")
         .serve_at(
             "/org/freedesktop/Notifications",
             NotificationService {
@@ -84,7 +83,6 @@ async fn start_notification_service(deliveries: UnboundedSender<Delivery>) -> zb
                 deliveries,
             },
         )
-        .expect("register the notification interface")
         .build()
         .await
         .expect("build the notification daemon connection");
