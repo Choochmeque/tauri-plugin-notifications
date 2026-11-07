@@ -119,9 +119,9 @@ impl UnifiedPushState {
         let reply = connection
             .request_name_with_flags(
                 connector_bus_name.as_str(),
-                zbus::fdo::RequestNameFlags::DoNotQueue
-                    | zbus::fdo::RequestNameFlags::ReplaceExisting
-                    | zbus::fdo::RequestNameFlags::AllowReplacement,
+                zbus::fdo::RequestNameFlags::DO_NOT_QUEUE
+                    | zbus::fdo::RequestNameFlags::REPLACE_EXISTING
+                    | zbus::fdo::RequestNameFlags::ALLOW_REPLACEMENT,
             )
             .await
             .map_err(|e| {
@@ -226,7 +226,6 @@ impl UnifiedPushState {
 
         let proxy = DistributorProxy::builder(&self.connection)
             .destination(distributor.clone())
-            .map_err(|e| io_err(format!("Invalid distributor name '{distributor}': {e}")))?
             .build()
             .await
             .map_err(|e| {
@@ -300,12 +299,6 @@ impl UnifiedPushState {
 
         let proxy = DistributorProxy::builder(&self.connection)
             .destination(active.distributor.clone())
-            .map_err(|e| {
-                io_err(format!(
-                    "Invalid distributor name '{}': {e}",
-                    active.distributor
-                ))
-            })?
             .build()
             .await
             .map_err(|e| {
