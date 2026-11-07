@@ -69,11 +69,15 @@ jobs:
         with:
           fetch-depth: 0
 
+      # Refresh the apt index first — with a stale index the cache action 404s
+      # and silently installs nothing.
+      - run: sudo apt-get update
+
       - name: Cache and install APT packages
         uses: awalsh128/cache-apt-pkgs-action@latest
         with:
-          packages: libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf llvm-dev clang cmake grcov
-          version: "1.0"  # bump this to invalidate the cache when needed
+          packages: libglib2.0-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf llvm-dev clang cmake grcov
+          version: "1.2"  # bump this to invalidate the cache when needed
 
       # Toolchain
       - uses: dtolnay/rust-toolchain@stable
