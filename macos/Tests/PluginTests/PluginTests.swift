@@ -834,6 +834,29 @@ final class NotificationContentTests: XCTestCase {
         XCTAssertEqual(content.userInfo["key2"] as? String, "value2")
     }
 
+    func testMakeNotificationContentStoresMetadata() throws {
+        let notification = makeTestNotification(
+            schedule: .every(interval: .hour, count: 2),
+            sound: "ding.caf",
+            extra: ["key1": "value1"],
+            silent: true
+        )
+
+        let content = try makeNotificationContent(notification)
+
+        let metadata = NotificationMetadata.from(content.userInfo)
+        XCTAssertNotNil(metadata)
+        XCTAssertEqual(metadata?.silent, true)
+        XCTAssertEqual(metadata?.sound, "ding.caf")
+        guard case .every(let interval, let count)? = metadata?.schedule else {
+            return XCTFail("Expected every schedule, got \(String(describing: metadata?.schedule))")
+        }
+        XCTAssertEqual(interval, .hour)
+        XCTAssertEqual(count, 2)
+        // The reserved key must not leak into the user's extra data.
+        XCTAssertEqual(NotificationHandler().extraStrings(content.userInfo), ["key1": "value1"])
+    }
+
     func testMakeNotificationContentWithActionType() throws {
         let notification = makeTestNotification(actionTypeId: "message_actions")
 
@@ -1287,32 +1310,36 @@ final class NotificationHandlerTests: XCTestCase {
         super.tearDown()
     }
 
-    func testSaveAndRetrieveNotification() {
-        let notification = makeTestNotification(id: 123, title: "Saved", body: "Body")
-        handler.saveNotification("123", notification)
-
-        // Create a mock request to test retrieval
-        let content = UNMutableNotificationContent()
-        content.title = "Saved"
-        content.body = "Body"
+    func testToActiveNotificationFromMetadata() throws {
+        let notification = makeTestNotification(
+            id: 123, title: "Saved", body: "Body", sound: "ding.caf", actionTypeId: "actions")
+        let content = try makeNotificationContent(notification)
         let request = UNNotificationRequest(identifier: "123", content: content, trigger: nil)
 
         let activeNotification = handler.toActiveNotification(request)
-        XCTAssertNotNil(activeNotification)
-        XCTAssertEqual(activeNotification?.id, 123)
-        XCTAssertEqual(activeNotification?.title, "Saved")
+        XCTAssertEqual(activeNotification.id, 123)
+        XCTAssertEqual(activeNotification.title, "Saved")
+        XCTAssertEqual(activeNotification.body, "Body")
+        XCTAssertEqual(activeNotification.sound, "ding.caf")
+        XCTAssertEqual(activeNotification.actionTypeId, "actions")
+        XCTAssertEqual(activeNotification.source, "local")
     }
 
-    func testToActiveNotificationReturnsNilForUnknown() {
+    // A request scheduled by an earlier run, or by a version without metadata,
+    // is still reported from what the content holds.
+    func testToActiveNotificationWithoutMetadata() {
         let content = UNMutableNotificationContent()
         content.title = "Unknown"
-        let request = UNNotificationRequest(identifier: "unknown_id", content: content, trigger: nil)
+        let request = UNNotificationRequest(identifier: "789", content: content, trigger: nil)
 
         let activeNotification = handler.toActiveNotification(request)
-        XCTAssertNil(activeNotification)
+        XCTAssertEqual(activeNotification.id, 789)
+        XCTAssertEqual(activeNotification.title, "Unknown")
+        XCTAssertEqual(activeNotification.sound, "")
+        XCTAssertNil(activeNotification.attachments)
     }
 
-    func testToPendingNotificationReturnsNilForUnknown() {
+    func testToPendingNotificationReturnsNilWithoutScheduleOrTrigger() {
         let content = UNMutableNotificationContent()
         content.title = "Unknown"
         let request = UNNotificationRequest(identifier: "unknown_id", content: content, trigger: nil)
@@ -1321,19 +1348,71 @@ final class NotificationHandlerTests: XCTestCase {
         XCTAssertNil(pendingNotification)
     }
 
-    func testToPendingNotificationWithSchedule() {
+    func testToPendingNotificationFromMetadata() throws {
         let schedule = NotificationSchedule.every(interval: .hour, count: 1)
         let notification = makeTestNotification(id: 456, title: "Scheduled", schedule: schedule)
-        handler.saveNotification("456", notification)
-
-        let content = UNMutableNotificationContent()
-        content.title = "Scheduled"
-        let request = UNNotificationRequest(identifier: "456", content: content, trigger: nil)
+        let content = try makeNotificationContent(notification)
+        // The trigger that `.every` becomes; the stored schedule must win over it.
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 3600, repeats: true)
+        let request = UNNotificationRequest(identifier: "456", content: content, trigger: trigger)
 
         let pendingNotification = handler.toPendingNotification(request)
-        XCTAssertNotNil(pendingNotification)
         XCTAssertEqual(pendingNotification?.id, 456)
         XCTAssertEqual(pendingNotification?.title, "Scheduled")
+        guard case .every(let interval, let count)? = pendingNotification?.schedule else {
+            return XCTFail("Expected every schedule")
+        }
+        XCTAssertEqual(interval, .hour)
+        XCTAssertEqual(count, 1)
+    }
+
+    func testToPendingNotificationFromCalendarTrigger() {
+        var components = DateComponents()
+        components.hour = 9
+        components.minute = 30
+        components.weekday = 2
+        let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: true)
+        let content = UNMutableNotificationContent()
+        content.title = "Old"
+        let request = UNNotificationRequest(identifier: "1", content: content, trigger: trigger)
+
+        let pendingNotification = handler.toPendingNotification(request)
+        guard case .interval(let interval)? = pendingNotification?.schedule else {
+            return XCTFail("Expected interval schedule")
+        }
+        XCTAssertEqual(interval.hour, 9)
+        XCTAssertEqual(interval.minute, 30)
+        XCTAssertEqual(interval.weekday, 2)
+        XCTAssertNil(interval.year)
+        XCTAssertNil(interval.month)
+        XCTAssertNil(interval.day)
+        XCTAssertNil(interval.second)
+    }
+
+    func testToPendingNotificationFromTimeIntervalTrigger() throws {
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 600, repeats: false)
+        let content = UNMutableNotificationContent()
+        content.title = "Old"
+        let request = UNNotificationRequest(identifier: "2", content: content, trigger: trigger)
+
+        let pendingNotification = handler.toPendingNotification(request)
+        guard case .at(let date, let repeating)? = pendingNotification?.schedule else {
+            return XCTFail("Expected at schedule")
+        }
+        XCTAssertFalse(repeating)
+        let parsed = try XCTUnwrap(scheduleDateFormatter.date(from: date))
+        XCTAssertEqual(parsed.timeIntervalSinceNow, 600, accuracy: 5)
+        // The date must round-trip through the plugin's own parser.
+        XCTAssertNotNil(try handleScheduledNotification(.at(date: date, repeating: false)))
+    }
+
+    func testExtraStringsSkipsMetadataAndNonStrings() {
+        let userInfo: [AnyHashable: Any] = [
+            "a": "1", "b": 2, notificationMetadataKey: "{}",
+        ]
+        XCTAssertEqual(handler.extraStrings(userInfo), ["a": "1"])
+        XCTAssertNil(handler.extraStrings([notificationMetadataKey: "{}"]))
+        XCTAssertNil(handler.extraStrings([:]))
     }
 
     func testSetClickListenerActive() {

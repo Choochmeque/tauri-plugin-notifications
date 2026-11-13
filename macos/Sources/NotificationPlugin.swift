@@ -191,7 +191,6 @@ class NotificationPlugin {
     let notification = try args.decode(Notification.self)
 
     let request = try await showNotification(notification: notification)
-    notificationHandler.saveNotification(request.identifier, notification)
     return Int32(request.identifier) ?? -1
   }
 
@@ -310,7 +309,7 @@ class NotificationPlugin {
   public func getActive() async throws(FFIResult) -> String {
     let notifications = await UNUserNotificationCenter.current().deliveredNotifications()
 
-    let ret = notifications.compactMap({ (notification) -> ActiveNotification? in
+    let ret = notifications.map({ (notification) -> ActiveNotification in
       return self.notificationHandler.toActiveNotification(notification.request)
     })
 

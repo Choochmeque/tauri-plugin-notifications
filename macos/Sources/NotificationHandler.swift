@@ -4,13 +4,8 @@ public class NotificationHandler: NSObject, NotificationHandlerProtocol {
 
   weak var plugin: NotificationPlugin?
 
-  private var notificationsMap = [String: Notification]()
   private var hasClickedListener = false
   private var pendingNotificationClick: NotificationClickedData? = nil
-
-  internal func saveNotification(_ key: String, _ notification: Notification) {
-    notificationsMap.updateValue(notification, forKey: key)
-  }
 
   func setClickListenerActive(_ active: Bool) {
     hasClickedListener = active
@@ -32,28 +27,24 @@ public class NotificationHandler: NSObject, NotificationHandlerProtocol {
   }
 
   public func willPresent(notification: UNNotification) -> UNNotificationPresentationOptions {
-    // Trigger notification event for both local and push notifications
-    if var notificationData = toActiveNotification(notification.request) {
-      notificationData.source = "local"
-      try? self.plugin?.trigger("notification", data: notificationData)
-    } else {
-      var notificationData = toReceivedNotification(notification.request)
-      notificationData.source = "push"
-      try? self.plugin?.trigger("notification", data: notificationData)
-    }
+    let request = notification.request
 
     // For push notifications in foreground, don't show system notification
     // (only trigger event so developer can handle it)
-    let isPushNotification = notification.request.trigger?.isKind(of: UNPushNotificationTrigger.self) == true
-    if isPushNotification {
+    if isPushNotification(request) {
+      var notificationData = toReceivedNotification(request)
+      notificationData.source = "push"
+      try? self.plugin?.trigger("notification", data: notificationData)
       return UNNotificationPresentationOptions.init(rawValue: 0)
     }
 
+    var notificationData = toActiveNotification(request)
+    notificationData.source = "local"
+    try? self.plugin?.trigger("notification", data: notificationData)
+
     // For local notifications, check if silent
-    if let options: Notification = notificationsMap[notification.request.identifier] {
-      if options.silent ?? false {
-        return UNNotificationPresentationOptions.init(rawValue: 0)
-      }
+    if NotificationMetadata.from(request.content.userInfo)?.silent ?? false {
+      return UNNotificationPresentationOptions.init(rawValue: 0)
     }
 
     return [
@@ -63,29 +54,33 @@ public class NotificationHandler: NSObject, NotificationHandlerProtocol {
     ]
   }
 
-  /// Convert notification request to ReceivedNotification (for push notifications not in map)
+  /// Convert notification request to ReceivedNotification (for push notifications)
   private func toReceivedNotification(_ request: UNNotificationRequest) -> ReceivedNotificationData {
     let content = request.content
-    var extra: [String: String]? = nil
-
-    if !content.userInfo.isEmpty {
-      extra = [:]
-      for (key, value) in content.userInfo {
-        if let keyStr = key as? String, let valStr = value as? String {
-          extra?[keyStr] = valStr
-        }
-      }
-      if extra?.isEmpty == true {
-        extra = nil
-      }
-    }
-
     return ReceivedNotificationData(
       id: Int(request.identifier) ?? -1,
       title: content.title,
       body: content.body,
-      extra: extra
+      extra: extraStrings(content.userInfo)
     )
+  }
+
+  /// The string entries of `userInfo`, without the plugin's own metadata.
+  func extraStrings(_ userInfo: [AnyHashable: Any]) -> [String: String]? {
+    var result = [String: String]()
+    for (key, value) in userInfo {
+      guard let keyStr = key as? String, keyStr != notificationMetadataKey,
+        let valStr = value as? String
+      else {
+        continue
+      }
+      result[keyStr] = valStr
+    }
+    return result.isEmpty ? nil : result
+  }
+
+  private func isPushNotification(_ request: UNNotificationRequest) -> Bool {
+    return request.trigger is UNPushNotificationTrigger
   }
 
   public func didReceive(response: UNNotificationResponse) {
@@ -108,34 +103,21 @@ public class NotificationHandler: NSObject, NotificationHandlerProtocol {
       inputValue = inputType.userText
     }
 
-    // Only trigger actionPerformed for local notifications (those in our map)
-    if let activeNotification = toActiveNotification(originalNotificationRequest) {
+    // Only trigger actionPerformed for local notifications
+    if !isPushNotification(originalNotificationRequest) {
       try? self.plugin?.trigger(
         "actionPerformed",
         data: ReceivedNotification(
           actionId: actionIdValue,
           inputValue: inputValue,
-          notification: activeNotification
+          notification: toActiveNotification(originalNotificationRequest)
         ))
     }
 
     // Handle notificationClicked for both local and push notifications
     let id = Int(originalNotificationRequest.identifier) ?? -1
-    let userInfo = originalNotificationRequest.content.userInfo
-    var dataDict: [String: String]? = nil
-    if !userInfo.isEmpty {
-      dataDict = [:]
-      for (key, value) in userInfo {
-        if let keyStr = key as? String, let valStr = value as? String {
-          dataDict?[keyStr] = valStr
-        }
-      }
-      if dataDict?.isEmpty == true {
-        dataDict = nil
-      }
-    }
-
-    let clickedData = NotificationClickedData(id: id, data: dataDict)
+    let clickedData = NotificationClickedData(
+      id: id, data: extraStrings(originalNotificationRequest.content.userInfo))
 
     if hasClickedListener {
       // Listener exists, trigger directly
@@ -146,29 +128,42 @@ public class NotificationHandler: NSObject, NotificationHandlerProtocol {
     }
   }
 
-  func toActiveNotification(_ request: UNNotificationRequest) -> ActiveNotification? {
-    guard let notificationRequest = notificationsMap[request.identifier] else {
-      return nil
-    }
+  /// Builds the result from the request alone, so it works for notifications
+  /// scheduled by an earlier run of the app.
+  func toActiveNotification(_ request: UNNotificationRequest) -> ActiveNotification {
+    let content = request.content
+    let metadata = NotificationMetadata.from(content.userInfo)
+    // Requests scheduled by versions without metadata still carry the
+    // attachments on the content, minus the original options.
+    let attachments =
+      metadata?.attachments
+      ?? content.attachments.map {
+        NotificationAttachment(id: $0.identifier, url: $0.url.absoluteString, options: nil)
+      }
     return ActiveNotification(
       id: Int(request.identifier) ?? -1,
-      title: request.content.title,
-      body: request.content.body,
-      sound: notificationRequest.sound ?? "",
-      actionTypeId: request.content.categoryIdentifier,
-      attachments: notificationRequest.attachments
+      title: content.title,
+      body: content.body,
+      sound: metadata?.sound ?? "",
+      actionTypeId: content.categoryIdentifier,
+      attachments: attachments.isEmpty ? nil : attachments,
+      source: isPushNotification(request) ? "push" : "local"
     )
   }
 
+  /// Returns nil only for a request with neither a stored schedule nor a
+  /// trigger, which the OS never reports as pending.
   func toPendingNotification(_ request: UNNotificationRequest) -> PendingNotification? {
-    guard let notification = notificationsMap[request.identifier] else {
+    let metadata = NotificationMetadata.from(request.content.userInfo)
+    guard let schedule = metadata?.schedule ?? NotificationSchedule.from(trigger: request.trigger)
+    else {
       return nil
     }
     return PendingNotification(
       id: Int(request.identifier) ?? -1,
       title: request.content.title,
       body: request.content.body,
-      schedule: notification.schedule!
+      schedule: schedule
     )
   }
 }

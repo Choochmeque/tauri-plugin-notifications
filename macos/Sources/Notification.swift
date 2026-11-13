@@ -6,9 +6,12 @@ enum NotificationError: LocalizedError {
   case attachmentUnableToCreate(String)
   case pastScheduledTime
   case invalidDate(String)
+  case metadataEncoding(String)
 
   var errorDescription: String? {
     switch self {
+    case .metadataEncoding(let error):
+      return "Failed to encode notification metadata: \(error)"
     case .triggerRepeatIntervalTooShort:
       return "Schedule interval too short, must be a least 1 minute"
     case .attachmentFileNotFound(let path):
@@ -43,6 +46,10 @@ func makeNotificationContent(_ notification: Notification) throws -> UNNotificat
       userInfo[key] = value
     }
   }
+
+  // The plugin's own data rides along with the request so the OS persists it
+  // across app restarts. See `NotificationMetadata`.
+  userInfo[notificationMetadataKey] = try NotificationMetadata(notification).encoded()
 
   content.userInfo = userInfo
 
