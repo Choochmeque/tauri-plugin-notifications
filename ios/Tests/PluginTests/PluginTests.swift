@@ -29,6 +29,9 @@ final class NotificationTests: XCTestCase {
         XCTAssertEqual(content.userInfo.count, 1)
         XCTAssertNotNil(NotificationMetadata.from(content.userInfo))
         XCTAssertNil(NotificationHandler().extraStrings(content.userInfo))
+        // Stored as a dictionary, not a string, so releases that copy every
+        // string value out of userInfo ignore it after a rollback.
+        XCTAssertTrue(content.userInfo[notificationMetadataKey] is [String: Any])
     }
 
     func testMakeNotificationContentWithExtra() throws {
@@ -667,6 +670,58 @@ final class NotificationTests: XCTestCase {
         let parsed = try XCTUnwrap(scheduleDateFormatter.date(from: date))
         XCTAssertEqual(parsed.timeIntervalSinceNow, 600, accuracy: 5)
         XCTAssertNotNil(try handleScheduledNotification(.at(date: date, repeating: false)))
+    }
+
+    func testNotificationHandlerToPendingNotificationFromRepeatingTimeIntervalTrigger() {
+        let handler = NotificationHandler()
+        let cases: [(TimeInterval, ScheduleEveryKind, Int)] = [
+            (3600, .hour, 1), (86400, .day, 1), (1_209_600, .twoWeeks, 1), (90, .second, 90),
+        ]
+        for (seconds, expectedKind, expectedCount) in cases {
+            let trigger = UNTimeIntervalNotificationTrigger(timeInterval: seconds, repeats: true)
+            let content = UNMutableNotificationContent()
+            let request = UNNotificationRequest(identifier: "3", content: content, trigger: trigger)
+
+            guard case .every(let kind, let count)? = handler.toPendingNotification(request)?.schedule
+            else {
+                XCTFail("Expected every schedule for \(seconds)s")
+                continue
+            }
+            XCTAssertEqual(kind, expectedKind, "\(seconds)s")
+            XCTAssertEqual(count, expectedCount, "\(seconds)s")
+        }
+
+        // A year does not fit a u8 count in any unit, so it stays a repeating `.at`.
+        let year = UNTimeIntervalNotificationTrigger(timeInterval: 365 * 86400, repeats: true)
+        let request = UNNotificationRequest(
+            identifier: "4", content: UNMutableNotificationContent(), trigger: year)
+        guard case .at(_, let repeating)? = handler.toPendingNotification(request)?.schedule else {
+            return XCTFail("Expected at schedule")
+        }
+        XCTAssertTrue(repeating)
+    }
+
+    func testNotificationHandlerNonNumericIdentifierIsNotLocal() {
+        let handler = NotificationHandler()
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 600, repeats: false)
+        let content = UNMutableNotificationContent()
+        let request = UNNotificationRequest(
+            identifier: "E5B3C0F2-2D4A-4C5E-9F1A-0B2C3D4E5F60", content: content, trigger: trigger)
+
+        XCTAssertFalse(handler.isLocal(request))
+        XCTAssertNil(handler.toPendingNotification(request))
+        XCTAssertTrue(handler.isLocal(UNNotificationRequest(identifier: "42", content: content, trigger: nil)))
+        // Only identifiers in the exact form `show` writes are ours.
+        XCTAssertFalse(handler.isLocal(UNNotificationRequest(identifier: "2147483648", content: content, trigger: nil)))
+        XCTAssertFalse(handler.isLocal(UNNotificationRequest(identifier: "001", content: content, trigger: nil)))
+
+        // A calendar trigger with a component the Rust u8 cannot hold was not ours.
+        var components = DateComponents()
+        components.year = 2026
+        let calendar = UNCalendarNotificationTrigger(dateMatching: components, repeats: true)
+        XCTAssertNil(handler.toPendingNotification(
+            UNNotificationRequest(identifier: "1", content: content, trigger: calendar)))
+        XCTAssertNil(NotificationSchedule.every(seconds: .infinity))
     }
 
     func testNotificationHandlerToActiveNotificationFromMetadata() throws {

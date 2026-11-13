@@ -855,6 +855,10 @@ final class NotificationContentTests: XCTestCase {
         XCTAssertEqual(count, 2)
         // The reserved key must not leak into the user's extra data.
         XCTAssertEqual(NotificationHandler().extraStrings(content.userInfo), ["key1": "value1"])
+        // Stored as a dictionary, not a string, so releases that copy every
+        // string value out of userInfo ignore it after a rollback.
+        XCTAssertTrue(content.userInfo[notificationMetadataKey] is [String: Any])
+        XCTAssertFalse(content.userInfo[notificationMetadataKey] is String)
     }
 
     func testMakeNotificationContentWithActionType() throws {
@@ -1404,6 +1408,73 @@ final class NotificationHandlerTests: XCTestCase {
         XCTAssertEqual(parsed.timeIntervalSinceNow, 600, accuracy: 5)
         // The date must round-trip through the plugin's own parser.
         XCTAssertNotNil(try handleScheduledNotification(.at(date: date, repeating: false)))
+    }
+
+    func testToPendingNotificationFromRepeatingTimeIntervalTrigger() {
+        let cases: [(TimeInterval, ScheduleEveryKind, Int)] = [
+            (3600, .hour, 1), (7200, .hour, 2), (86400, .day, 1), (604800, .week, 1),
+            (1_209_600, .twoWeeks, 1), (2_419_200, .twoWeeks, 2), (90, .second, 90), (300, .minute, 5),
+        ]
+        for (seconds, expectedKind, expectedCount) in cases {
+            let trigger = UNTimeIntervalNotificationTrigger(timeInterval: seconds, repeats: true)
+            let content = UNMutableNotificationContent()
+            let request = UNNotificationRequest(identifier: "3", content: content, trigger: trigger)
+
+            guard case .every(let kind, let count)? = handler.toPendingNotification(request)?.schedule
+            else {
+                XCTFail("Expected every schedule for \(seconds)s")
+                continue
+            }
+            XCTAssertEqual(kind, expectedKind, "\(seconds)s")
+            XCTAssertEqual(count, expectedCount, "\(seconds)s")
+        }
+    }
+
+    // A year does not fit a u8 count in any unit, so it stays a repeating `.at`.
+    func testToPendingNotificationFromRepeatingTriggerThatFitsNoUnit() {
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 365 * 86400, repeats: true)
+        let content = UNMutableNotificationContent()
+        let request = UNNotificationRequest(identifier: "4", content: content, trigger: trigger)
+
+        guard case .at(_, let repeating)? = handler.toPendingNotification(request)?.schedule else {
+            return XCTFail("Expected at schedule")
+        }
+        XCTAssertTrue(repeating)
+        XCTAssertNil(NotificationSchedule.every(seconds: 90.5))
+        XCTAssertNil(NotificationSchedule.every(seconds: 0))
+        XCTAssertNil(NotificationSchedule.every(seconds: .infinity))
+        XCTAssertNil(NotificationSchedule.every(seconds: .nan))
+    }
+
+    // A calendar trigger with a component the Rust u8 cannot hold was not ours.
+    func testToPendingNotificationFromCalendarTriggerOutsideU8() {
+        var components = DateComponents()
+        components.year = 2026
+        components.hour = 9
+        let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: true)
+        let request = UNNotificationRequest(
+            identifier: "1", content: UNMutableNotificationContent(), trigger: trigger)
+
+        XCTAssertNil(handler.toPendingNotification(request))
+    }
+
+    // Only identifiers in the exact form `show` writes are ours.
+    func testIsLocalRequiresCanonicalInt32Identifier() {
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 600, repeats: false)
+        let content = UNMutableNotificationContent()
+        func request(_ id: String) -> UNNotificationRequest {
+            UNNotificationRequest(identifier: id, content: content, trigger: trigger)
+        }
+
+        XCTAssertTrue(handler.isLocal(request("42")))
+        XCTAssertTrue(handler.isLocal(request("-7")))
+        XCTAssertTrue(handler.isLocal(request("2147483647")))
+        XCTAssertFalse(handler.isLocal(request("E5B3C0F2-2D4A-4C5E-9F1A-0B2C3D4E5F60")))
+        XCTAssertFalse(handler.isLocal(request("2147483648")))
+        XCTAssertFalse(handler.isLocal(request("001")))
+        XCTAssertFalse(handler.isLocal(request("+1")))
+        XCTAssertFalse(handler.isLocal(request("")))
+        XCTAssertNil(handler.toPendingNotification(request("001")))
     }
 
     func testExtraStringsSkipsMetadataAndNonStrings() {

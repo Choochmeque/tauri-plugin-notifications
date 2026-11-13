@@ -309,7 +309,10 @@ class NotificationPlugin {
   public func getActive() async throws(FFIResult) -> String {
     let notifications = await UNUserNotificationCenter.current().deliveredNotifications()
 
-    let ret = notifications.map({ (notification) -> ActiveNotification in
+    let ret = notifications.compactMap({ (notification) -> ActiveNotification? in
+      guard self.notificationHandler.isLocal(notification.request) else {
+        return nil
+      }
       return self.notificationHandler.toActiveNotification(notification.request)
     })
 

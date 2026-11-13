@@ -374,9 +374,11 @@ class NotificationPlugin: Plugin {
   @objc func getActive(_ invoke: Invoke) {
     UNUserNotificationCenter.current().getDeliveredNotifications(completionHandler: {
       (notifications) in
-      let ret = notifications.map({ (notification) -> ActiveNotification in
-        return self.notificationHandler.toActiveNotification(
-          notification.request)
+      let ret = notifications.compactMap({ (notification) -> ActiveNotification? in
+        guard self.notificationHandler.isLocal(notification.request) else {
+          return nil
+        }
+        return self.notificationHandler.toActiveNotification(notification.request)
       })
       invoke.resolve(ret)
     })

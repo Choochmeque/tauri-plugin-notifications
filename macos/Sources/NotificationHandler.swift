@@ -29,18 +29,22 @@ public class NotificationHandler: NSObject, NotificationHandlerProtocol {
   public func willPresent(notification: UNNotification) -> UNNotificationPresentationOptions {
     let request = notification.request
 
+    // Trigger notification event for both local and push notifications
+    if isLocal(request) {
+      var notificationData = toActiveNotification(request)
+      notificationData.source = "local"
+      try? self.plugin?.trigger("notification", data: notificationData)
+    } else {
+      var notificationData = toReceivedNotification(request)
+      notificationData.source = isPushNotification(request) ? "push" : "local"
+      try? self.plugin?.trigger("notification", data: notificationData)
+    }
+
     // For push notifications in foreground, don't show system notification
     // (only trigger event so developer can handle it)
     if isPushNotification(request) {
-      var notificationData = toReceivedNotification(request)
-      notificationData.source = "push"
-      try? self.plugin?.trigger("notification", data: notificationData)
       return UNNotificationPresentationOptions.init(rawValue: 0)
     }
-
-    var notificationData = toActiveNotification(request)
-    notificationData.source = "local"
-    try? self.plugin?.trigger("notification", data: notificationData)
 
     // For local notifications, check if silent
     if NotificationMetadata.from(request.content.userInfo)?.silent ?? false {
@@ -83,6 +87,17 @@ public class NotificationHandler: NSObject, NotificationHandlerProtocol {
     return request.trigger is UNPushNotificationTrigger
   }
 
+  /// Whether the request is one this plugin could have created: not a push
+  /// notification, and carrying an `i32` identifier in the form `show`
+  /// writes it. Requests with other identifiers, such as the UUIDs the
+  /// system assigns to push notifications, are left alone.
+  func isLocal(_ request: UNNotificationRequest) -> Bool {
+    guard !isPushNotification(request), let id = Int32(request.identifier) else {
+      return false
+    }
+    return String(id) == request.identifier
+  }
+
   public func didReceive(response: UNNotificationResponse) {
     let originalNotificationRequest = response.notification.request
     let actionId = response.actionIdentifier
@@ -104,7 +119,7 @@ public class NotificationHandler: NSObject, NotificationHandlerProtocol {
     }
 
     // Only trigger actionPerformed for local notifications
-    if !isPushNotification(originalNotificationRequest) {
+    if isLocal(originalNotificationRequest) {
       try? self.plugin?.trigger(
         "actionPerformed",
         data: ReceivedNotification(
@@ -151,9 +166,12 @@ public class NotificationHandler: NSObject, NotificationHandlerProtocol {
     )
   }
 
-  /// Returns nil only for a request with neither a stored schedule nor a
-  /// trigger, which the OS never reports as pending.
+  /// Returns nil for requests this plugin did not create, and for triggers
+  /// it cannot express as a schedule.
   func toPendingNotification(_ request: UNNotificationRequest) -> PendingNotification? {
+    guard isLocal(request) else {
+      return nil
+    }
     let metadata = NotificationMetadata.from(request.content.userInfo)
     guard let schedule = metadata?.schedule ?? NotificationSchedule.from(trigger: request.trigger)
     else {
