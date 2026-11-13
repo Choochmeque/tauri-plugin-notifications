@@ -1191,10 +1191,12 @@ final class EncodableExtensionTests: XCTestCase {
             body: "Body",
             sound: "default",
             actionTypeId: "actions",
-            attachments: nil
+            attachments: nil,
+            extra: ["k": "v"]
         )
 
         let jsonString = try notification.toJSONString()
+        XCTAssertEqual(parseJSON(jsonString)?["extra"] as? [String: String], ["k": "v"])
         let data = try XCTUnwrap(jsonString.data(using: .utf8))
         let json = try JSONSerialization.jsonObject(with: data) as! [String: Any]
 
@@ -1258,8 +1260,8 @@ final class EncodableExtensionTests: XCTestCase {
 
     func testArrayToJSON() throws {
         let notifications = [
-            ActiveNotification(id: 1, title: "First", body: "Body 1", sound: "", actionTypeId: "", attachments: nil),
-            ActiveNotification(id: 2, title: "Second", body: "Body 2", sound: "", actionTypeId: "", attachments: nil)
+            ActiveNotification(id: 1, title: "First", body: "Body 1", sound: "", actionTypeId: "", attachments: nil, extra: nil),
+            ActiveNotification(id: 2, title: "Second", body: "Body 2", sound: "", actionTypeId: "", attachments: nil, extra: nil)
         ]
 
         let jsonString = try notifications.toJSONString()
@@ -1288,7 +1290,7 @@ final class NotificationHandlerTests: XCTestCase {
     }
 
     func testSaveAndRetrieveNotification() {
-        let notification = makeTestNotification(id: 123, title: "Saved", body: "Body")
+        let notification = makeTestNotification(id: 123, title: "Saved", body: "Body", extra: ["k": "v"])
         handler.saveNotification("123", notification)
 
         // Create a mock request to test retrieval
@@ -1301,6 +1303,7 @@ final class NotificationHandlerTests: XCTestCase {
         XCTAssertNotNil(activeNotification)
         XCTAssertEqual(activeNotification?.id, 123)
         XCTAssertEqual(activeNotification?.title, "Saved")
+        XCTAssertEqual(activeNotification?.extra, ["k": "v"])
     }
 
     func testToActiveNotificationReturnsNilForUnknown() {

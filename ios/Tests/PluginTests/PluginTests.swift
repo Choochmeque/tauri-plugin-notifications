@@ -521,6 +521,7 @@ final class NotificationTests: XCTestCase {
             sound: "default",
             actionTypeId: "CATEGORY",
             attachments: nil,
+            extra: ["k": "v"],
             source: "local"
         )
 
@@ -538,6 +539,7 @@ final class NotificationTests: XCTestCase {
         XCTAssertEqual(json?["sound"] as? String, "default")
         XCTAssertEqual(json?["actionTypeId"] as? String, "CATEGORY")
         XCTAssertEqual(json?["source"] as? String, "local")
+        XCTAssertEqual(json?["extra"] as? [String: String], ["k": "v"])
     }
 
     func testReceivedNotificationEncoding() throws {
@@ -547,7 +549,8 @@ final class NotificationTests: XCTestCase {
             body: "Body",
             sound: "default",
             actionTypeId: "CATEGORY",
-            attachments: nil
+            attachments: nil,
+            extra: nil
         )
 
         let received = ReceivedNotification(

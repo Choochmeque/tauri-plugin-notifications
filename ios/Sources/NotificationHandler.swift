@@ -161,7 +161,8 @@ public class NotificationHandler: NSObject, NotificationHandlerProtocol {
       body: request.content.body,
       sound: notificationRequest.sound ?? "",
       actionTypeId: request.content.categoryIdentifier,
-      attachments: notificationRequest.attachments
+      attachments: notificationRequest.attachments,
+      extra: notificationRequest.extra
     )
   }
 
@@ -193,6 +194,7 @@ struct ActiveNotification: Encodable {
   let sound: String
   let actionTypeId: String
   let attachments: [NotificationAttachment]?
+  let extra: [String: String]?
   var source: String = "local"
 }
 
