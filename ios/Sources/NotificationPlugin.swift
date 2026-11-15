@@ -186,7 +186,6 @@ class NotificationPlugin: Plugin {
     let notification = try invoke.parseArgs(Notification.self)
 
     let request = try showNotification(invoke: invoke, notification: notification)
-    notificationHandler.saveNotification(request.identifier, notification)
     invoke.resolve(Int(request.identifier) ?? -1)
   }
 
@@ -196,7 +195,6 @@ class NotificationPlugin: Plugin {
 
     for notification in args.notifications {
       let request = try showNotification(invoke: invoke, notification: notification)
-      notificationHandler.saveNotification(request.identifier, notification)
       ids.append(Int(request.identifier) ?? -1)
     }
 
@@ -377,8 +375,10 @@ class NotificationPlugin: Plugin {
     UNUserNotificationCenter.current().getDeliveredNotifications(completionHandler: {
       (notifications) in
       let ret = notifications.compactMap({ (notification) -> ActiveNotification? in
-        return self.notificationHandler.toActiveNotification(
-          notification.request)
+        guard self.notificationHandler.isLocal(notification.request) else {
+          return nil
+        }
+        return self.notificationHandler.toActiveNotification(notification.request)
       })
       invoke.resolve(ret)
     })
