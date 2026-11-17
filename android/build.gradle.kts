@@ -75,7 +75,7 @@ dependencies {
     implementation("com.google.firebase:firebase-messaging-ktx:24.1.2")
     testImplementation("junit:junit:4.13.2")
     testImplementation("io.mockk:mockk-android:1.14.11")
-    testImplementation("io.mockk:mockk-agent:1.14.11")
+    testImplementation("io.mockk:mockk-agent:1.14.12")
     testImplementation("org.jetbrains.kotlin:kotlin-test:2.4.21")
     testImplementation("org.json:json:20260814")
     testImplementation("org.robolectric:robolectric:4.17")
