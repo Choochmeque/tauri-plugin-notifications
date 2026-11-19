@@ -527,6 +527,7 @@ final class NotificationTests: XCTestCase {
             sound: "default",
             actionTypeId: "CATEGORY",
             attachments: nil,
+            extra: nil,
             source: "local"
         )
 
@@ -553,7 +554,8 @@ final class NotificationTests: XCTestCase {
             body: "Body",
             sound: "default",
             actionTypeId: "CATEGORY",
-            attachments: nil
+            attachments: nil,
+            extra: nil
         )
 
         let received = ReceivedNotification(
@@ -748,6 +750,14 @@ final class NotificationTests: XCTestCase {
         XCTAssertEqual(active.actionTypeId, "actions")
         XCTAssertEqual(active.source, "local")
         XCTAssertEqual(handler.extraStrings(content.userInfo), ["k": "v"])
+        XCTAssertEqual(active.extra, ["k": "v"])
+    }
+
+    func testNotificationHandlerIsBodyTap() {
+        let handler = NotificationHandler()
+        XCTAssertTrue(handler.isBodyTap(UNNotificationDefaultActionIdentifier))
+        XCTAssertFalse(handler.isBodyTap(UNNotificationDismissActionIdentifier))
+        XCTAssertFalse(handler.isBodyTap("reply"))
     }
 
     // MARK: - makeAttachments Tests

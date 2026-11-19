@@ -1218,7 +1218,8 @@ final class EncodableExtensionTests: XCTestCase {
             body: "Body",
             sound: "default",
             actionTypeId: "actions",
-            attachments: nil
+            attachments: nil,
+            extra: nil
         )
 
         let jsonString = try notification.toJSONString()
@@ -1285,8 +1286,12 @@ final class EncodableExtensionTests: XCTestCase {
 
     func testArrayToJSON() throws {
         let notifications = [
-            ActiveNotification(id: 1, title: "First", body: "Body 1", sound: "", actionTypeId: "", attachments: nil),
-            ActiveNotification(id: 2, title: "Second", body: "Body 2", sound: "", actionTypeId: "", attachments: nil)
+            ActiveNotification(
+                id: 1, title: "First", body: "Body 1", sound: "", actionTypeId: "", attachments: nil,
+                extra: nil),
+            ActiveNotification(
+                id: 2, title: "Second", body: "Body 2", sound: "", actionTypeId: "", attachments: nil,
+                extra: nil)
         ]
 
         let jsonString = try notifications.toJSONString()
@@ -1316,7 +1321,8 @@ final class NotificationHandlerTests: XCTestCase {
 
     func testToActiveNotificationFromMetadata() throws {
         let notification = makeTestNotification(
-            id: 123, title: "Saved", body: "Body", sound: "ding.caf", actionTypeId: "actions")
+            id: 123, title: "Saved", body: "Body", sound: "ding.caf", actionTypeId: "actions",
+            extra: ["sessionId": "session-a"])
         let content = try makeNotificationContent(notification)
         let request = UNNotificationRequest(identifier: "123", content: content, trigger: nil)
 
@@ -1327,6 +1333,7 @@ final class NotificationHandlerTests: XCTestCase {
         XCTAssertEqual(activeNotification.sound, "ding.caf")
         XCTAssertEqual(activeNotification.actionTypeId, "actions")
         XCTAssertEqual(activeNotification.source, "local")
+        XCTAssertEqual(activeNotification.extra, ["sessionId": "session-a"])
     }
 
     // A request scheduled by an earlier run, or by a version without metadata,
@@ -1341,6 +1348,13 @@ final class NotificationHandlerTests: XCTestCase {
         XCTAssertEqual(activeNotification.title, "Unknown")
         XCTAssertEqual(activeNotification.sound, "")
         XCTAssertNil(activeNotification.attachments)
+        XCTAssertNil(activeNotification.extra)
+    }
+
+    func testIsBodyTap() {
+        XCTAssertTrue(handler.isBodyTap(UNNotificationDefaultActionIdentifier))
+        XCTAssertFalse(handler.isBodyTap(UNNotificationDismissActionIdentifier))
+        XCTAssertFalse(handler.isBodyTap("reply"))
     }
 
     func testToPendingNotificationReturnsNilWithoutScheduleOrTrigger() {

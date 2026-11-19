@@ -192,10 +192,14 @@ class NotificationPlugin(private val activity: Activity): Plugin(activity) {
       val dataJson = manager.handleNotificationActionPerformed(intent, notificationStorage)
       if (dataJson != null) {
         trigger("actionPerformed", dataJson)
-        triggerNotificationClicked(
-          intent.getIntExtra(NOTIFICATION_INTENT_KEY, -1),
-          extractLocalNotificationData(intent)
-        )
+        // Only the press on the notification body is a click; an action
+        // button is reported through actionPerformed alone.
+        if (intent.getStringExtra(ACTION_INTENT_KEY) == DEFAULT_PRESS_ACTION) {
+          triggerNotificationClicked(
+            intent.getIntExtra(NOTIFICATION_INTENT_KEY, -1),
+            extractLocalNotificationData(intent)
+          )
+        }
         return
       }
     }

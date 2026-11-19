@@ -98,6 +98,12 @@ public class NotificationHandler: NSObject, NotificationHandlerProtocol {
     return String(id) == request.identifier
   }
 
+  /// Whether a response is a tap on the notification body, rather than a press
+  /// on one of its action buttons or a dismissal.
+  func isBodyTap(_ actionIdentifier: String) -> Bool {
+    return actionIdentifier == UNNotificationDefaultActionIdentifier
+  }
+
   public func didReceive(response: UNNotificationResponse) {
     let originalNotificationRequest = response.notification.request
     let actionId = response.actionIdentifier
@@ -129,7 +135,12 @@ public class NotificationHandler: NSObject, NotificationHandlerProtocol {
         ))
     }
 
-    // Handle notificationClicked for both local and push notifications
+    // Both local and push notifications report a click, but only for a tap on
+    // the body: a button press or a dismissal is `actionPerformed` alone.
+    guard isBodyTap(actionId) else {
+      return
+    }
+
     let id = Int(originalNotificationRequest.identifier) ?? -1
     let clickedData = NotificationClickedData(
       id: id, data: extraStrings(originalNotificationRequest.content.userInfo))
@@ -162,6 +173,7 @@ public class NotificationHandler: NSObject, NotificationHandlerProtocol {
       sound: metadata?.sound ?? "",
       actionTypeId: content.categoryIdentifier,
       attachments: attachments.isEmpty ? nil : attachments,
+      extra: extraStrings(content.userInfo),
       source: isPushNotification(request) ? "push" : "local"
     )
   }
@@ -200,6 +212,7 @@ struct ActiveNotification: Encodable {
   let sound: String
   let actionTypeId: String
   let attachments: [NotificationAttachment]?
+  let extra: [String: String]?
   var source: String = "local"
 }
 
