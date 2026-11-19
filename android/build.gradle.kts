@@ -78,7 +78,7 @@ dependencies {
     testImplementation("io.mockk:mockk-agent:1.14.12")
     testImplementation("org.jetbrains.kotlin:kotlin-test:2.4.21")
     testImplementation("org.json:json:20260814")
-    testImplementation("org.robolectric:robolectric:4.17")
+    testImplementation("org.robolectric:robolectric:4.18")
     androidTestImplementation("androidx.test.ext:junit:1.3.0")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.7.0")
     implementation(project(":tauri-android"))
