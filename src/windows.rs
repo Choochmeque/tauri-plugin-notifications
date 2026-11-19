@@ -325,13 +325,6 @@ impl WindowsPlugin {
             .map_err(|_| crate::Error::Io(std::io::Error::other("Lock poisoned")))
     }
 
-    fn is_click_listener_active(&self) -> crate::Result<bool> {
-        Ok(*self
-            .click_listener_active
-            .read()
-            .map_err(|_| crate::Error::Io(std::io::Error::other("Lock poisoned")))?)
-    }
-
     /// Returns the generation to quote back when releasing the claim. Claims
     /// fail open: a poisoned lock costs this route its preference, nothing more.
     fn register_in_process_handler(&self, key: ClaimKey) -> Option<u64> {
@@ -775,7 +768,7 @@ impl<R: Runtime> crate::NotificationsBuilder<R> {
                             "data": notification.extra,
                         });
                         // Deliver live OR buffer, never both, as in the COM activator.
-                        if plugin.is_click_listener_active().unwrap_or(false) {
+                        if crate::listeners::has_listeners("notificationClicked") {
                             if let Err(e) = crate::listeners::trigger(
                                 "notificationClicked",
                                 click_payload.to_string(),
