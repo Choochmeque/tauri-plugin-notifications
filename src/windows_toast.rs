@@ -199,17 +199,15 @@ pub fn decode_activation(
     }
 }
 
-/// The box named after the activated action wins even when empty: an empty box
-/// was submitted untouched, not a reason to report a neighbour's text. A lone
-/// box under another name can only be the one submitted; several cannot.
+/// Windows hands every activation the whole toast's input set, so the only box
+/// that can belong to this one is the box `plan_toast_actions` named after the
+/// activated action; any other belongs to a different button. That box wins
+/// even when empty: an empty box was submitted untouched.
 fn pick_input_value(inputs: &HashMap<String, String>, action_id: &str) -> Option<String> {
-    if let Some(exact) = inputs.get(action_id) {
-        return (!exact.is_empty()).then(|| exact.clone());
-    }
-    match inputs.iter().next() {
-        Some((_, text)) if inputs.len() == 1 && !text.is_empty() => Some(text.clone()),
-        _ => None,
-    }
+    inputs
+        .get(action_id)
+        .filter(|text| !text.is_empty())
+        .cloned()
 }
 
 /// `HRESULT_FROM_WIN32(ERROR_NOT_FOUND)`.
@@ -471,15 +469,26 @@ mod tests {
     }
 
     #[test]
-    fn only_a_lone_unmatched_box_is_used_as_a_fallback() {
-        let lone = decode_activation("reply", &inputs(&[("input-reply", "earlier")]));
-        assert_eq!(lone.input_value, Some("earlier".to_string()));
-
-        let ambiguous = decode_activation(
-            "reply",
-            &inputs(&[("input-reply", "earlier"), ("zzz", "later")]),
+    fn a_box_is_only_reported_to_the_action_that_declared_it() {
+        let planned = plan_toast_actions(
+            &[
+                action(serde_json::json!({ "id": "reply", "title": "Reply", "input": true })),
+                action(serde_json::json!({ "id": "mark-read", "title": "Mark as Read" })),
+            ],
+            &launch(),
         );
-        assert_eq!(ambiguous.input_value, None);
+        let typed = inputs(&[("reply", "secret draft")]);
+
+        let reply = decode_activation(&planned.buttons[0].arguments, &typed);
+        assert_eq!(reply.input_value, Some("secret draft".to_string()));
+
+        let mark_read = decode_activation(&planned.buttons[1].arguments, &typed);
+        assert_eq!(mark_read.action_id, "mark-read");
+        assert_eq!(mark_read.input_value, None);
+
+        let tap = decode_activation(&launch().to_string(), &typed);
+        assert!(tap.is_tap);
+        assert_eq!(tap.input_value, None);
     }
 
     #[test]
