@@ -25,7 +25,7 @@
     "@tauri-apps/cli": "^2",
     "svelte": "^5.57.1",
     "svelte-check": "^4.7.3",
-    "typescript": "~6.0.3",
+    "typescript": "~7.0.2",
     "vite": "^8.2.1",
     "@choochmeque/tauri-windows-bundle": "^0.2.0"
   }
